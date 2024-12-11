@@ -5,7 +5,7 @@ import {
   DefaultDashboardTitle,
   DefaultTitle,
 } from "@/Constant/constant";
-import { directoriesApi } from "@/utils/api";
+// import { directoriesApi } from "@/utils/api";
 import React, { useEffect } from "react";
 import { Container, Row, Col } from "reactstrap";
 import { Error1 } from "@/Data/Pages/PagesSvgIcons";
@@ -13,16 +13,16 @@ import { Error1 } from "@/Data/Pages/PagesSvgIcons";
 const DefaultDashboardContainer = () => {
   const exampleGet = async () => {
     try {
-      const result = await directoriesApi.list(1, 5);
-      console.log("result :>> ", result);
+      // const result = await directoriesApi.list(1, 5);
+      // console.log("result :>> ", result);
     } catch (error) {
       console.log("error :>> ", error);
     }
   };
 
-  useEffect(() => {
-    exampleGet();
-  }, []);
+  // useEffect(() => {
+  //   exampleGet();
+  // }, []);
   return (
     <>
       <Breadcrumbs
