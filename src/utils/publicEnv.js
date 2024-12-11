@@ -1,4 +1,4 @@
 const publicEnv = {
-  apiUrl: "http://localhost:3038/",
+  apiUrl: "http://pirasoft.top:61/",
 };
 export default publicEnv;
