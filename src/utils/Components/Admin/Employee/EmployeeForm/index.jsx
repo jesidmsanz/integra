@@ -142,10 +142,28 @@ const EmployeeForm = ({
                     invalid={!!errors.ContractType}
                     required
                   >
-                    <option value="">Selecciona una opción</option>
-                    <option value="Pendiente">Pendiente...</option>
-                    <option value="Pendiente">Pendiente...</option>
-                    <option value="Pendiente">Pendiente...</option>
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    <option value="Contrato a término fijo">
+                      Contrato a término fijo
+                    </option>
+                    <option value="Contrato a término indefinido">
+                      Contrato a término indefinido
+                    </option>
+                    <option value="Contrato de obra o labor">
+                      Contrato de obra o labor
+                    </option>
+                    <option value="Contrato de aprendizaje">
+                      Contrato de aprendizaje
+                    </option>
+                    <option value="Contrato civil por prestación de servicios">
+                      Contrato civil por prestación de servicios
+                    </option>
+                    <option value="Contrato ocasional de trabajo">
+                      Contrato ocasional de trabajo
+                    </option>
                   </Input>
                   {errors.ContractType && (
                     <FormFeedback>{errors.ContractType}</FormFeedback>
@@ -213,14 +231,12 @@ const EmployeeForm = ({
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="BasicMonthlySalary">
-                    Salario mensual básico:
-                  </Label>
+                  <Label for="BasicMonthlySalary">Salario base mensual:</Label>
                   <Input
                     type="number"
                     name="BasicMonthlySalary"
                     id="BasicMonthlySalary"
-                    placeholder="Ingresa el salario mensual"
+                    placeholder="Ingresa el salario base mensual"
                     onChange={handleChange}
                     value={form.BasicMonthlySalary}
                     invalid={!!errors.BasicMonthlySalary}
@@ -257,13 +273,13 @@ const EmployeeForm = ({
               <Col md="6">
                 <FormGroup>
                   <Label for="TransportationAssistance">
-                    Asistencia de transporte:
+                    Auxilio de transporte:
                   </Label>
                   <Input
                     type="number"
                     name="TransportationAssistance"
                     id="TransportationAssistance"
-                    placeholder="Ingresa la asistencia de transporte"
+                    placeholder="Ingresa la auxilio de transporte"
                     onChange={handleChange}
                     value={form.TransportationAssistance}
                     invalid={!!errors.TransportationAssistance}
@@ -278,14 +294,12 @@ const EmployeeForm = ({
               </Col>
               <Col md="6">
                 <FormGroup>
-                  <Label for="MobilityAssistance">
-                    Asistencia de movilidad:
-                  </Label>
+                  <Label for="MobilityAssistance">Auxilio de movilidad:</Label>
                   <Input
                     type="number"
                     name="MobilityAssistance"
                     id="MobilityAssistance"
-                    placeholder="Ingresa la asistencia de movilidad"
+                    placeholder="Ingresa la auxilio de movilidad"
                     onChange={handleChange}
                     value={form.MobilityAssistance}
                     invalid={!!errors.MobilityAssistance}

@@ -98,8 +98,32 @@ const CompanyListContainer = () => {
 
   const columns = [
     {
-      name: "Nombre",
-      selector: (row) => `${row.Name}`,
+      name: "Razón Social",
+      selector: (row) => `${row.CompanyName}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Nit",
+      selector: (row) => `${row.Nit}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Direcciòn",
+      selector: (row) => `${row.Address}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Telefono",
+      selector: (row) => `${row.Phone}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Email",
+      selector: (row) => `${row.Email}`,
       sortable: true,
       minWidth: "150px",
     },

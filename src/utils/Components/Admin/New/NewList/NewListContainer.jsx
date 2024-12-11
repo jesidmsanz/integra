@@ -104,6 +104,18 @@ const NewListContainer = () => {
       minWidth: "150px",
     },
     {
+      name: "Porcentaje Equivalente",
+      selector: (row) => `${row.EquivalentPercentage}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Observaciòn",
+      selector: (row) => `${row.Observation}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Estado",
       selector: (row) => `${row.Active ? "Activa" : "Inactiva"}`,
       sortable: true,

@@ -1,11 +1,11 @@
 import React from "react";
 import RootLayout from "../layout";
-import NewListContainer from "@/utils/Components/Admin/New/NewList/NewListContainer";
+import LiquidationForm from "@/utils/Components/Admin/Liquidation/LiquidationForm";
 
 const New = () => {
   return (
     <RootLayout>
-      <NewListContainer />
+      <LiquidationForm />
     </RootLayout>
   );
 };

@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 
 const port = parseInt(process.env.PORT, 10) || 3038;
-const hostname = process.env.HOSTNAME || "localhost";
+const hostname = "localhost";
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();

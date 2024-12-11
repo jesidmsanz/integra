@@ -17,11 +17,17 @@ export const MenuList = [
     lanClass: "lan-1",
     Items: [
       {
-        path: "/admin/usuarios",
+        path: "/admin/liquidacion",
         icon: "user",
-        title: "Usuarios",
+        title: "Liquidación",
         type: "link",
       },
+      // {
+      //   path: "/admin/usuarios",
+      //   icon: "user",
+      //   title: "Usuarios",
+      //   type: "link",
+      // },
       {
         path: "/admin/empresas",
         icon: "file",

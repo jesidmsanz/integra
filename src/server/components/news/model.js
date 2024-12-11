@@ -10,6 +10,22 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Name",
       },
+      EquivalentPercentage: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "EquivalentPercentage",
+      },
+      Observation: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Observation",
+      },
+      Active: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        comment: "Active",
+        default: true,
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

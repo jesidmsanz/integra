@@ -50,6 +50,12 @@ module.exports = function (config) {
         allowNull: false,
         comment: "roles",
       },
+      Active: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        comment: "Active",
+        default: true,
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

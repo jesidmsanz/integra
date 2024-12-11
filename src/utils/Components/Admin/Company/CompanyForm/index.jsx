@@ -18,7 +18,11 @@ import {
 } from "reactstrap";
 
 const initialState = {
-  Name: "",
+  CompanyName: "",
+  Nit: "",
+  Address: "",
+  Phone: "",
+  Email: "",
 };
 
 const CompanyForm = ({
@@ -119,18 +123,90 @@ const CompanyForm = ({
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">Nombres:</Label>
+                  <Label for="name">Razón Social:</Label>
                   <Input
                     type="text"
-                    name="Name"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    name="CompanyName"
+                    id="CompanyName"
+                    placeholder="Razón Social"
                     onChange={handleChange}
-                    value={form.Name}
-                    invalid={!!errors.Name}
+                    value={form.CompanyName}
+                    invalid={!!errors.CompanyName}
                     required
                   />
-                  {errors.Name && <FormFeedback>{errors.Name}</FormFeedback>}
+                  {errors.CompanyName && (
+                    <FormFeedback>{errors.CompanyName}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">NIT:</Label>
+                  <Input
+                    type="text"
+                    name="Nit"
+                    id="Nit"
+                    placeholder="Ingresa el nit"
+                    onChange={handleChange}
+                    value={form.Nit}
+                    invalid={!!errors.Nit}
+                    required
+                  />
+                  {errors.Nit && <FormFeedback>{errors.Nit}</FormFeedback>}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">Direcciòn:</Label>
+                  <Input
+                    type="text"
+                    name="Address"
+                    id="Address"
+                    placeholder="Ingresa el direcciòn"
+                    onChange={handleChange}
+                    value={form.Address}
+                    invalid={!!errors.Address}
+                    required
+                  />
+                  {errors.Address && (
+                    <FormFeedback>{errors.Address}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">Telefono:</Label>
+                  <Input
+                    type="number"
+                    name="Phone"
+                    id="Phone"
+                    placeholder="Ingresa el telefono"
+                    onChange={handleChange}
+                    value={form.Phone}
+                    invalid={!!errors.Phone}
+                    required
+                  />
+                  {errors.Phone && <FormFeedback>{errors.Phone}</FormFeedback>}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">Email:</Label>
+                  <Input
+                    type="text"
+                    name="Email"
+                    id="Email"
+                    placeholder="Ingresa el email"
+                    onChange={handleChange}
+                    value={form.Email}
+                    invalid={!!errors.Email}
+                    required
+                  />
+                  {errors.Email && <FormFeedback>{errors.Email}</FormFeedback>}
                 </FormGroup>
               </Col>
             </Row>

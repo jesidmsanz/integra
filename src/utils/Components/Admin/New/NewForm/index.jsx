@@ -19,6 +19,8 @@ import {
 
 const initialState = {
   Name: "",
+  EquivalentPercentage: "",
+  Observation: "",
 };
 
 const NewForm = ({
@@ -133,8 +135,44 @@ const NewForm = ({
                   {errors.Name && <FormFeedback>{errors.Name}</FormFeedback>}
                 </FormGroup>
               </Col>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">Porcentaje Equivalente:</Label>
+                  <Input
+                    type="number"
+                    name="EquivalentPercentage"
+                    id="EquivalentPercentage"
+                    placeholder="Ingresa el porcentaje Equivalente"
+                    onChange={handleChange}
+                    value={form.EquivalentPercentage}
+                    invalid={!!errors.EquivalentPercentage}
+                    required
+                  />
+                  {errors.EquivalentPercentage && (
+                    <FormFeedback>{errors.EquivalentPercentage}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
             </Row>
-
+            <Col md="12">
+              <FormGroup>
+                <Label for="name">Observaciòn:</Label>
+                <Input
+                  type="textarea"
+                  name="Observation"
+                  id="Observation"
+                  placeholder="Ingresa la observaciòn"
+                  onChange={handleChange}
+                  value={form.Observation}
+                  invalid={!!errors.Observation}
+                  required
+                />
+                {errors.Observation && (
+                  <FormFeedback>{errors.Observation}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+            <Row></Row>
             <Row>
               <Col md="12" className="d-flex justify-content-end mt-4">
                 <Button

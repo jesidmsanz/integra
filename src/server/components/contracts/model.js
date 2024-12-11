@@ -10,6 +10,12 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Name",
       },
+      Active: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        comment: "Active",
+        default: true,
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,
