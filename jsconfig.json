@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/Components/*": ["./src/utils/Components/*"],
+      "@/CommonComponent/*": ["./src/utils/CommonComponent/*"],
+      "@/Constant/*": ["./src/utils/Constant/*"],
+      "@/Config/*": ["./src/utils/Config/*"],
+      "@/Data/*": ["./src/utils/Data/*"],
+      "@/Redux/*": ["./src/utils/Redux/*"],
+      "@/Layout/*": ["./src/utils/Layout/*"],
+      "@/Styles/*": ["./src/utils/styles/*"],
+      "@/db/*": ["./src/server/db/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next", ".cache", "bundles", "out"]
+}
