@@ -31,6 +31,16 @@ const initialState = {
   HasAdditionalDiscount: false,
   DiscountValue: 0,
   AdditionalDiscountComment: "",
+  IdentificationNumber: "",
+  Phone: "",
+  Address: "",
+  Email: "",
+  Eps: "",
+  Arl: "",
+  Pension: "",
+  Sexo: "",
+  NumberOfChildren: "",
+  Birthdate: "",
 };
 
 const EmployeeForm = ({
@@ -116,7 +126,7 @@ const EmployeeForm = ({
 
   return (
     <>
-      <Modal centered={true} isOpen={isOpen} size="lg">
+      <Modal centered={true} isOpen={isOpen} size="xl">
         <ModalHeader>
           <h2>{title}</h2>
         </ModalHeader>
@@ -129,7 +139,7 @@ const EmployeeForm = ({
             }}
           >
             <Row>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="name">Tipo de contrato:</Label>
                   <Input
@@ -170,7 +180,7 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="name">Nombres:</Label>
                   <Input
@@ -186,10 +196,209 @@ const EmployeeForm = ({
                   {errors.Name && <FormFeedback>{errors.Name}</FormFeedback>}
                 </FormGroup>
               </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="IdentificationNumber">Cédula:</Label>
+                  <Input
+                    type="number"
+                    name="IdentificationNumber"
+                    id="IdentificationNumber"
+                    placeholder="Ingresa la cédula"
+                    onChange={handleChange}
+                    value={form.IdentificationNumber}
+                    invalid={!!errors.IdentificationNumber}
+                    required
+                  />
+                  {errors.IdentificationNumber && (
+                    <FormFeedback>{errors.IdentificationNumber}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
             </Row>
-
             <Row>
-              <Col md="6">
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">Telefono:</Label>
+                  <Input
+                    type="number"
+                    name="Phone"
+                    id="Phone"
+                    placeholder="Ingresa el telefono"
+                    onChange={handleChange}
+                    value={form.Phone}
+                    invalid={!!errors.Phone}
+                    required
+                  />
+                  {errors.Phone && <FormFeedback>{errors.Phone}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="Address">Dirección:</Label>
+                  <Input
+                    type="text"
+                    name="Address"
+                    id="Address"
+                    placeholder="Ingresa la dirección"
+                    onChange={handleChange}
+                    value={form.Address?.split("T")[0]}
+                    invalid={!!errors.Address}
+                    required
+                  />
+                  {errors.Address && (
+                    <FormFeedback>{errors.Address}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="Email">Email:</Label>
+                  <Input
+                    type="number"
+                    name="Email"
+                    id="Email"
+                    placeholder="Ingresa el email"
+                    onChange={handleChange}
+                    value={form.Email}
+                    invalid={!!errors.Email}
+                    required
+                  />
+                  {errors.Email && <FormFeedback>{errors.Email}</FormFeedback>}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">EPS:</Label>
+                  <Input
+                    type="select"
+                    name="Eps"
+                    id="name"
+                    placeholder="Ingresa el nombre"
+                    onChange={handleChange}
+                    value={form.Eps}
+                    invalid={!!errors.Eps}
+                    required
+                  >
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    <option value="Pendiente">Pendient...</option>
+                  </Input>
+                  {errors.Eps && <FormFeedback>{errors.Eps}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">ARL:</Label>
+                  <Input
+                    type="select"
+                    name="Arl"
+                    id="name"
+                    placeholder="Ingresa el nombre"
+                    onChange={handleChange}
+                    value={form.Arl}
+                    invalid={!!errors.Arl}
+                    required
+                  >
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    <option value="Pendiente">Pendient...</option>
+                  </Input>
+                  {errors.Arl && <FormFeedback>{errors.Arl}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">Pensión:</Label>
+                  <Input
+                    type="select"
+                    name="Pension"
+                    id="name"
+                    placeholder="Ingresa el nombre"
+                    onChange={handleChange}
+                    value={form.Pension}
+                    invalid={!!errors.Pension}
+                    required
+                  >
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    <option value="Pendiente">Pendient...</option>
+                  </Input>
+                  {errors.Pension && (
+                    <FormFeedback>{errors.Pension}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">Sexo:</Label>
+                  <Input
+                    type="select"
+                    name="Sexo"
+                    id="name"
+                    placeholder="Ingresa el sexo"
+                    onChange={handleChange}
+                    value={form.Sexo}
+                    invalid={!!errors.Sexo}
+                    required
+                  >
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    <option value="Pendiente">Pendient...</option>
+                  </Input>
+                  {errors.Sexo && <FormFeedback>{errors.Sexo}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">Numero de hijos:</Label>
+                  <Input
+                    type="number"
+                    name="NumberOfChildren"
+                    id="name"
+                    placeholder="Ingresa el numero de hijos"
+                    onChange={handleChange}
+                    value={form.NumberOfChildren}
+                    invalid={!!errors.NumberOfChildren}
+                    required
+                  />
+                  {errors.NumberOfChildren && (
+                    <FormFeedback>{errors.NumberOfChildren}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="name">Fecha de nacimiento:</Label>
+                  <Input
+                    type="date"
+                    name="Birthdate"
+                    id="name"
+                    placeholder="Ingresa el numero de hijos"
+                    onChange={handleChange}
+                    value={form.Birthdate}
+                    invalid={!!errors.Birthdate}
+                    required
+                  />
+                  {errors.Birthdate && (
+                    <FormFeedback>{errors.Birthdate}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
                 <FormGroup>
                   <Label for="ContractStartDate">
                     Fecha de inicio del contrato:
@@ -208,7 +417,7 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="PositionArea">Área/Posición:</Label>
                   <Input
@@ -226,10 +435,7 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-
-            <Row>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="BasicMonthlySalary">Salario base mensual:</Label>
                   <Input
@@ -247,7 +453,10 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-              <Col md="6">
+            </Row>
+
+            <Row>
+              <Col md="4">
                 <FormGroup>
                   <Label for="ShiftValuePerHour">
                     Valor del turno por hora:
@@ -267,10 +476,7 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-
-            <Row>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="TransportationAssistance">
                     Auxilio de transporte:
@@ -292,7 +498,7 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup>
                   <Label for="MobilityAssistance">Auxilio de movilidad:</Label>
                   <Input
@@ -313,7 +519,7 @@ const EmployeeForm = ({
             </Row>
 
             <Row>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup check inline>
                   <Input
                     type="checkbox"
@@ -331,7 +537,7 @@ const EmployeeForm = ({
                   </Label>
                 </FormGroup>
               </Col>
-              <Col md="6">
+              <Col md="4">
                 <FormGroup check inline>
                   <Input
                     type="checkbox"
@@ -353,7 +559,7 @@ const EmployeeForm = ({
             {form.HasAdditionalDiscount && (
               <>
                 <Row>
-                  <Col md="6">
+                  <Col md="4">
                     <FormGroup>
                       <Label for="DiscountValue">Valor de descuento:</Label>
                       <Input

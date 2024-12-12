@@ -15,6 +15,56 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Name",
       },
+      Phone: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Phone",
+      },
+      Address: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Address",
+      },
+      Email: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Email",
+      },
+      Eps: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Eps",
+      },
+      Arl: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Arl",
+      },
+      Pension: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Pension",
+      },
+      Sexo: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Sexo",
+      },
+      NumberOfChildren: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "NumberOfChildren",
+      },
+      Birthdate: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Birthdate",
+      },
+      Name: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Name",
+      },
       ContractStartDate: {
         type: Sequelize.DATE,
         allowNull: true,

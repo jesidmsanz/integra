@@ -33,7 +33,7 @@ export const UserForm = () => {
       password,
     });
     if (!result.error) {
-      router.push("/admin/empleados");
+      router.push("/admin/liquidacion");
     }
   };
 
