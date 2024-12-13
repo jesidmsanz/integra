@@ -1,37 +1,126 @@
 import Breadcrumbs from "@/utils/CommonComponent/Breadcrumb";
-import { employeesApi, newsApi } from "@/utils/api";
+import SVG from "@/utils/CommonComponent/SVG/Svg";
+import { companiesApi, employeesApi, newsApi } from "@/utils/api";
+import Link from "next/link";
 import { createRef, useEffect, useState } from "react";
+import DataTable, { defaultThemes } from "react-data-table-component";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import {
-  Button,
-  Form,
   FormGroup,
   Input,
   Label,
-  Modal,
-  ModalBody,
-  ModalHeader,
   Col,
   Row,
-  FormFeedback,
   Container,
   Card,
   CardBody,
 } from "reactstrap";
+import AddNews from "./AddNews";
 
 const initialState = {
-  EmployeeId: null,
+  CompanyId: null,
 };
 
-const LiquidationForm = ({ setViewForm, isUpdate, setIsUpdate }) => {
+const LiquidationForm = () => {
   const [form, setForm] = useState(initialState);
+
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState(null);
+  const [employees, setEmployees] = useState([]);
+  const [companies, setCompanies] = useState([]);
+
+  const [dataTable, setDataTable] = useState([]);
+  const [show, setShow] = useState(false);
 
   let formRef = createRef();
+
+  const LiquidationListTableAction = ({ row }) => {
+    return (
+      <div className="product-action">
+        <Link
+          href=""
+          onClick={(e) => {
+            e.preventDefault();
+            setShow(!show);
+          }}
+        >
+          <SVG iconId="edit-content" />
+        </Link>
+      </div>
+    );
+  };
+
+  const customStyles = {
+    header: {
+      style: {
+        minHeight: "40px",
+      },
+    },
+    headRow: {
+      style: {
+        borderTopStyle: "solid",
+        borderTopWidth: "1px",
+        borderTopColor: defaultThemes.default.divider.default,
+      },
+    },
+    headCells: {
+      style: {
+        "&:not(:last-of-type)": {
+          borderRightStyle: "solid",
+          borderRightWidth: "1px",
+          borderRightColor: defaultThemes.default.divider.default,
+        },
+        fontWeight: "bold",
+        fontSize: "14px",
+        backgroundColor: "#f4f4f4",
+        textAlign: "center",
+        padding: "8px",
+        whiteSpace: "normal",
+        wordWrap: "break-word",
+      },
+    },
+    cells: {
+      style: {
+        "&:not(:last-of-type)": {
+          borderRightStyle: "solid",
+          borderRightWidth: "1px",
+          borderRightColor: defaultThemes.default.divider.default,
+        },
+        whiteSpace: "normal",
+        wordWrap: "break-word",
+        padding: "8px",
+      },
+    },
+  };
+
+  const columns = [
+    {
+      name: "Nombre",
+      selector: (row) => `${row.Name}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Fecha De Inicio De Contrato",
+      selector: (row) =>
+        row.ContractStartDate?.split("T")[0] || "No disponible",
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Cargo o Area",
+      selector: (row) => row.PositionArea || "No disponible",
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Acción",
+      cell: (row) => <LiquidationListTableAction row={row} />,
+      minWidth: "100px",
+    },
+  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,56 +128,6 @@ const LiquidationForm = ({ setViewForm, isUpdate, setIsUpdate }) => {
       ...form,
       [name]: value,
     });
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: "",
-      });
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    Object.keys(form).forEach((key) => {
-      if (!form[key]) {
-        newErrors[key] = "Este campo es requerido";
-      }
-    });
-    return newErrors;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // const newErrors = validateForm();
-    // if (Object.keys(newErrors).length === 0) {
-    //   setLoading(true);
-    //   try {
-    //     const save = isUpdate
-    //       ? await newsApi.update(dataToUpdate.id, form)
-    //       : await newsApi.create(form);
-    //     console.log("save :>> ", save);
-    //     if (save?.id) {
-    //       setForm(initialState);
-    //       setViewForm(false);
-    //       setIsUpdate(false);
-    //       fetchData(1);
-    //       isUpdate
-    //         ? toast.success("El registro se actualizo exitosamente", {
-    //             position: "top-center",
-    //           })
-    //         : toast.success("El registro se guardó exitosamente", {
-    //             position: "top-center",
-    //           });
-    //     }
-    //   } catch (error) {
-    //     toast.error("Hubo un error al guardar el registro");
-    //     console.error("Error al guardar el registro", error);
-    //   } finally {
-    //     setLoading(false);
-    //   }
-    // } else {
-    //   setErrors(newErrors);
-    // }
   };
 
   const loadEmployees = async () => {
@@ -100,9 +139,25 @@ const LiquidationForm = ({ setViewForm, isUpdate, setIsUpdate }) => {
     }
   };
 
+  const loadCompanies = async () => {
+    try {
+      const response = await companiesApi.list();
+      if (response.length) setCompanies(response);
+    } catch (error) {
+      console.error("Error al cargar los empleados", error);
+    }
+  };
+
   useEffect(() => {
     loadEmployees();
+    loadCompanies();
   }, []);
+
+  useEffect(() => {
+    if (form.CompanyId) {
+      setDataTable(employees.filter((i) => i.CompanyId == form.CompanyId));
+    } else setDataTable([]);
+  }, [form.CompanyId]);
 
   return (
     <>
@@ -114,68 +169,55 @@ const LiquidationForm = ({ setViewForm, isUpdate, setIsUpdate }) => {
       <Container fluid>
         <Card>
           <CardBody>
-            <Form
-              onSubmit={handleSubmit}
-              noValidate={true}
-              ref={(ref) => {
-                formRef = ref;
-              }}
-            >
-              <Row>
-                <Col md="6">
-                  <FormGroup>
-                    <Label for="name">Empleados:</Label>
-                    <Input
-                      type="select"
-                      name="EmployeeId"
-                      id="EmployeeId"
-                      onChange={handleChange}
-                      value={form.EmployeeId}
-                      invalid={!!errors.EmployeeId}
-                      required
-                    >
-                      <option value="">Selecciona un empleado</option>
-                      {employees?.map((employee) => (
-                        <option key={employee.id} value={employee.id}>
-                          {employee.Name}
-                        </option>
-                      ))}
-                    </Input>
-                    {errors.EmployeeId && (
-                      <FormFeedback>{errors.EmployeeId}</FormFeedback>
-                    )}
-                  </FormGroup>
-                </Col>
-              </Row>
-
-              <Row>
-                <Col md="12" className="d-flex justify-content-end mt-4">
-                  <Button
-                    color="secondary"
-                    className="rounded-pill dark-toggle-btn mx-2"
-                    onClick={() => {
-                      setForm(initialState);
-                      setIsUpdate(false);
-                      setViewForm(false);
-                    }}
+            <Row>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="name">Empresa:</Label>
+                  <Input
+                    type="select"
+                    name="CompanyId"
+                    id="CompanyId"
+                    onChange={handleChange}
+                    value={form.CompanyId}
+                    invalid={!!errors.CompanyId}
+                    required
                   >
-                    Cancelar
-                  </Button>
-                  <Button
-                    color="primary"
-                    className="rounded-pill dark-toggle-btn"
-                    type="submit"
-                  >
-                    {isUpdate
-                      ? `${loading ? "Actualizando..." : "Actualizar"} `
-                      : `${loading ? "Guardando..." : "Guardar"}`}
-                  </Button>
-                </Col>
-              </Row>
-            </Form>
+                    <option value="">Selecciona un empleado</option>
+                    {companies?.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.CompanyName}
+                      </option>
+                    ))}
+                  </Input>
+                </FormGroup>
+              </Col>
+            </Row>
+            <div className="list-product">
+              <div className="table-responsive">
+                <DataTable
+                  className="custom-scrollbar"
+                  customStyles={customStyles}
+                  columns={columns}
+                  data={dataTable}
+                  progressPending={loading}
+                  pagination
+                  paginationServer
+                  paginationTotalRows={10}
+                  paginationDefaultPage={1}
+                  onChangePage={() => {}}
+                  paginationPerPage={10}
+                  striped
+                  highlightOnHover
+                  subHeader
+                  dense
+                  responsive
+                />
+              </div>
+            </div>
           </CardBody>
         </Card>
       </Container>
+      <AddNews show={show} />
     </>
   );
 };

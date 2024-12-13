@@ -1,4 +1,4 @@
-import { employeesApi } from "@/utils/api";
+import { companiesApi, employeesApi } from "@/utils/api";
 import { use } from "passport";
 import { createRef, useEffect, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
@@ -41,6 +41,8 @@ const initialState = {
   Sexo: "",
   NumberOfChildren: "",
   Birthdate: "",
+  CompanyId: null,
+  Active: true,
 };
 
 const EmployeeForm = ({
@@ -55,10 +57,20 @@ const EmployeeForm = ({
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-
+  const [companies, setCompanies] = useState([]);
   let formRef = createRef();
 
+  const loadCompanies = async () => {
+    try {
+      const loadData = await companiesApi.list();
+      setCompanies(loadData);
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
+
   useEffect(() => {
+    loadCompanies();
     if (isUpdate && dataToUpdate) {
       setForm(dataToUpdate);
     } else {
@@ -141,6 +153,34 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
+                  <Label for="name">Empresa:</Label>
+                  <Input
+                    type="select"
+                    name="CompanyId"
+                    id="name"
+                    placeholder="Ingresa el nombre"
+                    onChange={handleChange}
+                    value={form.CompanyId}
+                    invalid={!!errors.CompanyId}
+                    required
+                  >
+                    <option value="" selected>
+                      Selecciona una opción
+                    </option>
+
+                    {companies.map((i) => (
+                      <option value={i.id} key={i.id}>
+                        {i.CompanyName}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.CompanyId && (
+                    <FormFeedback>{errors.CompanyId}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
                   <Label for="name">Tipo de contrato:</Label>
                   <Input
                     type="select"
@@ -196,6 +236,8 @@ const EmployeeForm = ({
                   {errors.Name && <FormFeedback>{errors.Name}</FormFeedback>}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="IdentificationNumber">Cédula:</Label>
@@ -214,8 +256,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="name">Telefono:</Label>
@@ -250,11 +290,13 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="Email">Email:</Label>
                   <Input
-                    type="number"
+                    type="email"
                     name="Email"
                     id="Email"
                     placeholder="Ingresa el email"
@@ -266,8 +308,6 @@ const EmployeeForm = ({
                   {errors.Email && <FormFeedback>{errors.Email}</FormFeedback>}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="name">EPS:</Label>
@@ -312,6 +352,8 @@ const EmployeeForm = ({
                   {errors.Arl && <FormFeedback>{errors.Arl}</FormFeedback>}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="name">Pensión:</Label>
@@ -336,8 +378,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="name">Sexo:</Label>
@@ -378,6 +418,8 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="name">Fecha de nacimiento:</Label>
@@ -396,8 +438,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="ContractStartDate">
@@ -435,6 +475,8 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="BasicMonthlySalary">Salario base mensual:</Label>
@@ -453,9 +495,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="ShiftValuePerHour">

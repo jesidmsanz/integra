@@ -110,6 +110,14 @@ module.exports = function (config) {
         allowNull: false,
         comment: "AdditionalDiscountComment",
       },
+      CompanyId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        references: {
+          model: "companies",
+          key: "id",
+        },
+      },
       Active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
