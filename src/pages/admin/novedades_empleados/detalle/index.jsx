@@ -1,11 +1,11 @@
 import React from "react";
 import RootLayout from "../../layout";
-import TypeNewsForm from "@/utils/Components/Admin/TypeNews/TypeNewsForm";
+import EmployeeNewsForm from "@/utils/Components/Admin/EmployeeNews/EmployeeNewsForm";
 
 export default function Detalle() {
   return (
     <RootLayout>
-      <TypeNewsForm />
+      <EmployeeNewsForm />
     </RootLayout>
   );
 }

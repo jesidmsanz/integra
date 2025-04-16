@@ -5,34 +5,34 @@ module.exports = function (config) {
   const Model = sequelize.define(
     "companies",
     {
-      CompanyName: {
+      companyName: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "CompanyName",
       },
-      Nit: {
+      nit: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Nit",
       },
-      Address: {
+      address: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Address",
       },
-      Phone: {
+      phone: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Phone",
       },
-      Email: {
+      email: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Email",
       },
-      Active: {
+      active: {
         type: Sequelize.BOOLEAN,
-        allowNull: false,
+        allowNull: true,
         comment: "Active",
         default: true,
       },

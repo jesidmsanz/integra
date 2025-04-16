@@ -30,7 +30,7 @@ export default NextAuth({
         if (!user) {
           throw new Error("User not found");
         }
-        if (!(await bcrypt.compare(password, user.Password))) {
+        if (!(await bcrypt.compare(password, user.password))) {
           throw new Error("Incorrect password");
         }
         const { accessToken, refreshToken } = generateTokens(user);

@@ -10,32 +10,32 @@ module.exports = function (config) {
         allowNull: true,
         comment: "Code",
       },
-      Email: {
+      email: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "email",
       },
-      Password: {
+      password: {
         type: Sequelize.STRING(),
         allowNull: true,
         comment: "Password",
       },
-      FirstName: {
+      firstName: {
         type: Sequelize.STRING(),
         allowNull: true,
-        comment: "FirstName",
+        comment: "firstName",
       },
-      LastName: {
+      lastName: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "LastName",
+        comment: "lastName",
       },
-      Phone: {
+      phone: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "Phone",
+        comment: "phone",
       },
-      Roles: {
+      roles: {
         type: Sequelize.ARRAY(Sequelize.STRING),
         allowNull: false,
         comment: "roles",
@@ -50,7 +50,7 @@ module.exports = function (config) {
         allowNull: false,
         comment: "roles",
       },
-      Active: {
+      active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
         comment: "Active",

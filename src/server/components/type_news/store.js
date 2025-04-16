@@ -1,14 +1,14 @@
 "use strict";
 const { Op, QueryTypes } = require("sequelize");
 
-module.exports = function setupCountry(Model, db) {
+module.exports = function setupTypeNews(Model, db, sequelize) {
   function findAll() {
     return Model.findAll();
   }
 
   function findAllActive() {
     return sequelize.query(
-      ` select * from employees where users.status = true`,
+      ` select * from type_news where type_news.active = true`,
       {
         type: QueryTypes.SELECT,
       }

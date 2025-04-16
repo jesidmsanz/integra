@@ -1,43 +1,54 @@
 const Sequelize = require("sequelize");
 const setupDatabase = require("../../db/lib/postgresql");
+
 module.exports = function (config) {
   const sequelize = setupDatabase(config);
   const Model = sequelize.define(
-    "news",
+    "type_news",
     {
-      Name: {
+      name: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "Name",
+        comment: "Nombre del tipo de novedad",
       },
-      EquivalentPercentage: {
+      affects: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "EquivalentPercentage",
+        comment: "A qué afecta la novedad",
       },
-      Observation: {
+      percentage: {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: true,
+        comment: "Porcentaje si aplica",
+      },
+      status: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "Observation",
+        comment: "Estado de la novedad",
       },
-      Active: {
+      category: {
+        type: Sequelize.STRING(),
+        allowNull: false,
+        comment: "Categoría de la novedad",
+      },
+      active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
-        comment: "Active",
-        default: true,
+        defaultValue: true,
+        comment: "Estado activo/inactivo",
       },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FCREACION",
+        comment: "Fecha de creación",
       },
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FECHA_ACTUALIZACION",
+        comment: "Fecha de actualización",
       },
     },
-    { tableName: "news", timestamps: true }
+    { tableName: "type_news", timestamps: true }
   );
   return Model;
 };

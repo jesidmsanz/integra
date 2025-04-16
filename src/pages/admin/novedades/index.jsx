@@ -1,13 +1,13 @@
 import React from "react";
 import RootLayout from "../layout";
-import NewListContainer from "@/utils/Components/Admin/New/NewList/NewListContainer";
+import TypeNewsListContainer from "@/utils/Components/Admin/TypeNews/TypeNewsList/TypeNewsListContainer";
 
-const New = () => {
+const TypeNews = () => {
   return (
     <RootLayout>
-      <NewListContainer />
+      <TypeNewsListContainer />
     </RootLayout>
   );
 };
 
-export default New;
+export default TypeNews;

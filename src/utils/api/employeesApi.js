@@ -60,5 +60,5 @@ const remove = async (id) => {
   }
 };
 
-const directoriesApi = { list, listActive, detail, create, update, remove };
-export default directoriesApi;
+const employeesApi = { list, listActive, detail, create, update, remove };
+export default employeesApi;

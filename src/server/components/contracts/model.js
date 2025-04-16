@@ -1,16 +1,17 @@
 const Sequelize = require("sequelize");
 const setupDatabase = require("../../db/lib/postgresql");
+
 module.exports = function (config) {
   const sequelize = setupDatabase(config);
   const Model = sequelize.define(
     "contracts",
     {
-      Name: {
+      name: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Name",
       },
-      Active: {
+      active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
         comment: "Active",

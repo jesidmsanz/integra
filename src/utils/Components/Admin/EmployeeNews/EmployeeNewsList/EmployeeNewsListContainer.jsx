@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { companiesApi } from "@/utils/api";
+import { employeeNewsApi } from "@/utils/api";
 import SVG from "@/CommonComponent/SVG/Svg";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
 import { Card, CardBody, Col, Container, Row } from "reactstrap";
-import { CompanyListFilterHeader } from "./CompanyListFilterHeader";
 import DataTable, { defaultThemes } from "react-data-table-component";
 import Link from "next/link";
-import CompanyForm from "../CompanyForm";
-// import { CollapseFilterData } from "./CollapseFilterData";
+import { EmployeeNewsListFilterHeader } from "./EmployeeNewsListFilterHeader";
+import EmployeeNewsForm from "../EmployeeNewsForm/EmployeeNewsForm";
+import { CollapseFilterData } from "./CollapseFilterData";
 
-const CompanyListContainer = () => {
+const EmployeeNewsListContainer = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -22,8 +22,7 @@ const CompanyListContainer = () => {
   const fetchData = async (page) => {
     setLoading(true);
     try {
-      const response = await companiesApi.list(page, rowsPerPage);
-      console.log("response :>> ", response);
+      const response = await employeeNewsApi.list(page, rowsPerPage);
       if (response.length) setData(response);
     } catch (error) {
       console.error("Error al cargar los datos", error);
@@ -36,7 +35,7 @@ const CompanyListContainer = () => {
     setPage(newPage);
   };
 
-  const CompanyListTableAction = ({ row }) => {
+  const EmployeeNewsListTableAction = ({ row }) => {
     return (
       <div className="product-action">
         <Link
@@ -98,45 +97,45 @@ const CompanyListContainer = () => {
 
   const columns = [
     {
-      name: "Razón Social",
-      selector: (row) => `${row.companyName}`,
+      name: "ID",
+      selector: (row) => row.id,
       sortable: true,
-      minWidth: "150px",
+      width: "80px",
     },
     {
-      name: "Nit",
-      selector: (row) => `${row.nit}`,
+      name: "Empleado",
+      selector: (row) => row.employee_name,
       sortable: true,
-      minWidth: "150px",
     },
     {
-      name: "Direcciòn",
-      selector: (row) => `${row.address}`,
+      name: "Tipo de Novedad",
+      selector: (row) => row.type_news_name,
       sortable: true,
-      minWidth: "150px",
     },
     {
-      name: "Telefono",
-      selector: (row) => `${row.phone}`,
+      name: "Fecha Inicio",
+      selector: (row) => row.startDate?.split(" ")[0],
       sortable: true,
-      minWidth: "150px",
     },
     {
-      name: "Email",
-      selector: (row) => `${row.email}`,
+      name: "Fecha Fin",
+      selector: (row) => row.endDate?.split(" ")[0],
       sortable: true,
-      minWidth: "150px",
     },
     {
       name: "Estado",
-      selector: (row) => `${row.active ? "Activa" : "Inactiva"}`,
+      selector: (row) => (row.status === "active" ? "Activo" : "Inactivo"),
       sortable: true,
-      minWidth: "150px",
     },
     {
-      name: "Acción",
-      cell: (row) => <CompanyListTableAction row={row} />,
-      minWidth: "100px",
+      name: "Aprobado por",
+      selector: (row) => row.approved_by_name,
+      sortable: true,
+    },
+    {
+      name: "Acciones",
+      cell: (row) => <EmployeeNewsListTableAction row={row} />,
+      width: "100px",
     },
   ];
 
@@ -147,9 +146,8 @@ const CompanyListContainer = () => {
   return (
     <>
       <Breadcrumbs
-        pageTitle="Empresas"
-        parent="Empresas"
-        // title="Todo el Empresas"
+        pageTitle="Novedades de Empleados"
+        parent="Novedades de Empleados"
       />
       <Container fluid>
         <Row>
@@ -158,8 +156,8 @@ const CompanyListContainer = () => {
               <CardBody>
                 <>
                   <div className="list-product-header">
-                    <CompanyListFilterHeader setViewForm={setViewForm} />
-                    {/* <CollapseFilterData /> */}
+                    <EmployeeNewsListFilterHeader setViewForm={setViewForm} />
+                    <CollapseFilterData />
                   </div>
                   <div className="list-product">
                     <div className="table-responsive">
@@ -181,10 +179,12 @@ const CompanyListContainer = () => {
                         dense
                         responsive
                       />
-                      <CompanyForm
+                      <EmployeeNewsForm
                         isOpen={viewForm}
                         title={
-                          isUpdate ? "Actualizar Empresa" : "Crear Empresa"
+                          isUpdate
+                            ? "Actualizar Novedad Empleado"
+                            : "Crear Novedad Empleado"
                         }
                         setViewForm={setViewForm}
                         fetchData={fetchData}
@@ -204,4 +204,4 @@ const CompanyListContainer = () => {
   );
 };
 
-export default CompanyListContainer;
+export default EmployeeNewsListContainer;

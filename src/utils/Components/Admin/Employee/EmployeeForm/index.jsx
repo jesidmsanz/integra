@@ -19,30 +19,30 @@ import {
 } from "reactstrap";
 
 const initialState = {
-  ContractType: "",
-  Name: "",
-  ContractStartDate: "",
-  PositionArea: "",
-  BasicMonthlySalary: "",
-  ShiftValuePerHour: "",
-  TransportationAssistance: "",
-  MobilityAssistance: "",
-  HealthAndPensionDiscount: true,
-  HasAdditionalDiscount: false,
-  DiscountValue: 0,
-  AdditionalDiscountComment: "",
-  IdentificationNumber: "",
-  Phone: "",
-  Address: "",
-  Email: "",
-  Eps: "",
-  Arl: "",
-  Pension: "",
-  Sexo: "",
-  NumberOfChildren: "",
-  Birthdate: "",
-  CompanyId: null,
-  Active: true,
+  contractType: "",
+  name: "",
+  contractStartDate: "",
+  positionArea: "",
+  basicMonthlySalary: "",
+  shiftValuePerHour: "",
+  transportationAssistance: "",
+  mobilityAssistance: "",
+  healthAndPensionDiscount: true,
+  hasAdditionalDiscount: false,
+  discountValue: 0,
+  additionalDiscountComment: "",
+  identificationNumber: "",
+  phone: "",
+  address: "",
+  email: "",
+  eps: "",
+  arl: "",
+  pension: "",
+  sex: "",
+  numberOfChildren: "",
+  birthdate: "",
+  companyId: null,
+  active: true,
 };
 
 const EmployeeForm = ({
@@ -156,12 +156,12 @@ const EmployeeForm = ({
                   <Label for="name">Empresa:</Label>
                   <Input
                     type="select"
-                    name="CompanyId"
+                    name="companyId"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.CompanyId}
-                    invalid={!!errors.CompanyId}
+                    value={form.companyId}
+                    invalid={!!errors.companyId}
                     required
                   >
                     <option value="" selected>
@@ -170,12 +170,12 @@ const EmployeeForm = ({
 
                     {companies.map((i) => (
                       <option value={i.id} key={i.id}>
-                        {i.CompanyName}
+                          {i.companyName}
                       </option>
                     ))}
                   </Input>
-                  {errors.CompanyId && (
-                    <FormFeedback>{errors.CompanyId}</FormFeedback>
+                  {errors.companyId && (
+                    <FormFeedback>{errors.companyId}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -184,12 +184,12 @@ const EmployeeForm = ({
                   <Label for="name">Tipo de contrato:</Label>
                   <Input
                     type="select"
-                    name="ContractType"
+                    name="contractType"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.ContractType}
-                    invalid={!!errors.ContractType}
+                    value={form.contractType}
+                    invalid={!!errors.contractType}
                     required
                   >
                     <option value="" selected>
@@ -215,8 +215,8 @@ const EmployeeForm = ({
                       Contrato ocasional de trabajo
                     </option>
                   </Input>
-                  {errors.ContractType && (
-                    <FormFeedback>{errors.ContractType}</FormFeedback>
+                  {errors.contractType && (
+                    <FormFeedback>{errors.contractType}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -225,34 +225,34 @@ const EmployeeForm = ({
                   <Label for="name">Nombres:</Label>
                   <Input
                     type="text"
-                    name="Name"
+                    name="name"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.Name}
-                    invalid={!!errors.Name}
+                    value={form.name}
+                    invalid={!!errors.name}
                     required
                   />
-                  {errors.Name && <FormFeedback>{errors.Name}</FormFeedback>}
+                  {errors.name && <FormFeedback>{errors.name}</FormFeedback>}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="IdentificationNumber">Cédula:</Label>
+                  <Label for="identificationNumber">Cédula:</Label>
                   <Input
                     type="number"
-                    name="IdentificationNumber"
-                    id="IdentificationNumber"
+                    name="identificationNumber"
+                    id="identificationNumber"
                     placeholder="Ingresa la cédula"
                     onChange={handleChange}
-                    value={form.IdentificationNumber}
-                    invalid={!!errors.IdentificationNumber}
+                    value={form.identificationNumber}
+                    invalid={!!errors.identificationNumber}
                     required
                   />
-                  {errors.IdentificationNumber && (
-                    <FormFeedback>{errors.IdentificationNumber}</FormFeedback>
+                  {errors.identificationNumber && (
+                    <FormFeedback>{errors.identificationNumber}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -261,32 +261,32 @@ const EmployeeForm = ({
                   <Label for="name">Telefono:</Label>
                   <Input
                     type="number"
-                    name="Phone"
-                    id="Phone"
+                    name="phone"
+                    id="phone"
                     placeholder="Ingresa el telefono"
                     onChange={handleChange}
-                    value={form.Phone}
-                    invalid={!!errors.Phone}
+                    value={form.phone}
+                    invalid={!!errors.phone}
                     required
                   />
-                  {errors.Phone && <FormFeedback>{errors.Phone}</FormFeedback>}
+                  {errors.phone && <FormFeedback>{errors.phone}</FormFeedback>}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="Address">Dirección:</Label>
+                  <Label for="address">Dirección:</Label>
                   <Input
                     type="text"
-                    name="Address"
-                    id="Address"
+                    name="address"
+                    id="address"
                     placeholder="Ingresa la dirección"
                     onChange={handleChange}
-                    value={form.Address?.split("T")[0]}
-                    invalid={!!errors.Address}
+                    value={form.address}
+                    invalid={!!errors.address}
                     required
                   />
-                  {errors.Address && (
-                    <FormFeedback>{errors.Address}</FormFeedback>
+                  {errors.address && (
+                    <FormFeedback>{errors.address}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -294,31 +294,31 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="Email">Email:</Label>
+                  <Label for="email">Email:</Label>
                   <Input
                     type="email"
-                    name="Email"
-                    id="Email"
+                    name="email"
+                    id="email"
                     placeholder="Ingresa el email"
                     onChange={handleChange}
-                    value={form.Email}
-                    invalid={!!errors.Email}
+                    value={form.email}
+                    invalid={!!errors.email}
                     required
                   />
-                  {errors.Email && <FormFeedback>{errors.Email}</FormFeedback>}
+                  {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">EPS:</Label>
+                  <Label for="eps">EPS:</Label>
                   <Input
                     type="select"
-                    name="Eps"
+                    name="eps"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.Eps}
-                    invalid={!!errors.Eps}
+                    value={form.eps}
+                    invalid={!!errors.eps}
                     required
                   >
                     <option value="" selected>
@@ -327,20 +327,20 @@ const EmployeeForm = ({
 
                     <option value="Pendiente">Pendient...</option>
                   </Input>
-                  {errors.Eps && <FormFeedback>{errors.Eps}</FormFeedback>}
+                  {errors.eps && <FormFeedback>{errors.eps}</FormFeedback>}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">ARL:</Label>
+                  <Label for="arl">ARL:</Label>
                   <Input
                     type="select"
-                    name="Arl"
+                    name="arl"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.Arl}
-                    invalid={!!errors.Arl}
+                    value={form.arl}
+                    invalid={!!errors.arl}
                     required
                   >
                     <option value="" selected>
@@ -349,22 +349,22 @@ const EmployeeForm = ({
 
                     <option value="Pendiente">Pendient...</option>
                   </Input>
-                  {errors.Arl && <FormFeedback>{errors.Arl}</FormFeedback>}
+                  {errors.arl && <FormFeedback>{errors.arl}</FormFeedback>}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Pensión:</Label>
+                  <Label for="pension">Pensión:</Label>
                   <Input
                     type="select"
-                    name="Pension"
+                    name="pension"
                     id="name"
                     placeholder="Ingresa el nombre"
                     onChange={handleChange}
-                    value={form.Pension}
-                    invalid={!!errors.Pension}
+                    value={form.pension}
+                    invalid={!!errors.pension}
                     required
                   >
                     <option value="" selected>
@@ -373,22 +373,22 @@ const EmployeeForm = ({
 
                     <option value="Pendiente">Pendient...</option>
                   </Input>
-                  {errors.Pension && (
-                    <FormFeedback>{errors.Pension}</FormFeedback>
+                  {errors.pension && (
+                    <FormFeedback>{errors.pension}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Sexo:</Label>
+                  <Label for="sex">Sexo:</Label>
                   <Input
                     type="select"
-                    name="Sexo"
+                    name="sex"
                     id="name"
                     placeholder="Ingresa el sexo"
                     onChange={handleChange}
-                    value={form.Sexo}
-                    invalid={!!errors.Sexo}
+                    value={form.sex}
+                    invalid={!!errors.sex}
                     required
                   >
                     <option value="" selected>
@@ -397,24 +397,24 @@ const EmployeeForm = ({
 
                     <option value="Pendiente">Pendient...</option>
                   </Input>
-                  {errors.Sexo && <FormFeedback>{errors.Sexo}</FormFeedback>}
+                  {errors.sex && <FormFeedback>{errors.sex}</FormFeedback>}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Numero de hijos:</Label>
+                  <Label for="numberOfChildren">Numero de hijos:</Label>
                   <Input
                     type="number"
-                    name="NumberOfChildren"
-                    id="name"
+                    name="numberOfChildren"
+                    id="numberOfChildren"
                     placeholder="Ingresa el numero de hijos"
                     onChange={handleChange}
-                    value={form.NumberOfChildren}
-                    invalid={!!errors.NumberOfChildren}
+                    value={form.numberOfChildren}
+                    invalid={!!errors.numberOfChildren}
                     required
                   />
-                  {errors.NumberOfChildren && (
-                    <FormFeedback>{errors.NumberOfChildren}</FormFeedback>
+                  {errors.numberOfChildren && (
+                    <FormFeedback>{errors.numberOfChildren}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -422,56 +422,56 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Fecha de nacimiento:</Label>
+                  <Label for="birthdate">Fecha de nacimiento:</Label>
                   <Input
                     type="date"
-                    name="Birthdate"
-                    id="name"
+                    name="birthdate"
+                    id="birthdate"
                     placeholder="Ingresa el numero de hijos"
                     onChange={handleChange}
-                    value={form.Birthdate}
-                    invalid={!!errors.Birthdate}
+                    value={form.birthdate}
+                    invalid={!!errors.birthdate}
                     required
                   />
-                  {errors.Birthdate && (
-                    <FormFeedback>{errors.Birthdate}</FormFeedback>
+                  {errors.birthdate && (
+                    <FormFeedback>{errors.birthdate}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="ContractStartDate">
+                  <Label for="contractStartDate">
                     Fecha de inicio del contrato:
                   </Label>
                   <Input
                     type="date"
-                    name="ContractStartDate"
-                    id="ContractStartDate"
+                    name="contractStartDate"
+                    id="contractStartDate"
                     onChange={handleChange}
-                    value={form.ContractStartDate?.split("T")[0]}
-                    invalid={!!errors.ContractStartDate}
+                    value={form.contractStartDate?.split("T")[0]}
+                    invalid={!!errors.contractStartDate}
                     required
                   />
-                  {errors.ContractStartDate && (
-                    <FormFeedback>{errors.ContractStartDate}</FormFeedback>
+                  {errors.contractStartDate && (
+                    <FormFeedback>{errors.contractStartDate}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="PositionArea">Área/Posición:</Label>
+                  <Label for="positionArea">Área/Posición:</Label>
                   <Input
                     type="text"
-                    name="PositionArea"
-                    id="PositionArea"
+                    name="positionArea"
+                    id="positionArea"
                     placeholder="Ingresa el área o posición"
                     onChange={handleChange}
-                    value={form.PositionArea}
-                    invalid={!!errors.PositionArea}
+                    value={form.positionArea}
+                    invalid={!!errors.positionArea}
                     required
                   />
-                  {errors.PositionArea && (
-                    <FormFeedback>{errors.PositionArea}</FormFeedback>
+                  {errors.positionArea && (
+                    <FormFeedback>{errors.positionArea}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -479,79 +479,79 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="BasicMonthlySalary">Salario base mensual:</Label>
+                  <Label for="basicMonthlySalary">Salario base mensual:</Label>
                   <Input
                     type="number"
-                    name="BasicMonthlySalary"
-                    id="BasicMonthlySalary"
+                    name="basicMonthlySalary"
+                    id="basicMonthlySalary"
                     placeholder="Ingresa el salario base mensual"
                     onChange={handleChange}
-                    value={form.BasicMonthlySalary}
-                    invalid={!!errors.BasicMonthlySalary}
+                    value={form.basicMonthlySalary}
+                    invalid={!!errors.basicMonthlySalary}
                     required
                   />
-                  {errors.BasicMonthlySalary && (
-                    <FormFeedback>{errors.BasicMonthlySalary}</FormFeedback>
+                  {errors.basicMonthlySalary && (
+                    <FormFeedback>{errors.basicMonthlySalary}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="ShiftValuePerHour">
+                  <Label for="shiftValuePerHour">
                     Valor del turno por hora:
                   </Label>
                   <Input
                     type="number"
-                    name="ShiftValuePerHour"
-                    id="ShiftValuePerHour"
+                    name="shiftValuePerHour"
+                    id="shiftValuePerHour"
                     placeholder="Ingresa el valor del turno por hora"
                     onChange={handleChange}
-                    value={form.ShiftValuePerHour}
-                    invalid={!!errors.ShiftValuePerHour}
+                    value={form.shiftValuePerHour}
+                    invalid={!!errors.shiftValuePerHour}
                     required
                   />
-                  {errors.ShiftValuePerHour && (
-                    <FormFeedback>{errors.ShiftValuePerHour}</FormFeedback>
+                  {errors.shiftValuePerHour && (
+                    <FormFeedback>{errors.shiftValuePerHour}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="TransportationAssistance">
+                  <Label for="transportationAssistance">
                     Auxilio de transporte:
                   </Label>
                   <Input
                     type="number"
-                    name="TransportationAssistance"
-                    id="TransportationAssistance"
+                    name="transportationAssistance"
+                    id="transportationAssistance"
                     placeholder="Ingresa la auxilio de transporte"
                     onChange={handleChange}
-                    value={form.TransportationAssistance}
-                    invalid={!!errors.TransportationAssistance}
+                    value={form.transportationAssistance}
+                    invalid={!!errors.transportationAssistance}
                     required
                   />
-                  {errors.TransportationAssistance && (
+                  {errors.transportationAssistance && (
                     <FormFeedback>
-                      {errors.TransportationAssistance}
+                      {errors.transportationAssistance}
                     </FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="MobilityAssistance">Auxilio de movilidad:</Label>
+                  <Label for="mobilityAssistance">Auxilio de movilidad:</Label>
                   <Input
                     type="number"
-                    name="MobilityAssistance"
-                    id="MobilityAssistance"
+                    name="mobilityAssistance"
+                    id="mobilityAssistance"
                     placeholder="Ingresa la auxilio de movilidad"
                     onChange={handleChange}
-                    value={form.MobilityAssistance}
-                    invalid={!!errors.MobilityAssistance}
+                    value={form.mobilityAssistance}
+                    invalid={!!errors.mobilityAssistance}
                     required
                   />
-                  {errors.MobilityAssistance && (
-                    <FormFeedback>{errors.MobilityAssistance}</FormFeedback>
+                  {errors.mobilityAssistance && (
+                    <FormFeedback>{errors.mobilityAssistance}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
@@ -562,16 +562,16 @@ const EmployeeForm = ({
                 <FormGroup check inline>
                   <Input
                     type="checkbox"
-                    id="HealthAndPensionDiscount"
-                    checked={form.HealthAndPensionDiscount}
+                    id="healthAndPensionDiscount"
+                    checked={form.healthAndPensionDiscount}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        HealthAndPensionDiscount: e.target.checked,
+                        healthAndPensionDiscount: e.target.checked,
                       })
                     }
                   />
-                  <Label check for="HealthAndPensionDiscount">
+                  <Label check for="healthAndPensionDiscount">
                     Descuento salud y pension
                   </Label>
                 </FormGroup>
@@ -580,39 +580,39 @@ const EmployeeForm = ({
                 <FormGroup check inline>
                   <Input
                     type="checkbox"
-                    id="HasAdditionalDiscount"
-                    checked={form.HasAdditionalDiscount}
+                    id="hasAdditionalDiscount"
+                    checked={form.hasAdditionalDiscount}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        HasAdditionalDiscount: e.target.checked,
+                        hasAdditionalDiscount: e.target.checked,
                       })
                     }
                   />
-                  <Label check for="HasAdditionalDiscount">
+                  <Label check for="hasAdditionalDiscount">
                     Descuento adicional
                   </Label>
                 </FormGroup>
               </Col>
             </Row>
-            {form.HasAdditionalDiscount && (
+            {form.hasAdditionalDiscount && (
               <>
                 <Row>
                   <Col md="4">
                     <FormGroup>
-                      <Label for="DiscountValue">Valor de descuento:</Label>
+                      <Label for="discountValue">Valor de descuento:</Label>
                       <Input
                         type="number"
-                        name="DiscountValue"
-                        id="DiscountValue"
+                        name="discountValue"
+                        id="discountValue"
                         placeholder="Ingresa el Valor de descuento"
                         onChange={handleChange}
-                        value={form.DiscountValue}
-                        invalid={!!errors.DiscountValue}
-                        required
+                        value={form.discountValue}
+                        invalid={!!errors.discountValue}
+                        required={form.hasAdditionalDiscount}
                       />
-                      {errors.DiscountValue && (
-                        <FormFeedback>{errors.DiscountValue}</FormFeedback>
+                      {errors.discountValue && (
+                        <FormFeedback>{errors.discountValue}</FormFeedback>
                       )}
                     </FormGroup>
                   </Col>
@@ -620,22 +620,22 @@ const EmployeeForm = ({
                 <Row>
                   <Col md="12">
                     <FormGroup>
-                      <Label for="AdditionalDiscountComment">
+                      <Label for="additionalDiscountComment">
                         Comentario por Descuento adicional:
                       </Label>
                       <Input
                         type="textarea"
-                        name="AdditionalDiscountComment"
-                        id="AdditionalDiscountComment"
+                        name="additionalDiscountComment"
+                        id="additionalDiscountComment"
                         placeholder="Ingresa Comentario por Descuento adicional"
                         onChange={handleChange}
-                        value={form.AdditionalDiscountComment}
-                        invalid={!!errors.AdditionalDiscountComment}
-                        required
+                        value={form.additionalDiscountComment}
+                        invalid={!!errors.additionalDiscountComment}
+                        required={form.hasAdditionalDiscount}
                       />
-                      {errors.AdditionalDiscountComment && (
+                      {errors.additionalDiscountComment && (
                         <FormFeedback>
-                          {errors.AdditionalDiscountComment}
+                          {errors.additionalDiscountComment}
                         </FormFeedback>
                       )}
                     </FormGroup>

@@ -1,5 +1,7 @@
 "use strict";
 
+const UserModel = require("./model");
+
 module.exports = function setupUser(UserModel, db, sequelize) {
   function findById(id) {
     return UserModel.findByPk(id);
@@ -48,18 +50,30 @@ module.exports = function setupUser(UserModel, db, sequelize) {
   }
 
   function findByUsername(username) {
-    return UserModel.findOne(
-      {
-        where: {
-          Email: username,
-        },
+    return UserModel.findOne({
+      where: {
+        email: username,
       },
-      { raw: true }
-    );
+      raw: true,
+      attributes: [
+        "id",
+        "uuid",
+        "email",
+        "password",
+        "firstName",
+        "lastName",
+        "phone",
+        "roles",
+        "accessToken",
+        "refreshToken",
+        "active",
+        "createdAt",
+        "updatedAt",
+      ],
+    });
   }
 
   async function updateRefreshToken(id, refreshToken) {
-    console.log('id updateRefreshToken:>> ', id);
     const result = await UserModel.update(
       { refreshToken },
       {
@@ -73,7 +87,6 @@ module.exports = function setupUser(UserModel, db, sequelize) {
   }
 
   async function updateAccessToken(id, accessToken) {
-    console.log('id updateAccessToken:>> ', id);
     const result = await UserModel.update(
       { accessToken },
       {

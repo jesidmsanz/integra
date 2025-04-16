@@ -5,112 +5,112 @@ module.exports = function (config) {
   const Model = sequelize.define(
     "employees",
     {
-      ContractType: {
+      contractType: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "ContractType",
       },
-      Name: {
+      name: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Name",
       },
-      Phone: {
+      phone: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Phone",
       },
-      Address: {
+      address: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Address",
       },
-      Email: {
+      email: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Email",
       },
-      Eps: {
+      eps: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Eps",
       },
-      Arl: {
+      arl: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Arl",
       },
-      Pension: {
+      pension: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Pension",
       },
-      Sexo: {
+      sex: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Sexo",
       },
-      NumberOfChildren: {
+      numberOfChildren: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "NumberOfChildren",
       },
-      Birthdate: {
+      birthdate: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Birthdate",
       },
-      Name: {
+      name: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Name",
       },
-      ContractStartDate: {
+      contractStartDate: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "contract start date",
       },
-      PositionArea: {
+      positionArea: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "Position/area",
       },
-      BasicMonthlySalary: {
+      basicMonthlySalary: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "basic monthly salary",
       },
-      ShiftValuePerHour: {
+      shiftValuePerHour: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "Shift value per hour",
       },
-      TransportationAssistance: {
+      transportationAssistance: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "transportation assistance",
       },
-      MobilityAssistance: {
+      mobilityAssistance: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "Mobility Assistance",
       },
-      HasAdditionalDiscount: {
+      hasAdditionalDiscount: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
         comment: "HasAdditionalDiscount",
       },
-      DiscountValue: {
+      discountValue: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "DiscountValue",
       },
-      AdditionalDiscountComment: {
+      additionalDiscountComment: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "AdditionalDiscountComment",
       },
-      CompanyId: {
+      companyId: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
@@ -118,7 +118,7 @@ module.exports = function (config) {
           key: "id",
         },
       },
-      Active: {
+      active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
         comment: "Active",

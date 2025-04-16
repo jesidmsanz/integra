@@ -99,44 +99,44 @@ const EmployeeListContainer = () => {
   const columns = [
     {
       name: "Nombre",
-      selector: (row) => `${row.Name}`,
+      selector: (row) => `${row.name}`,
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Fecha De Inicio De Contrato",
       selector: (row) =>
-        row.ContractStartDate?.split("T")[0] || "No disponible",
+        row.contractStartDate?.split("T")[0] || "No disponible",
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Cargo o Area",
-      selector: (row) => row.PositionArea || "No disponible",
+      selector: (row) => row.positionArea || "No disponible",
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Salario Mensual Básico",
-      selector: (row) => row.BasicMonthlySalary,
+      selector: (row) => row.basicMonthlySalary,
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Valor Del Turno Por Hora",
-      selector: (row) => row.ShiftValuePerHour,
+      selector: (row) => row.shiftValuePerHour,
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Auxilio De Transporte",
-      selector: (row) => row.TransportationAssistance,
+      selector: (row) => row.transportationAssistance,
       sortable: true,
       minWidth: "150px",
     },
     {
       name: "Auxilio De Movilidad",
-      selector: (row) => row.MobilityAssistance,
+      selector: (row) => row.mobilityAssistance,
       sortable: true,
       minWidth: "150px",
     },

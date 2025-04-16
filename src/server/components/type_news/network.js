@@ -4,43 +4,43 @@ import response from "../../network/response";
 import baseHandler from "@/server/network/baseHandler";
 
 const handler = baseHandler();
-const apiURL = "/api/news";
+const apiURL = "/api/type_news";
 
-
-// GET: api/news
+// GET: api/type_news
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
+    console.log("findAll: type_news");
     const result = await controller.findAll();
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 
-// GET: api/news/active
+// GET: api/type_news/active
 handler.get(`${apiURL}/active`, async function (req, res) {
   try {
     const result = await controller.findAllActive();
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 
-// GET: api/news/1
+// GET: api/type_news/1
 handler.get(`${apiURL}/:id`, async function (req, res) {
   try {
     const result = await controller.findById(req.params.id);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 
-// POST: api/news
+// POST: api/type_news
 handler.post(`${apiURL}/`, async function (req, res) {
   try {
     const result = await controller.create(req.body);
@@ -48,30 +48,30 @@ handler.post(`${apiURL}/`, async function (req, res) {
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 
-// PUT: api/news/1
+// PUT: api/type_news/1
 handler.put(`${apiURL}/:id`, async function (req, res) {
   try {
     const result = await controller.update(req.params.id, req.body);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 
-// DELETE: api/news
+// DELETE: api/type_news
 handler.delete(`${apiURL}/:id`, async function (req, res) {
   try {
-    console.log("delete: news");
+    console.log("delete: type_news");
     const model = await controller.deleteById(req.params.id);
     response.success(req, res, model);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on news", 400, error);
+    response.error(req, res, "Error on type_news", 400, error);
   }
 });
 

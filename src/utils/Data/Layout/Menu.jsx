@@ -46,6 +46,12 @@ export const MenuList = [
         title: "Novedades",
         type: "link",
       },
+      {
+        path: "/admin/novedades_empleados",
+        icon: "file",
+        title: "Novedades Empleados",
+        type: "link",
+      },
       // {
       //   path: "/admin/eventos",
       //   icon: "calendar",

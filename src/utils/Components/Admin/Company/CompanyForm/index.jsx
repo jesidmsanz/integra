@@ -18,11 +18,12 @@ import {
 } from "reactstrap";
 
 const initialState = {
-  CompanyName: "",
-  Nit: "",
-  Address: "",
-  Phone: "",
-  Email: "",
+  companyName: "",
+  nit: "",
+  address: "",
+  phone: "",
+  email: "",
+  active: true,
 };
 
 const CompanyForm = ({
@@ -123,90 +124,110 @@ const CompanyForm = ({
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">Razón Social:</Label>
+                  <Label for="companyName">Razón Social:</Label>
                   <Input
                     type="text"
-                    name="CompanyName"
-                    id="CompanyName"
+                    name="companyName"
+                    id="companyName"
                     placeholder="Razón Social"
                     onChange={handleChange}
-                    value={form.CompanyName}
-                    invalid={!!errors.CompanyName}
+                    value={form.companyName}
+                    invalid={!!errors.companyName}
                     required
                   />
-                  {errors.CompanyName && (
-                    <FormFeedback>{errors.CompanyName}</FormFeedback>
+                  {errors.companyName && (
+                    <FormFeedback>{errors.companyName}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">NIT:</Label>
+                  <Label for="nit">NIT:</Label>
                   <Input
                     type="text"
-                    name="Nit"
-                    id="Nit"
+                    name="nit"
+                    id="nit"
                     placeholder="Ingresa el nit"
                     onChange={handleChange}
-                    value={form.Nit}
-                    invalid={!!errors.Nit}
+                    value={form.nit}
+                    invalid={!!errors.nit}
                     required
                   />
-                  {errors.Nit && <FormFeedback>{errors.Nit}</FormFeedback>}
+                  {errors.nit && <FormFeedback>{errors.nit}</FormFeedback>}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">Direcciòn:</Label>
+                  <Label for="address">Direcciòn:</Label>
                   <Input
                     type="text"
-                    name="Address"
-                    id="Address"
+                    name="address"
+                    id="address"
                     placeholder="Ingresa el direcciòn"
                     onChange={handleChange}
-                    value={form.Address}
-                    invalid={!!errors.Address}
+                    value={form.address}
+                    invalid={!!errors.address}
                     required
                   />
-                  {errors.Address && (
-                    <FormFeedback>{errors.Address}</FormFeedback>
+                  {errors.address && (
+                    <FormFeedback>{errors.address}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">Telefono:</Label>
+                  <Label for="phone">Telefono:</Label>
                   <Input
                     type="number"
-                    name="Phone"
-                    id="Phone"
+                    name="phone"
+                    id="phone"
                     placeholder="Ingresa el telefono"
                     onChange={handleChange}
-                    value={form.Phone}
-                    invalid={!!errors.Phone}
+                    value={form.phone}
+                    invalid={!!errors.phone}
                     required
                   />
-                  {errors.Phone && <FormFeedback>{errors.Phone}</FormFeedback>}
+                  {errors.phone && <FormFeedback>{errors.phone}</FormFeedback>}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="name">Email:</Label>
+                  <Label for="email">Email:</Label>
                   <Input
                     type="text"
-                    name="Email"
-                    id="Email"
+                    name="email"
+                    id="email"
                     placeholder="Ingresa el email"
                     onChange={handleChange}
-                    value={form.Email}
-                    invalid={!!errors.Email}
+                    value={form.email}
+                    invalid={!!errors.email}
                     required
                   />
-                  {errors.Email && <FormFeedback>{errors.Email}</FormFeedback>}
+                  {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="active">Activo</Label>
+                  <div>
+                    <Input
+                      type="checkbox"
+                      name="active"
+                      id="active"
+                      checked={form.active}
+                      onChange={(e) => {
+                        const { name, checked } = e.target;
+                        setForm({
+                          ...form,
+                          [name]: checked,
+                        });
+                      }}
+                    />
+                  </div>
                 </FormGroup>
               </Col>
             </Row>
