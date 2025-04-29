@@ -5,7 +5,7 @@ module.exports = function (config) {
   const Model = sequelize.define(
     "companies",
     {
-      companyName: {
+      companyname: {
         type: Sequelize.STRING(),
         allowNull: false,
         comment: "CompanyName",
@@ -39,12 +39,12 @@ module.exports = function (config) {
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FCREACION",
+        comment: "Creation Date",
       },
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FECHA_ACTUALIZACION",
+        comment: "Update Date",
       },
     },
     { tableName: "companies", timestamps: true }

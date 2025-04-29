@@ -98,45 +98,56 @@ const EmployeeListContainer = () => {
 
   const columns = [
     {
+      name: "Documento",
+      selector: (row) => `${row.documenttype} ${row.documentnumber}`,
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Nombre",
-      selector: (row) => `${row.name}`,
+      selector: (row) => row.fullname,
+      sortable: true,
+      minWidth: "200px",
+    },
+    {
+      name: "Tipo de Contrato",
+      selector: (row) => row.contracttype,
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Fecha De Inicio De Contrato",
-      selector: (row) =>
-        row.contractStartDate?.split("T")[0] || "No disponible",
+      name: "Cargo",
+      selector: (row) => row.position,
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Cargo o Area",
-      selector: (row) => row.positionArea || "No disponible",
+      name: "Jornada",
+      selector: (row) => row.workday,
+      sortable: true,
+      minWidth: "100px",
+    },
+    {
+      name: "EPS",
+      selector: (row) => row.eps,
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Salario Mensual Básico",
-      selector: (row) => row.basicMonthlySalary,
+      name: "ARL",
+      selector: (row) => row.arl,
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Valor Del Turno Por Hora",
-      selector: (row) => row.shiftValuePerHour,
+      name: "Pensión",
+      selector: (row) => row.pension,
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Auxilio De Transporte",
-      selector: (row) => row.transportationAssistance,
-      sortable: true,
-      minWidth: "150px",
-    },
-    {
-      name: "Auxilio De Movilidad",
-      selector: (row) => row.mobilityAssistance,
+      name: "Salario Base",
+      selector: (row) => row.basicmonthlysalary,
       sortable: true,
       minWidth: "150px",
     },
@@ -152,62 +163,56 @@ const EmployeeListContainer = () => {
   }, [page]);
 
   return (
-    <>
-      <Breadcrumbs
-        pageTitle="Empleados"
-        parent="Empleados"
-        // title="Todo el Empleados"
-      />
-      <Container fluid>
-        <Row>
-          <Col sm="12">
-            <Card>
-              <CardBody>
-                <>
-                  <div className="list-product-header">
-                    <EmployeeListFilterHeader setViewForm={setViewForm} />
-                    <CollapseFilterData />
-                  </div>
-                  <div className="list-product">
-                    <div className="table-responsive">
-                      <DataTable
-                        className="custom-scrollbar"
-                        customStyles={customStyles}
-                        columns={columns}
-                        data={data}
-                        progressPending={loading}
-                        pagination
-                        paginationServer
-                        paginationTotalRows={totalRows}
-                        paginationDefaultPage={page}
-                        onChangePage={handlePageChange}
-                        paginationPerPage={rowsPerPage}
-                        striped
-                        highlightOnHover
-                        subHeader
-                        dense
-                        responsive
-                      />
-                      <EmployeeForm
-                        isOpen={viewForm}
-                        title={
-                          isUpdate ? "Actualizar Empleado" : "Crear Empleado"
-                        }
-                        setViewForm={setViewForm}
-                        fetchData={fetchData}
-                        dataToUpdate={dataToUpdate}
-                        isUpdate={isUpdate}
-                        setIsUpdate={setIsUpdate}
-                      />
-                    </div>
-                  </div>
-                </>
-              </CardBody>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
-    </>
+    <div className="container-fluid">
+      <div className="row">
+        <div className="col-12">
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Lista de Empleados</h3>
+              <div className="card-tools">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setDataToUpdate(null);
+                    setIsUpdate(false);
+                    setViewForm(true);
+                  }}
+                >
+                  <i className="fas fa-plus"></i> Nuevo Empleado
+                </button>
+              </div>
+            </div>
+            <div className="card-body">
+              {viewForm ? (
+                <EmployeeForm
+                  isOpen={viewForm}
+                  title={isUpdate ? "Actualizar Empleado" : "Crear Empleado"}
+                  setViewForm={setViewForm}
+                  fetchData={fetchData}
+                  dataToUpdate={dataToUpdate}
+                  isUpdate={isUpdate}
+                  setIsUpdate={setIsUpdate}
+                />
+              ) : (
+                <DataTable
+                  columns={columns}
+                  data={data}
+                  pagination
+                  paginationServer
+                  paginationTotalRows={totalRows}
+                  onChangePage={handlePageChange}
+                  onChangeRowsPerPage={handlePageChange}
+                  progressPending={loading}
+                  noDataComponent="No hay empleados registrados"
+                  customStyles={customStyles}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

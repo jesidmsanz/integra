@@ -18,7 +18,7 @@ import {
 } from "reactstrap";
 
 const initialState = {
-  companyName: "",
+  companyname: "",
   nit: "",
   address: "",
   phone: "",
@@ -124,19 +124,19 @@ const CompanyForm = ({
             <Row>
               <Col md="6">
                 <FormGroup>
-                  <Label for="companyName">Razón Social:</Label>
+                  <Label for="companyname">Razón Social:</Label>
                   <Input
                     type="text"
-                    name="companyName"
-                    id="companyName"
+                    name="companyname"
+                    id="companyname"
                     placeholder="Razón Social"
                     onChange={handleChange}
-                    value={form.companyName}
-                    invalid={!!errors.companyName}
+                    value={form.companyname}
+                    invalid={!!errors.companyname}
                     required
                   />
-                  {errors.companyName && (
-                    <FormFeedback>{errors.companyName}</FormFeedback>
+                  {errors.companyname && (
+                    <FormFeedback>{errors.companyname}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>

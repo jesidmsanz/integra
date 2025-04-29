@@ -37,15 +37,15 @@ module.exports = function (config) {
         defaultValue: true,
         comment: "Estado activo/inactivo",
       },
-      createdAt: {
+      createdat: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "Fecha de creación",
+        comment: "Creation Date",
       },
-      updatedAt: {
+      updatedat: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "Fecha de actualización",
+        comment: "Update Date",
       },
     },
     { tableName: "type_news", timestamps: true }

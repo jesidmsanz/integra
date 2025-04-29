@@ -5,112 +5,212 @@ module.exports = function (config) {
   const Model = sequelize.define(
     "employees",
     {
-      contractType: {
-        type: Sequelize.STRING(),
+      documenttype: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "ContractType",
+        comment: "Document Type",
       },
-      name: {
-        type: Sequelize.STRING(),
+      documentnumber: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "Name",
+        comment: "Document Number",
+      },
+      fullname: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Full Name",
+      },
+      contracttype: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Contract Type",
+      },
+      position: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Position",
+      },
+      workday: {
+        type: Sequelize.FLOAT,
+        allowNull: false,
+        comment: "Workday",
+      },
+      maritalstatus: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Marital Status",
+      },
+      educationlevel: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Education Level",
+      },
+      bloodtype: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Blood Type",
       },
       phone: {
-        type: Sequelize.STRING(),
+        type: Sequelize.STRING,
         allowNull: false,
         comment: "Phone",
       },
       address: {
-        type: Sequelize.STRING(),
+        type: Sequelize.STRING,
         allowNull: false,
         comment: "Address",
       },
       email: {
-        type: Sequelize.STRING(),
+        type: Sequelize.STRING,
         allowNull: false,
         comment: "Email",
       },
-      eps: {
-        type: Sequelize.STRING(),
+      contributortype: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "Eps",
+        comment: "Contributor Type",
+      },
+      contributorsubtype: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Contributor Subtype",
+      },
+      eps: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "EPS",
       },
       arl: {
-        type: Sequelize.STRING(),
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "Arl",
+        comment: "ARL",
+      },
+      arlrisklevel: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "ARL Risk Level",
+      },
+      arlriskpercentage: {
+        type: Sequelize.FLOAT,
+        allowNull: false,
+        comment: "ARL Risk Percentage",
       },
       pension: {
-        type: Sequelize.STRING(),
+        type: Sequelize.STRING,
         allowNull: false,
         comment: "Pension",
       },
-      sex: {
-        type: Sequelize.STRING(),
+      compensationfund: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "Sexo",
+        comment: "Compensation Fund (CCF)",
       },
-      numberOfChildren: {
-        type: Sequelize.STRING(),
+      severancefund: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "NumberOfChildren",
+        comment: "Severance Fund",
+      },
+      sex: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Sex",
       },
       birthdate: {
-        type: Sequelize.STRING(),
+        type: Sequelize.DATE,
         allowNull: false,
         comment: "Birthdate",
       },
-      name: {
-        type: Sequelize.STRING(),
-        allowNull: false,
-        comment: "Name",
-      },
-      contractStartDate: {
+      contractstartdate: {
         type: Sequelize.DATE,
-        allowNull: true,
-        comment: "contract start date",
-      },
-      positionArea: {
-        type: Sequelize.STRING(),
         allowNull: false,
-        comment: "Position/area",
+        comment: "Contract Start Date",
       },
-      basicMonthlySalary: {
+      payrolltype: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Payroll Type",
+      },
+      costcenter: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Cost Center",
+      },
+      basicmonthlysalary: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        comment: "basic monthly salary",
+        comment: "Basic Monthly Salary",
       },
-      shiftValuePerHour: {
+      hourlyrate: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        comment: "Shift value per hour",
+        comment: "Hourly Rate",
       },
-      transportationAssistance: {
+      transportationassistance: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        comment: "transportation assistance",
+        comment: "Transportation Assistance",
       },
-      mobilityAssistance: {
+      mobilityassistance: {
         type: Sequelize.INTEGER,
         allowNull: false,
         comment: "Mobility Assistance",
       },
-      hasAdditionalDiscount: {
+      accounttype: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Account Type",
+      },
+      bank: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Bank",
+      },
+      accountnumber: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Account Number",
+      },
+      paymentmethod: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Payment Method",
+      },
+      workcity: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        comment: "Work City",
+      },
+      hasadditionaldiscount: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
-        comment: "HasAdditionalDiscount",
+        comment: "Has Additional Discount",
       },
-      discountValue: {
+      discountvalue: {
         type: Sequelize.INTEGER,
         allowNull: false,
-        comment: "DiscountValue",
+        comment: "Discount Value",
       },
-      additionalDiscountComment: {
-        type: Sequelize.STRING(),
+      additionaldiscountcomment: {
+        type: Sequelize.STRING,
         allowNull: false,
-        comment: "AdditionalDiscountComment",
+        comment: "Additional Discount Comment",
       },
-      companyId: {
+      shirtsize: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Shirt Size",
+      },
+      pantssize: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Pants Size",
+      },
+      shoesize: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Shoe Size",
+      },
+      companyid: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
@@ -121,18 +221,18 @@ module.exports = function (config) {
       active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
+        defaultValue: true,
         comment: "Active",
-        default: true,
       },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FCREACION",
+        comment: "Creation Date",
       },
       updatedAt: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FECHA_ACTUALIZACION",
+        comment: "Update Date",
       },
     },
     { tableName: "employees", timestamps: true }

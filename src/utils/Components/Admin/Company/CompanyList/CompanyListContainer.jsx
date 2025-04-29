@@ -99,7 +99,7 @@ const CompanyListContainer = () => {
   const columns = [
     {
       name: "Razón Social",
-      selector: (row) => `${row.companyName}`,
+      selector: (row) => `${row.companyname}`,
       sortable: true,
       minWidth: "150px",
     },

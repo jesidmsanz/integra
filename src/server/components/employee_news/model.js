@@ -59,13 +59,13 @@ module.exports = function (config) {
         defaultValue: true,
         comment: "Estado activo/inactivo",
       },
-      createdAt: {
+      createdat: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "Fecha de creación",
         defaultValue: Sequelize.NOW,
       },
-      updatedAt: {
+      updatedat: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "Fecha de actualización",

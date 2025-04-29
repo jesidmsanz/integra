@@ -19,29 +19,48 @@ import {
 } from "reactstrap";
 
 const initialState = {
-  contractType: "",
-  name: "",
-  contractStartDate: "",
-  positionArea: "",
-  basicMonthlySalary: "",
-  shiftValuePerHour: "",
-  transportationAssistance: "",
-  mobilityAssistance: "",
-  healthAndPensionDiscount: true,
-  hasAdditionalDiscount: false,
-  discountValue: 0,
-  additionalDiscountComment: "",
-  identificationNumber: "",
+  documenttype: "",
+  documentnumber: "",
+  fullname: "",
+  contracttype: "",
+  position: "",
+  workday: "",
+  maritalstatus: "",
+  educationlevel: "",
+  bloodtype: "",
   phone: "",
   address: "",
   email: "",
+  contributortype: "",
+  contributorsubtype: "",
   eps: "",
   arl: "",
+  arlrisklevel: "",
+  arlriskpercentage: "",
   pension: "",
+  compensationfund: "",
+  severancefund: "",
   sex: "",
-  numberOfChildren: "",
   birthdate: "",
-  companyId: null,
+  contractstartdate: "",
+  payrolltype: "",
+  costcenter: "",
+  basicmonthlysalary: "",
+  hourlyrate: "",
+  transportationassistance: "",
+  mobilityassistance: "",
+  accounttype: "",
+  bank: "",
+  accountnumber: "",
+  paymentmethod: "",
+  workcity: "",
+  hasadditionaldiscount: false,
+  discountvalue: 0,
+  additionaldiscountcomment: "",
+  shirtsize: "",
+  pantssize: "",
+  shoesize: "",
+  companyid: null,
   active: true,
 };
 
@@ -60,6 +79,157 @@ const EmployeeForm = ({
   const [companies, setCompanies] = useState([]);
   let formRef = createRef();
 
+  const selectOptions = {
+    arl: ["Positiva Compañía de Seguros"],
+    eps: [
+      "Sanitas",
+      "EPS Sura",
+      "Salud Total Eps",
+      "Cajacopi",
+      "Mutualser",
+      "Nueva EPS",
+      "Coosalud",
+      "salud Total Eps",
+      "Famisanar",
+    ],
+    paymentmethod: ["Quincenal", "Mensual"],
+    documenttype: ["CC", "PPT", "CE"],
+    contracttype: ["Obra o labor", "Fijo", "Indefinido"],
+    position: [
+      "Auxiliar de Servicios Generales",
+      "GERENTE OPERATIVO",
+      "Conserje",
+      "Supervisor Operativo",
+      "Todero/Piscinero",
+      "Todero ",
+      "Todero/Salvavidas",
+      "Auxiliar de Cocina",
+      "Operaria de Aseo",
+      "Operario de Aseo",
+      "Psicóloga",
+      "Salvavidas",
+      "Jardinero",
+      "Supervisor De Aseo",
+      "Todero",
+      "Coordinador Talento Humano",
+      "Ejecutiva Comercial",
+      "Contador",
+      "Gerente Comercial",
+    ],
+    maritalstatus: [
+      "Soltera",
+      "Soltero",
+      "Unión Libre",
+      "Casada",
+      "soltera",
+      "Casado",
+      "Union Libre",
+      "casado",
+      "union libre",
+      "Viuda",
+    ],
+    educationlevel: [
+      "Técnico",
+      "Especialista",
+      "Bachiller",
+      "Profesional",
+      "Tecnico",
+      "Tegnologo",
+      "Primaria",
+    ],
+    bloodtype: ["O+", "B+", "A+"],
+    contributortype: ["Dependiente"],
+    arlrisklevel: [
+      "Riesgo II",
+      "Riesgo I ",
+      "Riesgo IV",
+      "Riesgo I",
+      "Riesgo II ",
+    ],
+    pension: [
+      "Porvenir S.A",
+      "Colfondos",
+      "Protección",
+      "Colpensiones",
+      "colpensiones",
+    ],
+    compensationfund: ["Comfamiliar", "comfamiliar", "Cajamag"],
+    severancefund: ["Protección"],
+    sex: ["F ", "M ", "M", "F"],
+    payrolltype: ["Operativa", "Administrativa"],
+    costcenter: [
+      "Clinica Santa Ana de Dios",
+      "Administración",
+      "El Parador de Santa Marta",
+      "Villas del puerto II",
+      "Parque Central Hayuelos",
+      "Parque Industrial Claveria",
+      "Torres de Montreal",
+      "Palmas Mall",
+      "Producción",
+      "Instituto San Luis Beltran",
+      "Edificio Bruxxel",
+      "Edificio Colibrí",
+      "Firenze",
+      "Edificio Colibri",
+      "Mystic Park",
+      "Bahia de Cadiz",
+      "Carniceria Don Pedro",
+      "Mistic Park",
+      "Parques de Bolivar II",
+      "SeppsaFumiespecial",
+      "Carnicería Don pedro",
+      "Boracay",
+      "Punta Gaira",
+      "Conjunto Ruiseñor",
+      "clinica Santa Ana de Dios",
+      "Carniceria Alameda del Rio",
+      "Lagos Caujaral",
+      "Torres del sol",
+      "IPS Vihonco",
+    ],
+    bank: ["Bancolombia", "BBVA", "Banco Davivienda S.A.", "0"],
+    accounttype: ["Ahorro", "DAVIPLATA", "NEQUI", "Efectivo"],
+    workcity: ["Barranquilla", "Santa Marta"],
+  };
+
+  const formatCurrency = (value) => {
+    if (!value) return "";
+    const number = parseFloat(value);
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(number);
+  };
+
+  const unformatCurrency = (value) => {
+    if (!value) return "";
+    return value.replace(/[^0-9]/g, "");
+  };
+
+  const handleCurrencyChange = (e) => {
+    const { name, value } = e.target;
+    const unformattedValue = unformatCurrency(value);
+    setForm({
+      ...form,
+      [name]: unformattedValue,
+    });
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: "",
+      });
+    }
+  };
+
+  const handleCurrencyBlur = (e) => {
+    const { name, value } = e.target;
+    const formattedValue = formatCurrency(value);
+    e.target.value = formattedValue;
+  };
+
   const loadCompanies = async () => {
     try {
       const loadData = await companiesApi.list();
@@ -72,7 +242,19 @@ const EmployeeForm = ({
   useEffect(() => {
     loadCompanies();
     if (isUpdate && dataToUpdate) {
-      setForm(dataToUpdate);
+      const formattedData = {
+        ...dataToUpdate,
+        basicmonthlysalary: formatCurrency(dataToUpdate.basicmonthlysalary),
+        hourlyrate: formatCurrency(dataToUpdate.hourlyrate),
+        transportationassistance: formatCurrency(
+          dataToUpdate.transportationassistance
+        ),
+        mobilityassistance: formatCurrency(dataToUpdate.mobilityassistance),
+        discountvalue: dataToUpdate.discountvalue
+          ? formatCurrency(dataToUpdate.discountvalue)
+          : 0,
+      };
+      setForm(formattedData);
     } else {
       setForm(initialState);
     }
@@ -108,9 +290,22 @@ const EmployeeForm = ({
     if (Object.keys(newErrors).length === 0) {
       setLoading(true);
       try {
+        const dataToSend = {
+          ...form,
+          basicmonthlysalary: unformatCurrency(form.basicmonthlysalary),
+          hourlyrate: unformatCurrency(form.hourlyrate),
+          transportationassistance: unformatCurrency(
+            form.transportationassistance
+          ),
+          mobilityassistance: unformatCurrency(form.mobilityassistance),
+          discountvalue: form.discountvalue
+            ? unformatCurrency(form.discountvalue)
+            : 0,
+        };
+
         const save = isUpdate
-          ? await employeesApi.update(dataToUpdate.id, form)
-          : await employeesApi.create(form);
+          ? await employeesApi.update(dataToUpdate.id, dataToSend)
+          : await employeesApi.create(dataToSend);
         if (save?.id) {
           setForm(initialState);
           setViewForm(false);
@@ -150,126 +345,165 @@ const EmployeeForm = ({
               formRef = ref;
             }}
           >
+            <h4 className="mb-3">Información Personal</h4>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Empresa:</Label>
+                  <Label for="documenttype">Tipo de documento:</Label>
                   <Input
                     type="select"
-                    name="companyId"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    name="documenttype"
+                    id="documenttype"
                     onChange={handleChange}
-                    value={form.companyId}
-                    invalid={!!errors.companyId}
+                    value={form.documenttype}
+                    invalid={!!errors.documenttype}
                     required
                   >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    {companies.map((i) => (
-                      <option value={i.id} key={i.id}>
-                          {i.companyName}
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.documenttype.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
                       </option>
                     ))}
                   </Input>
-                  {errors.companyId && (
-                    <FormFeedback>{errors.companyId}</FormFeedback>
+                  {errors.documenttype && (
+                    <FormFeedback>{errors.documenttype}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Tipo de contrato:</Label>
-                  <Input
-                    type="select"
-                    name="contractType"
-                    id="name"
-                    placeholder="Ingresa el nombre"
-                    onChange={handleChange}
-                    value={form.contractType}
-                    invalid={!!errors.contractType}
-                    required
-                  >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    <option value="Contrato a término fijo">
-                      Contrato a término fijo
-                    </option>
-                    <option value="Contrato a término indefinido">
-                      Contrato a término indefinido
-                    </option>
-                    <option value="Contrato de obra o labor">
-                      Contrato de obra o labor
-                    </option>
-                    <option value="Contrato de aprendizaje">
-                      Contrato de aprendizaje
-                    </option>
-                    <option value="Contrato civil por prestación de servicios">
-                      Contrato civil por prestación de servicios
-                    </option>
-                    <option value="Contrato ocasional de trabajo">
-                      Contrato ocasional de trabajo
-                    </option>
-                  </Input>
-                  {errors.contractType && (
-                    <FormFeedback>{errors.contractType}</FormFeedback>
-                  )}
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="name">Nombres:</Label>
+                  <Label for="documentnumber">Número de documento:</Label>
                   <Input
                     type="text"
-                    name="name"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    name="documentnumber"
+                    id="documentnumber"
+                    placeholder="Ingresa el número de documento"
                     onChange={handleChange}
-                    value={form.name}
-                    invalid={!!errors.name}
+                    value={form.documentnumber}
+                    invalid={!!errors.documentnumber}
                     required
                   />
-                  {errors.name && <FormFeedback>{errors.name}</FormFeedback>}
+                  {errors.documentnumber && (
+                    <FormFeedback>{errors.documentnumber}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="fullname">Nombre completo:</Label>
+                  <Input
+                    type="text"
+                    name="fullname"
+                    id="fullname"
+                    placeholder="Ingresa el nombre completo"
+                    onChange={handleChange}
+                    value={form.fullname}
+                    invalid={!!errors.fullname}
+                    required
+                  />
+                  {errors.fullname && (
+                    <FormFeedback>{errors.fullname}</FormFeedback>
+                  )}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="identificationNumber">Cédula:</Label>
+                  <Label for="sex">Sexo:</Label>
                   <Input
-                    type="number"
-                    name="identificationNumber"
-                    id="identificationNumber"
-                    placeholder="Ingresa la cédula"
+                    type="select"
+                    name="sex"
+                    id="sex"
                     onChange={handleChange}
-                    value={form.identificationNumber}
-                    invalid={!!errors.identificationNumber}
+                    value={form.sex}
+                    invalid={!!errors.sex}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.sex.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.sex && <FormFeedback>{errors.sex}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="birthdate">Fecha de nacimiento:</Label>
+                  <Input
+                    type="date"
+                    name="birthdate"
+                    id="birthdate"
+                    onChange={handleChange}
+                    value={form.birthdate}
+                    invalid={!!errors.birthdate}
                     required
                   />
-                  {errors.identificationNumber && (
-                    <FormFeedback>{errors.identificationNumber}</FormFeedback>
+                  {errors.birthdate && (
+                    <FormFeedback>{errors.birthdate}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="name">Telefono:</Label>
+                  <Label for="bloodtype">Tipo de sangre:</Label>
                   <Input
-                    type="number"
+                    type="select"
+                    name="bloodtype"
+                    id="bloodtype"
+                    onChange={handleChange}
+                    value={form.bloodtype}
+                    invalid={!!errors.bloodtype}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.bloodtype.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.bloodtype && (
+                    <FormFeedback>{errors.bloodtype}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="phone">Teléfono:</Label>
+                  <Input
+                    type="text"
                     name="phone"
                     id="phone"
-                    placeholder="Ingresa el telefono"
+                    placeholder="Ingresa el teléfono"
                     onChange={handleChange}
                     value={form.phone}
                     invalid={!!errors.phone}
                     required
                   />
                   {errors.phone && <FormFeedback>{errors.phone}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="email">Correo electrónico:</Label>
+                  <Input
+                    type="email"
+                    name="email"
+                    id="email"
+                    placeholder="Ingresa el correo electrónico"
+                    onChange={handleChange}
+                    value={form.email}
+                    invalid={!!errors.email}
+                    required
+                  />
+                  {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
                 </FormGroup>
               </Col>
               <Col md="4">
@@ -291,41 +525,159 @@ const EmployeeForm = ({
                 </FormGroup>
               </Col>
             </Row>
+            <h4 className="mt-4 mb-3">Información Laboral</h4>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="email">Email:</Label>
+                  <Label for="position">Cargo:</Label>
                   <Input
-                    type="email"
-                    name="email"
-                    id="email"
-                    placeholder="Ingresa el email"
+                    type="text"
+                    name="position"
+                    id="position"
+                    placeholder="Ingresa el cargo"
                     onChange={handleChange}
-                    value={form.email}
-                    invalid={!!errors.email}
+                    value={form.position}
+                    invalid={!!errors.position}
                     required
                   />
-                  {errors.email && <FormFeedback>{errors.email}</FormFeedback>}
+                  {errors.position && (
+                    <FormFeedback>{errors.position}</FormFeedback>
+                  )}
                 </FormGroup>
               </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="contracttype">Tipo de contrato:</Label>
+                  <Input
+                    type="select"
+                    name="contracttype"
+                    id="contracttype"
+                    onChange={handleChange}
+                    value={form.contracttype}
+                    invalid={!!errors.contracttype}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.contracttype.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.contracttype && (
+                    <FormFeedback>{errors.contracttype}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="contractstartdate">Fecha de inicio:</Label>
+                  <Input
+                    type="date"
+                    name="contractstartdate"
+                    id="contractstartdate"
+                    onChange={handleChange}
+                    value={form.contractstartdate}
+                    invalid={!!errors.contractstartdate}
+                    required
+                  />
+                  {errors.contractstartdate && (
+                    <FormFeedback>{errors.contractstartdate}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="workday">Jornada:</Label>
+                  <Input
+                    type="select"
+                    name="workday"
+                    id="workday"
+                    onChange={handleChange}
+                    value={form.workday}
+                    invalid={!!errors.workday}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    <option value="Diurna">Diurna</option>
+                    <option value="Nocturna">Nocturna</option>
+                    <option value="Mixta">Mixta</option>
+                  </Input>
+                  {errors.workday && (
+                    <FormFeedback>{errors.workday}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="costcenter">Centro de costos:</Label>
+                  <Input
+                    type="select"
+                    name="costcenter"
+                    id="costcenter"
+                    onChange={handleChange}
+                    value={form.costcenter}
+                    invalid={!!errors.costcenter}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.costcenter.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.costcenter && (
+                    <FormFeedback>{errors.costcenter}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="workcity">Ciudad de trabajo:</Label>
+                  <Input
+                    type="select"
+                    name="workcity"
+                    id="workcity"
+                    onChange={handleChange}
+                    value={form.workcity}
+                    invalid={!!errors.workcity}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.workcity.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.workcity && (
+                    <FormFeedback>{errors.workcity}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="eps">EPS:</Label>
                   <Input
                     type="select"
                     name="eps"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    id="eps"
                     onChange={handleChange}
                     value={form.eps}
                     invalid={!!errors.eps}
                     required
                   >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    <option value="Pendiente">Pendient...</option>
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.eps.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </Input>
                   {errors.eps && <FormFeedback>{errors.eps}</FormFeedback>}
                 </FormGroup>
@@ -336,42 +688,86 @@ const EmployeeForm = ({
                   <Input
                     type="select"
                     name="arl"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    id="arl"
                     onChange={handleChange}
                     value={form.arl}
                     invalid={!!errors.arl}
                     required
                   >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    <option value="Pendiente">Pendient...</option>
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.arl.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </Input>
                   {errors.arl && <FormFeedback>{errors.arl}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="arlrisklevel">Nivel de riesgo ARL:</Label>
+                  <Input
+                    type="select"
+                    name="arlrisklevel"
+                    id="arlrisklevel"
+                    onChange={handleChange}
+                    value={form.arlrisklevel}
+                    invalid={!!errors.arlrisklevel}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.arlrisklevel.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.arlrisklevel && (
+                    <FormFeedback>{errors.arlrisklevel}</FormFeedback>
+                  )}
                 </FormGroup>
               </Col>
             </Row>
             <Row>
               <Col md="4">
                 <FormGroup>
+                  <Label for="arlriskpercentage">
+                    Porcentaje de riesgo ARL:
+                  </Label>
+                  <Input
+                    type="number"
+                    name="arlriskpercentage"
+                    id="arlriskpercentage"
+                    placeholder="Ingresa el porcentaje"
+                    onChange={handleChange}
+                    value={form.arlriskpercentage}
+                    invalid={!!errors.arlriskpercentage}
+                    required
+                  />
+                  {errors.arlriskpercentage && (
+                    <FormFeedback>{errors.arlriskpercentage}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
                   <Label for="pension">Pensión:</Label>
                   <Input
                     type="select"
                     name="pension"
-                    id="name"
-                    placeholder="Ingresa el nombre"
+                    id="pension"
                     onChange={handleChange}
                     value={form.pension}
                     invalid={!!errors.pension}
                     required
                   >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    <option value="Pendiente">Pendient...</option>
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.pension.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </Input>
                   {errors.pension && (
                     <FormFeedback>{errors.pension}</FormFeedback>
@@ -380,269 +776,251 @@ const EmployeeForm = ({
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="sex">Sexo:</Label>
+                  <Label for="compensationfund">Caja de compensación:</Label>
                   <Input
                     type="select"
-                    name="sex"
-                    id="name"
-                    placeholder="Ingresa el sexo"
+                    name="compensationfund"
+                    id="compensationfund"
                     onChange={handleChange}
-                    value={form.sex}
-                    invalid={!!errors.sex}
+                    value={form.compensationfund}
+                    invalid={!!errors.compensationfund}
                     required
                   >
-                    <option value="" selected>
-                      Selecciona una opción
-                    </option>
-
-                    <option value="Pendiente">Pendient...</option>
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.compensationfund.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
                   </Input>
-                  {errors.sex && <FormFeedback>{errors.sex}</FormFeedback>}
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="numberOfChildren">Numero de hijos:</Label>
-                  <Input
-                    type="number"
-                    name="numberOfChildren"
-                    id="numberOfChildren"
-                    placeholder="Ingresa el numero de hijos"
-                    onChange={handleChange}
-                    value={form.numberOfChildren}
-                    invalid={!!errors.numberOfChildren}
-                    required
-                  />
-                  {errors.numberOfChildren && (
-                    <FormFeedback>{errors.numberOfChildren}</FormFeedback>
+                  {errors.compensationfund && (
+                    <FormFeedback>{errors.compensationfund}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
             </Row>
+            <h4 className="mt-4 mb-3">Información Salarial</h4>
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="birthdate">Fecha de nacimiento:</Label>
-                  <Input
-                    type="date"
-                    name="birthdate"
-                    id="birthdate"
-                    placeholder="Ingresa el numero de hijos"
-                    onChange={handleChange}
-                    value={form.birthdate}
-                    invalid={!!errors.birthdate}
-                    required
-                  />
-                  {errors.birthdate && (
-                    <FormFeedback>{errors.birthdate}</FormFeedback>
-                  )}
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="contractStartDate">
-                    Fecha de inicio del contrato:
-                  </Label>
-                  <Input
-                    type="date"
-                    name="contractStartDate"
-                    id="contractStartDate"
-                    onChange={handleChange}
-                    value={form.contractStartDate?.split("T")[0]}
-                    invalid={!!errors.contractStartDate}
-                    required
-                  />
-                  {errors.contractStartDate && (
-                    <FormFeedback>{errors.contractStartDate}</FormFeedback>
-                  )}
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="positionArea">Área/Posición:</Label>
+                  <Label for="basicmonthlysalary">Salario Base Mensual:</Label>
                   <Input
                     type="text"
-                    name="positionArea"
-                    id="positionArea"
-                    placeholder="Ingresa el área o posición"
-                    onChange={handleChange}
-                    value={form.positionArea}
-                    invalid={!!errors.positionArea}
+                    name="basicmonthlysalary"
+                    id="basicmonthlysalary"
+                    placeholder="Ingresa el salario base"
+                    onChange={handleCurrencyChange}
+                    onBlur={handleCurrencyBlur}
+                    value={form.basicmonthlysalary}
+                    invalid={!!errors.basicmonthlysalary}
                     required
                   />
-                  {errors.positionArea && (
-                    <FormFeedback>{errors.positionArea}</FormFeedback>
+                  {errors.basicmonthlysalary && (
+                    <FormFeedback>{errors.basicmonthlysalary}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="basicMonthlySalary">Salario base mensual:</Label>
+                  <Label for="hourlyrate">Valor Hora:</Label>
                   <Input
-                    type="number"
-                    name="basicMonthlySalary"
-                    id="basicMonthlySalary"
-                    placeholder="Ingresa el salario base mensual"
-                    onChange={handleChange}
-                    value={form.basicMonthlySalary}
-                    invalid={!!errors.basicMonthlySalary}
+                    type="text"
+                    name="hourlyrate"
+                    id="hourlyrate"
+                    placeholder="Ingresa el valor por hora"
+                    onChange={handleCurrencyChange}
+                    onBlur={handleCurrencyBlur}
+                    value={form.hourlyrate}
+                    invalid={!!errors.hourlyrate}
                     required
                   />
-                  {errors.basicMonthlySalary && (
-                    <FormFeedback>{errors.basicMonthlySalary}</FormFeedback>
+                  {errors.hourlyrate && (
+                    <FormFeedback>{errors.hourlyrate}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="shiftValuePerHour">
-                    Valor del turno por hora:
+                  <Label for="transportationassistance">
+                    Auxilio de Transporte:
                   </Label>
                   <Input
-                    type="number"
-                    name="shiftValuePerHour"
-                    id="shiftValuePerHour"
-                    placeholder="Ingresa el valor del turno por hora"
-                    onChange={handleChange}
-                    value={form.shiftValuePerHour}
-                    invalid={!!errors.shiftValuePerHour}
+                    type="text"
+                    name="transportationassistance"
+                    id="transportationassistance"
+                    placeholder="Ingresa el auxilio de transporte"
+                    onChange={handleCurrencyChange}
+                    onBlur={handleCurrencyBlur}
+                    value={form.transportationassistance}
+                    invalid={!!errors.transportationassistance}
                     required
                   />
-                  {errors.shiftValuePerHour && (
-                    <FormFeedback>{errors.shiftValuePerHour}</FormFeedback>
-                  )}
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="transportationAssistance">
-                    Auxilio de transporte:
-                  </Label>
-                  <Input
-                    type="number"
-                    name="transportationAssistance"
-                    id="transportationAssistance"
-                    placeholder="Ingresa la auxilio de transporte"
-                    onChange={handleChange}
-                    value={form.transportationAssistance}
-                    invalid={!!errors.transportationAssistance}
-                    required
-                  />
-                  {errors.transportationAssistance && (
+                  {errors.transportationassistance && (
                     <FormFeedback>
-                      {errors.transportationAssistance}
+                      {errors.transportationassistance}
                     </FormFeedback>
                   )}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="mobilityAssistance">Auxilio de movilidad:</Label>
+                  <Label for="mobilityassistance">Auxilio de Movilidad:</Label>
                   <Input
                     type="number"
-                    name="mobilityAssistance"
-                    id="mobilityAssistance"
-                    placeholder="Ingresa la auxilio de movilidad"
+                    name="mobilityassistance"
+                    id="mobilityassistance"
+                    placeholder="Ingresa el auxilio de movilidad"
                     onChange={handleChange}
-                    value={form.mobilityAssistance}
-                    invalid={!!errors.mobilityAssistance}
+                    value={form.mobilityassistance}
+                    invalid={!!errors.mobilityassistance}
                     required
                   />
-                  {errors.mobilityAssistance && (
-                    <FormFeedback>{errors.mobilityAssistance}</FormFeedback>
+                  {errors.mobilityassistance && (
+                    <FormFeedback>{errors.mobilityassistance}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="hasadditionaldiscount">
+                    Descuento Adicional:
+                  </Label>
+                  <Input
+                    type="select"
+                    name="hasadditionaldiscount"
+                    id="hasadditionaldiscount"
+                    onChange={handleChange}
+                    value={form.hasadditionaldiscount}
+                    invalid={!!errors.hasadditionaldiscount}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    <option value={true}>Sí</option>
+                    <option value={false}>No</option>
+                  </Input>
+                  {errors.hasadditionaldiscount && (
+                    <FormFeedback>{errors.hasadditionaldiscount}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              {form.hasadditionaldiscount && (
+                <Col md="4">
+                  <FormGroup>
+                    <Label for="discountvalue">Valor del Descuento:</Label>
+                    <Input
+                      type="number"
+                      name="discountvalue"
+                      id="discountvalue"
+                      placeholder="Ingresa el valor del descuento"
+                      onChange={handleChange}
+                      value={form.discountvalue}
+                      invalid={!!errors.discountvalue}
+                      required
+                    />
+                    {errors.discountvalue && (
+                      <FormFeedback>{errors.discountvalue}</FormFeedback>
+                    )}
+                  </FormGroup>
+                </Col>
+              )}
+            </Row>
+            {form.hasadditionaldiscount && (
+              <Row>
+                <Col md="12">
+                  <FormGroup>
+                    <Label for="additionaldiscountcomment">
+                      Comentario del Descuento:
+                    </Label>
+                    <Input
+                      type="textarea"
+                      name="additionaldiscountcomment"
+                      id="additionaldiscountcomment"
+                      placeholder="Ingresa el comentario del descuento"
+                      onChange={handleChange}
+                      value={form.additionaldiscountcomment}
+                      invalid={!!errors.additionaldiscountcomment}
+                      required
+                    />
+                    {errors.additionaldiscountcomment && (
+                      <FormFeedback>
+                        {errors.additionaldiscountcomment}
+                      </FormFeedback>
+                    )}
+                  </FormGroup>
+                </Col>
+              </Row>
+            )}
+
+            <h4 className="mt-4 mb-3">Información Bancaria</h4>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="accounttype">Tipo de Cuenta:</Label>
+                  <Input
+                    type="select"
+                    name="accounttype"
+                    id="accounttype"
+                    onChange={handleChange}
+                    value={form.accounttype}
+                    invalid={!!errors.accounttype}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.accounttype.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.accounttype && (
+                    <FormFeedback>{errors.accounttype}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="bank">Banco:</Label>
+                  <Input
+                    type="select"
+                    name="bank"
+                    id="bank"
+                    onChange={handleChange}
+                    value={form.bank}
+                    invalid={!!errors.bank}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.bank.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.bank && <FormFeedback>{errors.bank}</FormFeedback>}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="accountnumber">Número de Cuenta:</Label>
+                  <Input
+                    type="text"
+                    name="accountnumber"
+                    id="accountnumber"
+                    placeholder="Ingresa el número de cuenta"
+                    onChange={handleChange}
+                    value={form.accountnumber}
+                    invalid={!!errors.accountnumber}
+                    required
+                  />
+                  {errors.accountnumber && (
+                    <FormFeedback>{errors.accountnumber}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
             </Row>
 
-            <Row>
-              <Col md="4">
-                <FormGroup check inline>
-                  <Input
-                    type="checkbox"
-                    id="healthAndPensionDiscount"
-                    checked={form.healthAndPensionDiscount}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        healthAndPensionDiscount: e.target.checked,
-                      })
-                    }
-                  />
-                  <Label check for="healthAndPensionDiscount">
-                    Descuento salud y pension
-                  </Label>
-                </FormGroup>
-              </Col>
-              <Col md="4">
-                <FormGroup check inline>
-                  <Input
-                    type="checkbox"
-                    id="hasAdditionalDiscount"
-                    checked={form.hasAdditionalDiscount}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        hasAdditionalDiscount: e.target.checked,
-                      })
-                    }
-                  />
-                  <Label check for="hasAdditionalDiscount">
-                    Descuento adicional
-                  </Label>
-                </FormGroup>
-              </Col>
-            </Row>
-            {form.hasAdditionalDiscount && (
-              <>
-                <Row>
-                  <Col md="4">
-                    <FormGroup>
-                      <Label for="discountValue">Valor de descuento:</Label>
-                      <Input
-                        type="number"
-                        name="discountValue"
-                        id="discountValue"
-                        placeholder="Ingresa el Valor de descuento"
-                        onChange={handleChange}
-                        value={form.discountValue}
-                        invalid={!!errors.discountValue}
-                        required={form.hasAdditionalDiscount}
-                      />
-                      {errors.discountValue && (
-                        <FormFeedback>{errors.discountValue}</FormFeedback>
-                      )}
-                    </FormGroup>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md="12">
-                    <FormGroup>
-                      <Label for="additionalDiscountComment">
-                        Comentario por Descuento adicional:
-                      </Label>
-                      <Input
-                        type="textarea"
-                        name="additionalDiscountComment"
-                        id="additionalDiscountComment"
-                        placeholder="Ingresa Comentario por Descuento adicional"
-                        onChange={handleChange}
-                        value={form.additionalDiscountComment}
-                        invalid={!!errors.additionalDiscountComment}
-                        required={form.hasAdditionalDiscount}
-                      />
-                      {errors.additionalDiscountComment && (
-                        <FormFeedback>
-                          {errors.additionalDiscountComment}
-                        </FormFeedback>
-                      )}
-                    </FormGroup>
-                  </Col>
-                </Row>
-              </>
-            )}
             <Row>
               <Col md="12" className="d-flex justify-content-end mt-4">
                 <Button
@@ -673,4 +1051,5 @@ const EmployeeForm = ({
     </>
   );
 };
+
 export default EmployeeForm;

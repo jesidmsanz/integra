@@ -17,15 +17,15 @@ module.exports = function (config) {
         comment: "Active",
         default: true,
       },
-      createdAt: {
+      createdat: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FCREACION",
+        comment: "Creation Date",
       },
-      updatedAt: {
+      updatedat: {
         type: Sequelize.DATE,
         allowNull: true,
-        comment: "FECHA_ACTUALIZACION",
+        comment: "Update Date",
       },
     },
     { tableName: "contracts", timestamps: true }
