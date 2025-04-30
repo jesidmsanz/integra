@@ -6,6 +6,15 @@ module.exports = function (config) {
   const Model = sequelize.define(
     "employee_news",
     {
+      companyId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
+        comment: "ID de la empresa",
+        references: {
+          model: "companies",
+          key: "id",
+        },
+      },
       employeeId: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -29,10 +38,20 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Fecha de inicio",
       },
+      startTime: {
+        type: Sequelize.TIME,
+        allowNull: false,
+        comment: "Hora de inicio",
+      },
       endDate: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "Fecha de fin",
+      },
+      endTime: {
+        type: Sequelize.TIME,
+        allowNull: true,
+        comment: "Hora de fin",
       },
       status: {
         type: Sequelize.STRING(),

@@ -49,7 +49,7 @@ export const MenuList = [
       {
         path: "/admin/novedades_empleados",
         icon: "file",
-        title: "Novedades Empleados",
+        title: "Registrar Novedades",
         type: "link",
       },
       // {

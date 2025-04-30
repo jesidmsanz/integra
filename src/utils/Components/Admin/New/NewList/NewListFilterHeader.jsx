@@ -24,7 +24,7 @@ export const NewListFilterHeader = ({ setViewForm }) => {
         href=""
       >
         <i className="fa fa-plus" />
-        Agregar Novedad
+        Registrar Novedad
       </Link>
     </div>
   );

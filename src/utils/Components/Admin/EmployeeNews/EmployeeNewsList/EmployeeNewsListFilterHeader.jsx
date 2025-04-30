@@ -23,7 +23,7 @@ export const EmployeeNewsListFilterHeader = ({ setViewForm }) => {
         href=""
       >
         <i className="fa fa-plus" />
-        Agregar Novedad Empleado
+        Registrar Novedad
       </Link>
     </div>
   );

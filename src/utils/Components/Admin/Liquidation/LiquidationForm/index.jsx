@@ -20,7 +20,7 @@ import {
 import AddNews from "./AddNews";
 
 const initialState = {
-  CompanyId: null,
+  companyId: null,
 };
 
 const LiquidationForm = () => {
@@ -154,10 +154,10 @@ const LiquidationForm = () => {
   }, []);
 
   useEffect(() => {
-    if (form.CompanyId) {
-      setDataTable(employees.filter((i) => i.CompanyId == form.CompanyId));
+    if (form.companyId) {
+      setDataTable(employees.filter((i) => i.companyId == form.companyId));
     } else setDataTable([]);
-  }, [form.CompanyId]);
+  }, [form.companyId]);
 
   return (
     <>
@@ -175,17 +175,17 @@ const LiquidationForm = () => {
                   <Label for="name">Empresa:</Label>
                   <Input
                     type="select"
-                    name="CompanyId"
-                    id="CompanyId"
+                    name="companyId"
+                    id="companyId"
                     onChange={handleChange}
-                    value={form.CompanyId}
-                    invalid={!!errors.CompanyId}
+                    value={form.companyId}
+                    invalid={!!errors.companyId}
                     required
                   >
                     <option value="">Selecciona un empleado</option>
                     {companies?.map((company) => (
                       <option key={company.id} value={company.id}>
-                        {company.CompanyName}
+                        {company.companyname}
                       </option>
                     ))}
                   </Input>

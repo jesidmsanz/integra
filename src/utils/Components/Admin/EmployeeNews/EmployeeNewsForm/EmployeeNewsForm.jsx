@@ -17,6 +17,7 @@ import {
   employeesApi,
   typeNewsApi,
   usersApi,
+  companiesApi,
 } from "@/utils/api";
 import { toast } from "react-toastify";
 
@@ -30,23 +31,28 @@ const EmployeeNewsForm = ({
   setIsUpdate,
 }) => {
   const [formData, setFormData] = useState({
+    companyId: "",
     employeeId: "",
     typeNewsId: "",
     startDate: "",
+    startTime: "",
     endDate: "",
+    endTime: "",
     status: "active",
     approvedBy: "",
     observations: "",
   });
 
+  const [companies, setCompanies] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [typeNews, setTypeNews] = useState([]);
   const [users, setUsers] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadEmployees();
+    loadCompanies();
     loadTypeNews();
     loadUsers();
     if (isUpdate && dataToUpdate) {
@@ -54,30 +60,55 @@ const EmployeeNewsForm = ({
       const startDateFormatted = dataToUpdate.startDate
         ? new Date(dataToUpdate.startDate).toISOString().split("T")[0]
         : "";
+      const startTimeFormatted = dataToUpdate.startDate
+        ? new Date(dataToUpdate.startDate)
+            .toISOString()
+            .split("T")[1]
+            .substring(0, 5)
+        : "";
       const endDateFormatted = dataToUpdate.endDate
         ? new Date(dataToUpdate.endDate).toISOString().split("T")[0]
+        : "";
+      const endTimeFormatted = dataToUpdate.endDate
+        ? new Date(dataToUpdate.endDate)
+            .toISOString()
+            .split("T")[1]
+            .substring(0, 5)
         : "";
 
       console.log("Fechas formateadas:", {
         startDateFormatted,
+        startTimeFormatted,
         endDateFormatted,
+        endTimeFormatted,
       });
 
       setFormData({
+        companyId: dataToUpdate.companyId || "",
         employeeId: dataToUpdate.employeeId || "",
         typeNewsId: dataToUpdate.typeNewsId || "",
         startDate: startDateFormatted,
+        startTime: startTimeFormatted,
         endDate: endDateFormatted,
+        endTime: endTimeFormatted,
         status: dataToUpdate.status || "active",
         approvedBy: dataToUpdate.approvedBy || "",
         observations: dataToUpdate.observations || "",
       });
+
+      // Cargar empleados de la empresa seleccionada
+      if (dataToUpdate.companyId) {
+        loadEmployees(dataToUpdate.companyId);
+      }
     } else {
       setFormData({
+        companyId: "",
         employeeId: "",
         typeNewsId: "",
         startDate: "",
+        startTime: "",
         endDate: "",
+        endTime: "",
         status: "active",
         approvedBy: "",
         observations: "",
@@ -85,10 +116,30 @@ const EmployeeNewsForm = ({
     }
   }, [isUpdate, dataToUpdate]);
 
-  const loadEmployees = async () => {
+  const loadCompanies = async () => {
+    try {
+      const response = await companiesApi.list();
+      if (response.length) setCompanies(response);
+    } catch (error) {
+      console.error("Error al cargar las empresas", error);
+      toast.error("Error al cargar la lista de empresas");
+    }
+  };
+
+  const loadEmployees = async (companyId) => {
     try {
       const response = await employeesApi.list();
-      if (response.length) setEmployees(response);
+      if (response.length) {
+        setEmployees(response);
+        if (companyId) {
+          const filtered = response.filter(
+            (emp) => emp.companyid === parseInt(companyId)
+          );
+          setFilteredEmployees(filtered);
+        } else {
+          setFilteredEmployees([]);
+        }
+      }
     } catch (error) {
       console.error("Error al cargar los empleados", error);
       toast.error("Error al cargar la lista de empleados");
@@ -121,6 +172,15 @@ const EmployeeNewsForm = ({
       ...prev,
       [name]: value,
     }));
+
+    if (name === "companyId") {
+      loadEmployees(value);
+      setFormData((prev) => ({
+        ...prev,
+        employeeId: "", // Reset employee selection when company changes
+        [name]: value,
+      }));
+    }
   };
 
   const validateForm = () => {
@@ -141,10 +201,14 @@ const EmployeeNewsForm = ({
       try {
         const formattedData = {
           ...formData,
-          startDate: formData.startDate
-            ? `${formData.startDate} 19:00:00-05`
-            : "",
-          endDate: formData.endDate ? `${formData.endDate} 19:00:00-05` : "",
+          startDate:
+            formData.startDate && formData.startTime
+              ? `${formData.startDate}T${formData.startTime}:00-05:00`
+              : "",
+          endDate:
+            formData.endDate && formData.endTime
+              ? `${formData.endDate}T${formData.endTime}:00-05:00`
+              : "",
         };
 
         console.log("Datos a enviar:", formattedData);
@@ -154,12 +218,15 @@ const EmployeeNewsForm = ({
           : await employeeNewsApi.create(formattedData);
 
         console.log("save", save);
-        if (save?.id ) {
+        if (save?.id) {
           setFormData({
+            companyId: "",
             employeeId: "",
             typeNewsId: "",
             startDate: "",
+            startTime: "",
             endDate: "",
+            endTime: "",
             status: "active",
             approvedBy: "",
             observations: "",
@@ -194,6 +261,30 @@ const EmployeeNewsForm = ({
           <Row>
             <Col md="6">
               <FormGroup>
+                <Label for="companyId">Empresa</Label>
+                <Input
+                  type="select"
+                  name="companyId"
+                  id="companyId"
+                  value={formData.companyId}
+                  onChange={handleChange}
+                  invalid={!!errors.companyId}
+                  required
+                >
+                  <option value="">Seleccione una empresa</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.companyname}
+                    </option>
+                  ))}
+                </Input>
+                {errors.companyId && (
+                  <FormFeedback>{errors.companyId}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
                 <Label for="employeeId">Empleado</Label>
                 <Input
                   type="select"
@@ -203,9 +294,10 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.employeeId}
                   required
+                  disabled={!formData.companyId}
                 >
                   <option value="">Seleccione un empleado</option>
-                  {employees.map((employee) => (
+                  {filteredEmployees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
                       {employee.fullname}
                     </option>
@@ -216,6 +308,8 @@ const EmployeeNewsForm = ({
                 )}
               </FormGroup>
             </Col>
+          </Row>
+          <Row>
             <Col md="6">
               <FormGroup>
                 <Label for="typeNewsId">Tipo de Novedad</Label>
@@ -240,6 +334,24 @@ const EmployeeNewsForm = ({
                 )}
               </FormGroup>
             </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="status">Estado</Label>
+                <Input
+                  type="select"
+                  name="status"
+                  id="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  invalid={!!errors.status}
+                  required
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </Input>
+                {errors.status && <FormFeedback>{errors.status}</FormFeedback>}
+              </FormGroup>
+            </Col>
           </Row>
           <Row>
             <Col md="6">
@@ -261,6 +373,25 @@ const EmployeeNewsForm = ({
             </Col>
             <Col md="6">
               <FormGroup>
+                <Label for="startTime">Hora Inicio</Label>
+                <Input
+                  type="time"
+                  name="startTime"
+                  id="startTime"
+                  value={formData.startTime}
+                  onChange={handleChange}
+                  invalid={!!errors.startTime}
+                  required
+                />
+                {errors.startTime && (
+                  <FormFeedback>{errors.startTime}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+          </Row>
+          <Row>
+            <Col md="6">
+              <FormGroup>
                 <Label for="endDate">Fecha Fin</Label>
                 <Input
                   type="date"
@@ -276,26 +407,25 @@ const EmployeeNewsForm = ({
                 )}
               </FormGroup>
             </Col>
-          </Row>
-          <Row>
             <Col md="6">
               <FormGroup>
-                <Label for="status">Estado</Label>
+                <Label for="endTime">Hora Fin</Label>
                 <Input
-                  type="select"
-                  name="status"
-                  id="status"
-                  value={formData.status}
+                  type="time"
+                  name="endTime"
+                  id="endTime"
+                  value={formData.endTime}
                   onChange={handleChange}
-                  invalid={!!errors.status}
+                  invalid={!!errors.endTime}
                   required
-                >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </Input>
-                {errors.status && <FormFeedback>{errors.status}</FormFeedback>}
+                />
+                {errors.endTime && (
+                  <FormFeedback>{errors.endTime}</FormFeedback>
+                )}
               </FormGroup>
             </Col>
+          </Row>
+          <Row>
             <Col md="6">
               <FormGroup>
                 <Label for="approvedBy">Aprobado por</Label>
@@ -346,10 +476,13 @@ const EmployeeNewsForm = ({
               color="secondary"
               onClick={() => {
                 setFormData({
+                  companyId: "",
                   employeeId: "",
                   typeNewsId: "",
                   startDate: "",
+                  startTime: "",
                   endDate: "",
+                  endTime: "",
                   status: "active",
                   approvedBy: "",
                   observations: "",
