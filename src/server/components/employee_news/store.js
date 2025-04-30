@@ -9,7 +9,7 @@ module.exports = function setupCountry(Model, db, sequelize) {
   en.*,
   CONCAT(u."firstName", ' ', u."lastName") AS approved_by_name,
   tn.name AS type_news_name,
-  e.name AS employee_name
+  e.fullname AS employee_name
 FROM employee_news en
 INNER JOIN users u ON en."approvedBy" = u.id
 INNER JOIN type_news tn ON en."typeNewsId" = tn.id

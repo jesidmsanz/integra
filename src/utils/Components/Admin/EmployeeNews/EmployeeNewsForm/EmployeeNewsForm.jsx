@@ -207,7 +207,7 @@ const EmployeeNewsForm = ({
                   <option value="">Seleccione un empleado</option>
                   {employees.map((employee) => (
                     <option key={employee.id} value={employee.id}>
-                      {employee.name}
+                      {employee.fullname}
                     </option>
                   ))}
                 </Input>

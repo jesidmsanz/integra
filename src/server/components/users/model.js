@@ -53,15 +53,15 @@ module.exports = function (config) {
       active: {
         type: Sequelize.BOOLEAN,
         allowNull: false,
-        comment: "Active",
-        default: true,
+        defaultValue: true,
+        comment: "Estado activo/inactivo",
       },
-      createdat: {
+      createdAt: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "Creation Date",
       },
-      updatedat: {
+      updatedAt: {
         type: Sequelize.DATE,
         allowNull: true,
         comment: "Update Date",
