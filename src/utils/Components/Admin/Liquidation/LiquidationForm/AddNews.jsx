@@ -1,4 +1,4 @@
-import { newsApi } from "@/utils/api";
+import { typeNewsApi } from "@/utils/api";
 import React, { useEffect, useState } from "react";
 import {
   Col,
@@ -28,10 +28,10 @@ export default function AddNews({ show }) {
 
   const loadNews = async () => {
     try {
-      const response = await newsApi.list();
+      const response = await typeNewsApi.list();
       if (response.length) setNews(response);
     } catch (error) {
-      console.error("Error al cargar los empleados", error);
+      console.error("Error al cargar los tipos de novedades", error);
     }
   };
 
@@ -42,7 +42,7 @@ export default function AddNews({ show }) {
   return (
     <Modal centered={true} isOpen={show} size="xl">
       <ModalHeader>
-        <h2>XXXX</h2>
+        <h2>Agregar Novedad</h2>
       </ModalHeader>
       <ModalBody>
         <Col md="4">
@@ -62,7 +62,7 @@ export default function AddNews({ show }) {
 
               {news.map((i) => (
                 <option value={i.id} key={i.id}>
-                  {i.Name}
+                  {i.name}
                 </option>
               ))}
             </Input>

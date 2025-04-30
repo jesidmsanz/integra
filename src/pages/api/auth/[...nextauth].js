@@ -35,6 +35,11 @@ export default NextAuth({
         }
         const { accessToken, refreshToken } = generateTokens(user);
 
+        if (!user.id) {
+          console.error("User ID is missing:", user);
+          throw new Error("User ID is required");
+        }
+
         await updateRefreshToken(user.id, refreshToken);
         await updateAccessToken(user.id, accessToken);
 

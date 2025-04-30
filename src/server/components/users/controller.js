@@ -57,9 +57,17 @@ function updateRefreshToken(userId, refreshToken) {
 
 function updateAccessToken(userId, accessToken) {
   return new Promise(async (resolve, reject) => {
-    const { Users } = await db();
-    const result = await Users.updateAccessToken(userId, accessToken);
-    resolve(result);
+    try {
+      if (!userId) {
+        throw new Error("User ID is required for updating access token");
+      }
+      const { Users } = await db();
+      const result = await Users.updateAccessToken(userId, accessToken);
+      resolve(result);
+    } catch (error) {
+      console.error("Error updating access token:", error);
+      reject(error);
+    }
   });
 }
 

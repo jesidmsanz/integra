@@ -87,6 +87,10 @@ module.exports = function setupUser(UserModel, db, sequelize) {
   }
 
   async function updateAccessToken(id, accessToken) {
+    if (!id) {
+      console.error("Error: ID is undefined in updateAccessToken");
+      throw new Error("ID is required for updating access token");
+    }
     const result = await UserModel.update(
       { accessToken },
       {
@@ -95,7 +99,7 @@ module.exports = function setupUser(UserModel, db, sequelize) {
         },
       }
     );
-    console.log("Update Access Token");
+    console.log("Update Access Token for user:", id);
     return result;
   }
 
