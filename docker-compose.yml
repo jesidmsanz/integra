@@ -5,4 +5,4 @@ services:
     container_name: integra_app
     restart: always
     ports:
-      - "3038:3038"
+      - "4052:3038"
