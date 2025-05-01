@@ -2,6 +2,7 @@ import { Provider } from "react-redux";
 import "../styles/index.scss";
 import Store from "../utils/Redux/Store";
 import { SessionProvider } from "next-auth/react";
+import Head from "next/head";
 
 export default function App({
   Component,
@@ -10,6 +11,10 @@ export default function App({
   return (
     <SessionProvider session={session}>
       <Provider store={Store}>
+        <Head>
+          <title>Integra</title>
+          <meta name="title" content="Integra" />
+        </Head>
         <Component {...pageProps} />
       </Provider>
     </SessionProvider>
