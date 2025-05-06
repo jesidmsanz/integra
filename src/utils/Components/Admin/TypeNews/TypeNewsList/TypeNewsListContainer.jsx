@@ -109,30 +109,27 @@ const TypeNewsListContainer = () => {
       width: "80px",
     },
     {
+      name: "Código",
+      selector: (row) => row.code,
+      sortable: true,
+      width: "100px",
+    },
+    {
       name: "Nombre",
       selector: (row) => row.name,
       sortable: true,
     },
     {
-      name: "Afecta",
-      selector: (row) => row.affects,
+      name: "Duración",
+      selector: (row) => row.duration,
       sortable: true,
     },
     {
-      name: "Porcentaje",
-      selector: (row) => row.percentage,
+      name: "Pago",
+      selector: (row) => row.payment,
       sortable: true,
     },
-    {
-      name: "Estado",
-      selector: (row) => row.status,
-      sortable: true,
-    },
-    {
-      name: "Categoría",
-      selector: (row) => row.category,
-      sortable: true,
-    },
+
     {
       name: "Acciones",
       cell: (row) => <TypeNewsListTableAction row={row} />,
@@ -164,6 +161,13 @@ const TypeNewsListContainer = () => {
                   paginationTotalRows={totalRows}
                   onChangePage={handlePageChange}
                   progressPending={loading}
+                  paginationPerPage={10}
+                  paginationComponentOptions={{
+                    rowsPerPageText: "Filas por página:",
+                    rangeSeparatorText: "de",
+                    selectAllRowsItem: true,
+                    selectAllRowsItemText: "Todos",
+                  }}
                 />
               </div>
             </CardBody>

@@ -21,7 +21,7 @@ export const MobileView = () => {
             className="img-fluid for-light"
             src={`${ImagePath}/logo/logo-1.svg`}
             alt=""
-            priority
+            loading="eager"
           />
           <Image
             width={120}
@@ -29,7 +29,7 @@ export const MobileView = () => {
             className="img-fluid for-dark"
             src={`${ImagePath}/logo/logo-1.svg`}
             alt=""
-            priority
+            loading="eager"
           />
         </Link>
       </div>

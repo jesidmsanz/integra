@@ -19,11 +19,16 @@ import {
 
 const initialState = {
   name: "",
+  code: "",
+  duration: "",
+  payment: "",
   affects: "",
+  applies_to: "",
   percentage: "",
   status: "active",
   category: "",
   active: true,
+  notes: "",
 };
 
 const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
@@ -64,7 +69,7 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
     Object.keys(form).forEach((key) => {
-      if (!form[key] && key !== "active") {
+      if (!form[key] && key !== "active" && key !== "notes") {
         newErrors[key] = "Este campo es requerido";
       }
     });
@@ -120,6 +125,22 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
           <Row>
             <Col md="6">
               <FormGroup>
+                <Label for="code">Código:</Label>
+                <Input
+                  type="text"
+                  name="code"
+                  id="code"
+                  placeholder="Código de la novedad"
+                  onChange={handleChange}
+                  value={form.code}
+                  invalid={!!errors.code}
+                  required
+                />
+                {errors.code && <FormFeedback>{errors.code}</FormFeedback>}
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
                 <Label for="name">Nombre:</Label>
                 <Input
                   type="text"
@@ -134,26 +155,79 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                 {errors.name && <FormFeedback>{errors.name}</FormFeedback>}
               </FormGroup>
             </Col>
+          </Row>
+          <Row>
+            <Col md="6">
+              <FormGroup>
+                <Label for="duration">Duración:</Label>
+                <Input
+                  type="text"
+                  name="duration"
+                  id="duration"
+                  placeholder="Duración de la novedad"
+                  onChange={handleChange}
+                  value={form.duration}
+                  invalid={!!errors.duration}
+                  required
+                />
+                {errors.duration && (
+                  <FormFeedback>{errors.duration}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="payment">Pago:</Label>
+                <Input
+                  type="text"
+                  name="payment"
+                  id="payment"
+                  placeholder="Pago de la novedad"
+                  onChange={handleChange}
+                  value={form.payment}
+                  invalid={!!errors.payment}
+                  required
+                />
+                {errors.payment && (
+                  <FormFeedback>{errors.payment}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+          </Row>
+          <Row>
             <Col md="6">
               <FormGroup>
                 <Label for="affects">Afecta:</Label>
                 <Input
-                  type="select"
+                  type="text"
                   name="affects"
                   id="affects"
+                  placeholder="Afecta"
                   onChange={handleChange}
                   value={form.affects}
                   invalid={!!errors.affects}
                   required
-                >
-                  <option value="">Seleccione una opción</option>
-                  <option value="salary">Salario</option>
-                  <option value="benefits">Prestaciones</option>
-                  <option value="both">Ambos</option>
-                  <option value="none">Ninguno</option>
-                </Input>
+                />
                 {errors.affects && (
                   <FormFeedback>{errors.affects}</FormFeedback>
+                )}
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="applies_to">Aplica a:</Label>
+                <Input
+                  type="text"
+                  name="applies_to"
+                  id="applies_to"
+                  placeholder="Aplica a"
+                  onChange={handleChange}
+                  value={form.applies_to}
+                  invalid={!!errors.applies_to}
+                  required
+                />
+                {errors.applies_to && (
+                  <FormFeedback>{errors.applies_to}</FormFeedback>
                 )}
               </FormGroup>
             </Col>
@@ -163,10 +237,10 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
               <FormGroup>
                 <Label for="percentage">Porcentaje:</Label>
                 <Input
-                  type="number"
+                  type="text"
                   name="percentage"
                   id="percentage"
-                  placeholder="Ingrese el porcentaje"
+                  placeholder="Porcentaje"
                   onChange={handleChange}
                   value={form.percentage}
                   invalid={!!errors.percentage}
@@ -181,21 +255,15 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
               <FormGroup>
                 <Label for="category">Categoría:</Label>
                 <Input
-                  type="select"
+                  type="text"
                   name="category"
                   id="category"
+                  placeholder="Categoría"
                   onChange={handleChange}
                   value={form.category}
                   invalid={!!errors.category}
                   required
-                >
-                  <option value="">Seleccione una categoría</option>
-                  <option value="vacation">Vacaciones</option>
-                  <option value="disability">Incapacidad</option>
-                  <option value="permission">Permiso</option>
-                  <option value="license">Licencia</option>
-                  <option value="other">Otro</option>
-                </Input>
+                />
                 {errors.category && (
                   <FormFeedback>{errors.category}</FormFeedback>
                 )}
@@ -207,17 +275,15 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
               <FormGroup>
                 <Label for="status">Estado:</Label>
                 <Input
-                  type="select"
+                  type="text"
                   name="status"
                   id="status"
+                  placeholder="Estado"
                   onChange={handleChange}
                   value={form.status}
                   invalid={!!errors.status}
                   required
-                >
-                  <option value="active">Activo</option>
-                  <option value="inactive">Inactivo</option>
-                </Input>
+                />
                 {errors.status && <FormFeedback>{errors.status}</FormFeedback>}
               </FormGroup>
             </Col>
@@ -233,6 +299,21 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                     onChange={handleChange}
                   />
                 </div>
+              </FormGroup>
+            </Col>
+          </Row>
+          <Row>
+            <Col md="12">
+              <FormGroup>
+                <Label for="notes">Notas:</Label>
+                <Input
+                  type="textarea"
+                  name="notes"
+                  id="notes"
+                  placeholder="Ingrese notas adicionales"
+                  onChange={handleChange}
+                  value={form.notes}
+                />
               </FormGroup>
             </Col>
           </Row>

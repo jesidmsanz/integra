@@ -18,7 +18,7 @@ export const LogoWrapper = () => {
             className="img-fluid"
             src={`${ImagePath}/logo/logo-mini.svg`}
             alt=""
-            priority
+            loading="eager"
           />
         </Link>
         <div className="toggle-sidebar">
@@ -37,7 +37,7 @@ export const LogoWrapper = () => {
             className="img-fluid"
             src={`${ImagePath}/logo/logo-mini.svg`}
             alt="logo"
-            priority
+            loading="eager"
           />
         </Link>
       </div>
