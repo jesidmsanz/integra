@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { employeesApi } from "@/utils/api";
+import { employeesApi, companiesApi } from "@/utils/api";
 import SVG from "@/CommonComponent/SVG/Svg";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
-import { Card, CardBody, Col, Container, Row } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  Col,
+  Container,
+  Row,
+  Input,
+  InputGroup,
+  InputGroupText,
+} from "reactstrap";
 import DataTable, { defaultThemes } from "react-data-table-component";
 import Link from "next/link";
 import EmployeeForm from "../EmployeeForm";
@@ -11,13 +20,30 @@ import { EmployeeListFilterHeader } from "./EmployeeListFilterHeader";
 
 const EmployeeListContainer = () => {
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(Infinity);
   const [viewForm, setViewForm] = useState(false);
   const [dataToUpdate, setDataToUpdate] = useState(null);
   const [isUpdate, setIsUpdate] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const rowsPerPage = 30;
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await companiesApi.list();
+      setCompanies(response);
+    } catch (error) {
+      console.error("Error al cargar las empresas", error);
+    }
+  };
+
+  const getCompanyName = (companyId) => {
+    const company = companies.find((comp) => comp.id === companyId);
+    return company ? company.companyname : "No asignada";
+  };
 
   const fetchData = async (page) => {
     setLoading(true);
@@ -98,6 +124,12 @@ const EmployeeListContainer = () => {
 
   const columns = [
     {
+      name: "Empresa",
+      selector: (row) => getCompanyName(row.companyid),
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Documento",
       selector: (row) => `${row.documenttype} ${row.documentnumber}`,
       sortable: true,
@@ -121,36 +153,36 @@ const EmployeeListContainer = () => {
       sortable: true,
       minWidth: "150px",
     },
-    {
-      name: "Jornada",
-      selector: (row) => row.workday,
-      sortable: true,
-      minWidth: "100px",
-    },
-    {
-      name: "EPS",
-      selector: (row) => row.eps,
-      sortable: true,
-      minWidth: "150px",
-    },
-    {
-      name: "ARL",
-      selector: (row) => row.arl,
-      sortable: true,
-      minWidth: "150px",
-    },
-    {
-      name: "Pensión",
-      selector: (row) => row.pension,
-      sortable: true,
-      minWidth: "150px",
-    },
-    {
-      name: "Salario Base",
-      selector: (row) => row.basicmonthlysalary,
-      sortable: true,
-      minWidth: "150px",
-    },
+    // {
+    //   name: "Jornada",
+    //   selector: (row) => row.workday,
+    //   sortable: true,
+    //   minWidth: "100px",
+    // },
+    // {
+    //   name: "EPS",
+    //   selector: (row) => row.eps,
+    //   sortable: true,
+    //   minWidth: "150px",
+    // },
+    // {
+    //   name: "ARL",
+    //   selector: (row) => row.arl,
+    //   sortable: true,
+    //   minWidth: "150px",
+    // },
+    // {
+    //   name: "Pensión",
+    //   selector: (row) => row.pension,
+    //   sortable: true,
+    //   minWidth: "150px",
+    // },
+    // {
+    //   name: "Salario Base",
+    //   selector: (row) => row.basicmonthlysalary,
+    //   sortable: true,
+    //   minWidth: "150px",
+    // },
     {
       name: "Acción",
       cell: (row) => <DirectoryListTableAction row={row} />,
@@ -158,9 +190,43 @@ const EmployeeListContainer = () => {
     },
   ];
 
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredData(data);
+      return;
+    }
+
+    const filtered = data.filter((item) => {
+      const companyName = getCompanyName(item.companyid).toLowerCase();
+      const documentInfo =
+        `${item.documenttype} ${item.documentnumber}`.toLowerCase();
+      const fullName = item.fullname.toLowerCase();
+      const contractType = item.contracttype.toLowerCase();
+      const position = item.position.toLowerCase();
+
+      return (
+        companyName.includes(searchValue) ||
+        documentInfo.includes(searchValue) ||
+        fullName.includes(searchValue) ||
+        contractType.includes(searchValue) ||
+        position.includes(searchValue)
+      );
+    });
+
+    setFilteredData(filtered);
+  };
+
   useEffect(() => {
+    fetchCompanies();
     fetchData(page);
   }, [page]);
+
+  useEffect(() => {
+    setFilteredData(data);
+  }, [data]);
 
   return (
     <div className="container-fluid">
@@ -195,18 +261,33 @@ const EmployeeListContainer = () => {
                   setIsUpdate={setIsUpdate}
                 />
               ) : (
-                <DataTable
-                  columns={columns}
-                  data={data}
-                  pagination
-                  paginationServer
-                  paginationTotalRows={totalRows}
-                  onChangePage={handlePageChange}
-                  onChangeRowsPerPage={handlePageChange}
-                  progressPending={loading}
-                  noDataComponent="No hay empleados registrados"
-                  customStyles={customStyles}
-                />
+                <>
+                  <div className="mb-3">
+                    <InputGroup>
+                      <InputGroupText>
+                        <i className="fas fa-search"></i>
+                      </InputGroupText>
+                      <Input
+                        type="text"
+                        placeholder="Buscar por empresa, documento, nombre, tipo de contrato o cargo..."
+                        value={searchTerm}
+                        onChange={handleSearch}
+                      />
+                    </InputGroup>
+                  </div>
+                  <DataTable
+                    columns={columns}
+                    data={filteredData}
+                    pagination
+                    paginationServer
+                    paginationTotalRows={totalRows}
+                    onChangePage={handlePageChange}
+                    onChangeRowsPerPage={handlePageChange}
+                    progressPending={loading}
+                    noDataComponent="No hay empleados registrados"
+                    customStyles={customStyles}
+                  />
+                </>
               )}
             </div>
           </div>

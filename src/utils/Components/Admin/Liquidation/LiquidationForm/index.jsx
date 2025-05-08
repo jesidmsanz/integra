@@ -26,6 +26,8 @@ import {
   ModalBody,
   Table,
   Button,
+  InputGroup,
+  InputGroupText,
 } from "reactstrap";
 import AddNews from "./AddNews";
 
@@ -45,6 +47,8 @@ const LiquidationForm = () => {
   const [companies, setCompanies] = useState([]);
   const [employeeNews, setEmployeeNews] = useState([]);
   const [dataTable, setDataTable] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [show, setShow] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -132,6 +136,8 @@ const LiquidationForm = () => {
     },
   ];
 
+  console.log("employeeNews", employeeNews);
+
   const columns = [
     {
       name: "Documento",
@@ -161,11 +167,16 @@ const LiquidationForm = () => {
     {
       name: "Estado",
       cell: (row) => {
-        if (!row.hasNews) return "Normal";
         const employeeNewsList = employeeNews.filter(
-          (news) => news.employeeId === row.id
+          (news) =>
+            news.employeeId === row.id &&
+            news.status === "active" &&
+            toDateString(news.startDate) <= toDateString(form.endDate) &&
+            toDateString(news.endDate) >= toDateString(form.startDate)
         );
-        return employeeNewsList.map((news) => news.type_news_name).join(", ");
+        return employeeNewsList.length > 0
+          ? employeeNewsList.map((news) => news.type_news_name).join(", ")
+          : "Normal";
       },
       sortable: true,
       minWidth: "200px",
@@ -230,16 +241,14 @@ const LiquidationForm = () => {
       // Agregar información de novedades a cada empleado
       const employeesWithNews = filteredEmployees.map((emp) => {
         const hasNews = employeeNews.some((news) => {
-          // Convertir las fechas a objetos Date para comparación
           const newsStartDate = new Date(news.startDate);
           const newsEndDate = new Date(news.endDate);
           const filterStartDate = new Date(form.startDate);
           const filterEndDate = new Date(form.endDate);
 
-          // Verificar si el empleado tiene la novedad y si está dentro del rango de fechas
           return (
             news.employeeId === emp.id &&
-            news.active === true &&
+            news.status === "active" &&
             newsStartDate <= filterEndDate &&
             newsEndDate >= filterStartDate
           );
@@ -256,6 +265,42 @@ const LiquidationForm = () => {
       setDataTable([]);
     }
   }, [form.companyId, form.startDate, form.endDate, employees, employeeNews]);
+
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredData(dataTable);
+      return;
+    }
+
+    const filtered = dataTable.filter((item) => {
+      const documentInfo =
+        `${item.documenttype} ${item.documentnumber}`.toLowerCase();
+      const fullName = item.fullname.toLowerCase();
+      const position = (item.position || "").toLowerCase();
+      const status = !item.hasNews
+        ? "normal"
+        : employeeNews
+            .filter((news) => news.employeeId === item.id)
+            .map((news) => news.type_news_name.toLowerCase())
+            .join(" ");
+
+      return (
+        documentInfo.includes(searchValue) ||
+        fullName.includes(searchValue) ||
+        position.includes(searchValue) ||
+        status.includes(searchValue)
+      );
+    });
+
+    setFilteredData(filtered);
+  };
+
+  useEffect(() => {
+    setFilteredData(dataTable);
+  }, [dataTable]);
 
   const LiquidationListTableAction = ({ row }) => {
     return (
@@ -359,6 +404,10 @@ const LiquidationForm = () => {
     toast.success("Archivo exportado exitosamente");
   };
 
+  function toDateString(date) {
+    return new Date(date).toISOString().split("T")[0];
+  }
+
   return (
     <>
       <Breadcrumbs pageTitle="Liquidación" parent="Liquidación" />
@@ -424,6 +473,19 @@ const LiquidationForm = () => {
                 </Button>
               </Col>
             </Row>
+            <div className="mb-3">
+              <InputGroup>
+                <InputGroupText>
+                  <i className="fas fa-search"></i>
+                </InputGroupText>
+                <Input
+                  type="text"
+                  placeholder="Buscar por documento, nombre, cargo o estado..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                />
+              </InputGroup>
+            </div>
             <div className="list-product">
               <div className="table-responsive">
                 <DataTable
@@ -431,11 +493,11 @@ const LiquidationForm = () => {
                   customStyles={customStyles}
                   conditionalRowStyles={conditionalRowStyles}
                   columns={columns}
-                  data={dataTable}
+                  data={filteredData}
                   progressPending={loading}
                   pagination
                   paginationServer
-                  paginationTotalRows={dataTable.length}
+                  paginationTotalRows={filteredData.length}
                   paginationDefaultPage={1}
                   onChangePage={() => {}}
                   paginationPerPage={10}

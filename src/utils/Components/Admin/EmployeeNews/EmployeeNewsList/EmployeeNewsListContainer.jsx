@@ -2,12 +2,13 @@ import React, { useEffect, useState } from "react";
 import { employeeNewsApi } from "@/utils/api";
 import SVG from "@/CommonComponent/SVG/Svg";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
-import { Card, CardBody, Col, Container, Row } from "reactstrap";
+import { Card, CardBody, Col, Container, Row, Button } from "reactstrap";
 import DataTable, { defaultThemes } from "react-data-table-component";
 import Link from "next/link";
 import { EmployeeNewsListFilterHeader } from "./EmployeeNewsListFilterHeader";
 import EmployeeNewsForm from "../EmployeeNewsForm/EmployeeNewsForm";
 import { CollapseFilterData } from "./CollapseFilterData";
+import { toast } from "react-toastify";
 
 const EmployeeNewsListContainer = () => {
   const [data, setData] = useState([]);
@@ -35,9 +36,21 @@ const EmployeeNewsListContainer = () => {
     setPage(newPage);
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta novedad?")) {
+      try {
+        await employeeNewsApi.delete(id);
+        toast.success("Novedad eliminada correctamente");
+        setData((prev) => prev.filter((item) => item.id !== id));
+      } catch (error) {
+        toast.error("Error al eliminar la novedad");
+      }
+    }
+  };
+
   const EmployeeNewsListTableAction = ({ row }) => {
     return (
-      <div className="product-action">
+      <div className="product-action d-flex align-items-center">
         <Link
           href=""
           onClick={() => {
@@ -48,6 +61,21 @@ const EmployeeNewsListContainer = () => {
         >
           <SVG iconId="edit-content" />
         </Link>
+        <button
+          type="button"
+          title="Eliminar"
+          onClick={() => handleDelete(row.id)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            marginLeft: 8,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          <SVG iconId="Delete" />
+        </button>
       </div>
     );
   };
@@ -127,15 +155,15 @@ const EmployeeNewsListContainer = () => {
       selector: (row) => (row.status === "active" ? "Activo" : "Inactivo"),
       sortable: true,
     },
-    {
-      name: "Aprobado por",
-      selector: (row) => row.approved_by_name,
-      sortable: true,
-    },
+    // {
+    //   name: "Aprobado por",
+    //   selector: (row) => row.approved_by_name,
+    //   sortable: true,
+    // },
     {
       name: "Acciones",
       cell: (row) => <EmployeeNewsListTableAction row={row} />,
-      width: "100px",
+      width: "140px",
     },
   ];
 

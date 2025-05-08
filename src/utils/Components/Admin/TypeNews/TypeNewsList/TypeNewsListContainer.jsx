@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
 import SVG from "@/CommonComponent/SVG/Svg";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
-import { Card, CardBody, Col, Container, Row } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  Col,
+  Container,
+  Row,
+  Input,
+  InputGroup,
+  InputGroupText,
+} from "reactstrap";
 import DataTable, { defaultThemes } from "react-data-table-component";
 import Link from "next/link";
 import { typeNewsApi } from "@/utils/api";
@@ -11,12 +20,14 @@ import TypeNewsForm from "../TypeNewsForm/TypeNewsForm";
 
 const TypeNewsListContainer = () => {
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(Infinity);
   const [viewForm, setViewForm] = useState(false);
   const [dataToUpdate, setDataToUpdate] = useState(null);
   const [isUpdate, setIsUpdate] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const rowsPerPage = 30;
 
   const handleCloseForm = () => {
@@ -39,6 +50,25 @@ const TypeNewsListContainer = () => {
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
+  };
+
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredData(data);
+      return;
+    }
+
+    const filtered = data.filter((item) => {
+      const name = item.name.toLowerCase();
+      const code = item.code?.toLowerCase() || "";
+
+      return name.includes(searchValue) || code.includes(searchValue);
+    });
+
+    setFilteredData(filtered);
   };
 
   const TypeNewsListTableAction = ({ row }) => {
@@ -141,6 +171,10 @@ const TypeNewsListContainer = () => {
     fetchData(page);
   }, [page]);
 
+  useEffect(() => {
+    setFilteredData(data);
+  }, [data]);
+
   return (
     <Container fluid>
       <Breadcrumbs mainTitle="Tipos de Novedades" parent="Administración" />
@@ -151,10 +185,23 @@ const TypeNewsListContainer = () => {
               <div className="list-product-header">
                 <TypeNewsListFilterHeader setViewForm={setViewForm} />
               </div>
+              <div className="mb-3">
+                <InputGroup>
+                  <InputGroupText>
+                    <i className="fas fa-search"></i>
+                  </InputGroupText>
+                  <Input
+                    type="text"
+                    placeholder="Buscar por código o nombre..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </InputGroup>
+              </div>
               <div className="table-responsive">
                 <DataTable
                   columns={columns}
-                  data={data}
+                  data={filteredData}
                   customStyles={customStyles}
                   pagination
                   paginationServer

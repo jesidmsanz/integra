@@ -2,7 +2,16 @@ import React, { useEffect, useState } from "react";
 import { newsApi } from "@/utils/api";
 import SVG from "@/CommonComponent/SVG/Svg";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
-import { Card, CardBody, Col, Container, Row } from "reactstrap";
+import {
+  Card,
+  CardBody,
+  Col,
+  Container,
+  Row,
+  Input,
+  InputGroup,
+  InputGroupText,
+} from "reactstrap";
 import { NewListFilterHeader } from "./NewListFilterHeader";
 import DataTable, { defaultThemes } from "react-data-table-component";
 import Link from "next/link";
@@ -11,12 +20,14 @@ import CompanyForm from "../NewForm";
 
 const NewListContainer = () => {
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalRows, setTotalRows] = useState(Infinity);
   const [viewForm, setViewForm] = useState(false);
   const [dataToUpdate, setDataToUpdate] = useState(null);
   const [isUpdate, setIsUpdate] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const rowsPerPage = 30;
 
   const fetchData = async (page) => {
@@ -34,6 +45,25 @@ const NewListContainer = () => {
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
+  };
+
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredData(data);
+      return;
+    }
+
+    const filtered = data.filter((item) => {
+      const name = item.Name.toLowerCase();
+      const code = item.Code?.toLowerCase() || "";
+
+      return name.includes(searchValue) || code.includes(searchValue);
+    });
+
+    setFilteredData(filtered);
   };
 
   const NewListTableAction = ({ row }) => {
@@ -132,6 +162,10 @@ const NewListContainer = () => {
     fetchData(page);
   }, [page]);
 
+  useEffect(() => {
+    setFilteredData(data);
+  }, [data]);
+
   return (
     <>
       <Breadcrumbs
@@ -149,13 +183,26 @@ const NewListContainer = () => {
                     <NewListFilterHeader setViewForm={setViewForm} />
                     {/* <CollapseFilterData /> */}
                   </div>
+                  <div className="mb-3">
+                    <InputGroup>
+                      <InputGroupText>
+                        <i className="fas fa-search"></i>
+                      </InputGroupText>
+                      <Input
+                        type="text"
+                        placeholder="Buscar por código o nombre..."
+                        value={searchTerm}
+                        onChange={handleSearch}
+                      />
+                    </InputGroup>
+                  </div>
                   <div className="list-product">
                     <div className="table-responsive">
                       <DataTable
                         className="custom-scrollbar"
                         customStyles={customStyles}
                         columns={columns}
-                        data={data}
+                        data={filteredData}
                         progressPending={loading}
                         pagination
                         paginationServer

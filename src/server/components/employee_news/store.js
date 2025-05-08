@@ -54,8 +54,8 @@ ORDER BY en.id DESC;
   }
 
   function deleteById(_id) {
-    return Model.deleteOne({
-      _id,
+    return Model.destroy({
+      where: { id: _id },
     });
   }
 

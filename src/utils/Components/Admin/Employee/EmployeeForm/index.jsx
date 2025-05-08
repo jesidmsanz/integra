@@ -584,22 +584,79 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
+                  <Label for="companyid">Empresa:</Label>
+                  <Input
+                    type="select"
+                    name="companyid"
+                    id="companyid"
+                    onChange={handleChange}
+                    value={form.companyid}
+                    invalid={!!errors.companyid}
+                    required
+                    disabled={isUpdate}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.companyname}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.companyid && (
+                    <FormFeedback>{errors.companyid}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
                   <Label for="position">Cargo:</Label>
                   <Input
-                    type="text"
+                    type="select"
                     name="position"
                     id="position"
-                    placeholder="Ingresa el cargo"
                     onChange={handleChange}
                     value={form.position}
                     invalid={!!errors.position}
                     required
-                  />
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.position.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
                   {errors.position && (
                     <FormFeedback>{errors.position}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="costcenter">Centro de costos:</Label>
+                  <Input
+                    type="select"
+                    name="costcenter"
+                    id="costcenter"
+                    onChange={handleChange}
+                    value={form.costcenter}
+                    invalid={!!errors.costcenter}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.costcenter.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.costcenter && (
+                    <FormFeedback>{errors.costcenter}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="contracttype">Tipo de contrato:</Label>
@@ -641,8 +698,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="workday">Jornada:</Label>
@@ -660,30 +715,8 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-              <Col md="4">
-                <FormGroup>
-                  <Label for="costcenter">Centro de costos:</Label>
-                  <Input
-                    type="select"
-                    name="costcenter"
-                    id="costcenter"
-                    onChange={handleChange}
-                    value={form.costcenter}
-                    invalid={!!errors.costcenter}
-                    required
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {selectOptions.costcenter.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </Input>
-                  {errors.costcenter && (
-                    <FormFeedback>{errors.costcenter}</FormFeedback>
-                  )}
-                </FormGroup>
-              </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="workcity">Ciudad de trabajo:</Label>
@@ -705,6 +738,54 @@ const EmployeeForm = ({
                   </Input>
                   {errors.workcity && (
                     <FormFeedback>{errors.workcity}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="payrolltype">Tipo de nómina:</Label>
+                  <Input
+                    type="select"
+                    name="payrolltype"
+                    id="payrolltype"
+                    onChange={handleChange}
+                    value={form.payrolltype}
+                    invalid={!!errors.payrolltype}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.payrolltype.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.payrolltype && (
+                    <FormFeedback>{errors.payrolltype}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="paymentmethod">Método de pago:</Label>
+                  <Input
+                    type="select"
+                    name="paymentmethod"
+                    id="paymentmethod"
+                    onChange={handleChange}
+                    value={form.paymentmethod}
+                    invalid={!!errors.paymentmethod}
+                    required
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.paymentmethod.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.paymentmethod && (
+                    <FormFeedback>{errors.paymentmethod}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>
