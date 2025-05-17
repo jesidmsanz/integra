@@ -5,6 +5,7 @@ import {
   employeesApi,
   newsApi,
   employeeNewsApi,
+  typeNewsApi,
 } from "@/utils/api";
 import Link from "next/link";
 import { createRef, useEffect, useState } from "react";
@@ -46,6 +47,7 @@ const LiquidationForm = () => {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [employeeNews, setEmployeeNews] = useState([]);
+  const [typeNews, setTypeNews] = useState([]);
   const [dataTable, setDataTable] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -136,8 +138,6 @@ const LiquidationForm = () => {
     },
   ];
 
-  console.log("employeeNews", employeeNews);
-
   const columns = [
     {
       name: "Documento",
@@ -165,21 +165,44 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
-      name: "Estado",
+      name: "Salario Base",
+      selector: (row) => formatCurrency(row.basicmonthlysalary),
+      sortable: true,
+      minWidth: "150px",
+    },
+    ...typeNews.map((type) => ({
+      name: type.code,
       cell: (row) => {
-        const employeeNewsList = employeeNews.filter(
+        const hasNews = employeeNews.some(
           (news) =>
             news.employeeId === row.id &&
+            news.typeNewsId === type.id &&
             news.status === "active" &&
             toDateString(news.startDate) <= toDateString(form.endDate) &&
             toDateString(news.endDate) >= toDateString(form.startDate)
         );
-        return employeeNewsList.length > 0
-          ? employeeNewsList.map((news) => news.type_news_name).join(", ")
-          : "Normal";
+        return hasNews ? "✓" : "";
       },
       sortable: true,
-      minWidth: "200px",
+      minWidth: "100px",
+    })),
+    {
+      name: "Descuentos",
+      cell: (row) => formatCurrency(calculateEmployeeTotals(row).descuentos),
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Aumentos",
+      cell: (row) => formatCurrency(calculateEmployeeTotals(row).aumentos),
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Total",
+      cell: (row) => formatCurrency(0),
+      sortable: true,
+      minWidth: "150px",
     },
     {
       name: "Acción",
@@ -226,10 +249,21 @@ const LiquidationForm = () => {
     }
   };
 
+  const loadTypeNews = async () => {
+    try {
+      const response = await typeNewsApi.list();
+      if (response.length) setTypeNews(response);
+    } catch (error) {
+      console.error("Error al cargar los tipos de novedades", error);
+      toast.error("Error al cargar los tipos de novedades");
+    }
+  };
+
   useEffect(() => {
     loadEmployees();
     loadCompanies();
     loadEmployeeNews();
+    loadTypeNews();
   }, []);
 
   useEffect(() => {
@@ -407,6 +441,35 @@ const LiquidationForm = () => {
   function toDateString(date) {
     return new Date(date).toISOString().split("T")[0];
   }
+
+  const calculateEmployeeTotals = (employee) => {
+    const employeeNewsList = employeeNews.filter(
+      (news) => news.employeeId === employee.id
+    );
+
+    let descuentos = 0;
+    let aumentos = 0;
+
+    employeeNewsList.forEach((news) => {
+      if (news.value) {
+        if (news.type_news_code.startsWith("D")) {
+          descuentos += Number(news.value);
+        } else if (news.type_news_code.startsWith("A")) {
+          aumentos += Number(news.value);
+        }
+      }
+    });
+
+    const total = employee.basicmonthlysalary + aumentos - descuentos;
+
+    return {
+      descuentos,
+      aumentos,
+      total,
+    };
+  };
+
+  console.log('filteredData', filteredData)
 
   return (
     <>
