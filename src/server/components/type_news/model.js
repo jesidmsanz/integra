@@ -62,6 +62,16 @@ module.exports = function (config) {
         allowNull: true,
         comment: "Notas adicionales sobre la novedad",
       },
+      noaplicaauxiliotransporte: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        comment: "No aplica auxilio de transporte",
+      },
+      calculateperhour: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        comment: "Calcular por hora",
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

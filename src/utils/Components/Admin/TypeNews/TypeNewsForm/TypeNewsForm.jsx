@@ -29,6 +29,8 @@ const initialState = {
   category: "",
   active: true,
   notes: "",
+  noaplicaauxiliotransporte: false,
+  calculateperhour: false,
 };
 
 const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
@@ -69,7 +71,15 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
     Object.keys(form).forEach((key) => {
-      if (!form[key] && key !== "active" && key !== "notes") {
+      if (
+        !form[key] &&
+        key !== "active" &&
+        key !== "notes" &&
+        key !== "createdAt" &&
+        key !== "updatedAt" &&
+        key !== "noaplicaauxiliotransporte" &&
+        key !== "calculateperhour"
+      ) {
         newErrors[key] = "Este campo es requerido";
       }
     });
@@ -79,9 +89,11 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validateForm();
+    console.log("newErrors", newErrors);
     if (Object.keys(newErrors).length === 0) {
       setLoading(true);
       try {
+        console.log("form", form);
         const save = isUpdate
           ? await typeNewsApi.update(data.id, form)
           : await typeNewsApi.create(form);
@@ -296,6 +308,38 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                     name="active"
                     id="active"
                     checked={form.active}
+                    onChange={handleChange}
+                  />
+                </div>
+              </FormGroup>
+            </Col>
+          </Row>
+          <Row>
+            <Col md="6">
+              <FormGroup>
+                <Label for="noaplicaauxiliotransporte">
+                  No aplica auxilio de transporte
+                </Label>
+                <div>
+                  <Input
+                    type="checkbox"
+                    name="noaplicaauxiliotransporte"
+                    id="noaplicaauxiliotransporte"
+                    checked={form.noaplicaauxiliotransporte}
+                    onChange={handleChange}
+                  />
+                </div>
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="calculateperhour">Calcular por hora</Label>
+                <div>
+                  <Input
+                    type="checkbox"
+                    name="calculateperhour"
+                    id="calculateperhour"
+                    checked={form.calculateperhour}
                     onChange={handleChange}
                   />
                 </div>

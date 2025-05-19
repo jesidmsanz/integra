@@ -3,7 +3,9 @@ const { Op, QueryTypes } = require("sequelize");
 
 module.exports = function setupTypeNews(Model, db, sequelize) {
   function findAll() {
-    return Model.findAll();
+    return Model.findAll({
+      order: [["id", "ASC"]],
+    });
   }
 
   function findAllActive() {

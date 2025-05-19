@@ -58,22 +58,16 @@ const EmployeeNewsForm = ({
     if (isUpdate && dataToUpdate) {
       console.log("Datos recibidos:", dataToUpdate);
       const startDateFormatted = dataToUpdate.startDate
-        ? new Date(dataToUpdate.startDate).toISOString().split("T")[0]
+        ? new Date(dataToUpdate.startDate).toLocaleDateString("en-CA")
         : "";
-      const startTimeFormatted = dataToUpdate.startDate
-        ? new Date(dataToUpdate.startDate)
-            .toISOString()
-            .split("T")[1]
-            .substring(0, 5)
+      const startTimeFormatted = dataToUpdate.startTime
+        ? dataToUpdate.startTime.substring(0, 5)
         : "";
       const endDateFormatted = dataToUpdate.endDate
-        ? new Date(dataToUpdate.endDate).toISOString().split("T")[0]
+        ? new Date(dataToUpdate.endDate).toLocaleDateString("en-CA")
         : "";
-      const endTimeFormatted = dataToUpdate.endDate
-        ? new Date(dataToUpdate.endDate)
-            .toISOString()
-            .split("T")[1]
-            .substring(0, 5)
+      const endTimeFormatted = dataToUpdate.endTime
+        ? dataToUpdate.endTime.substring(0, 5)
         : "";
 
       console.log("Fechas formateadas:", {
