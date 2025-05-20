@@ -206,33 +206,38 @@ const LiquidationForm = () => {
         );
 
         // 2. Calcular el total según el tipo de novedad
-        let total = parseFloat(row.basicmonthlysalary);
+        let total = Number(row.basicmonthlysalary);
         let valorNovedades = 0;
+        let tieneLicencia = false;
 
         novedadesEmpleado.forEach((news) => {
-          console.log("news", news);
           // Buscar el tipo de novedad correspondiente
           const tipoNovedad = typeNews.find(
             (type) => type.id === news.typeNewsId
           );
 
-          console.log("tipoNovedad", tipoNovedad);
-
           if (!tipoNovedad) return;
 
+          // Verificar si es una licencia
           if (tipoNovedad.noaplicaauxiliotransporte) {
-            // Si no aplica auxilio de transporte, calcular el valor de la novedad
-            const valorNovedad =
-              row.basicmonthlysalary *
-              (parseFloat(tipoNovedad.percentage) / 100);
-            valorNovedades += valorNovedad;
+            // Si es una licencia del 100%, reemplazamos el salario base
+            if (Number(tipoNovedad.percentage) === 100) {
+              tieneLicencia = true;
+              total = Number(row.basicmonthlysalary);
+            } else {
+              // Para otros porcentajes de licencia, calculamos el valor proporcional
+              const valorNovedad =
+                Number(row.basicmonthlysalary) *
+                (Number(tipoNovedad.percentage) / 100);
+              valorNovedades += valorNovedad;
+            }
           } else if (tipoNovedad.calculateperhour) {
             // Extrae solo la parte de la fecha usando UTC
             const fechaInicio = moment.utc(news.startDate).startOf("day");
             const fechaFin = moment.utc(news.endDate).startOf("day");
 
             // Calcular el número de días (ambos inclusive)
-            const dias = fechaFin.diff(fechaInicio, "days") + 1;
+            const dias = fechaFin.diff(fechaInicio, "days");
 
             // Calcular el número de horas entre startTime y endTime
             const [startHour, startMinute] = news.startTime
@@ -242,13 +247,13 @@ const LiquidationForm = () => {
             let horasPorDia = Math.ceil(
               endHour + endMinute / 60 - (startHour + startMinute / 60)
             );
+            console.log("horasPorDia", horasPorDia);
+            console.log("dias", dias);
             if (horasPorDia < 0) horasPorDia = 0; // Evitar negativos
             const totalHoras = horasPorDia * dias;
-
             // Calcular el valor de las horas extras
-            const porcentaje = parseFloat(tipoNovedad.percentage) || 0;
-            const valorHoraExtra =
-              parseFloat(row.hourlyrate) * (porcentaje / 100);
+            const porcentaje = Number(tipoNovedad.percentage) || 0;
+            const valorHoraExtra = Number(row.hourlyrate) * (porcentaje / 100);
             const valorHorasExtras = totalHoras * valorHoraExtra;
 
             // Sumar al valor de novedades
@@ -256,8 +261,13 @@ const LiquidationForm = () => {
           }
         });
 
-        // Sumar el total de novedades al salario base
-        total += valorNovedades;
+        // Si hay licencia del 100%, solo sumamos las horas extras
+        if (tieneLicencia) {
+          total = Number(total) + Number(valorNovedades);
+        } else {
+          // Si no hay licencia del 100%, sumamos todas las novedades
+          total = Number(total) + Number(valorNovedades);
+        }
 
         return formatCurrency(total);
       },
@@ -528,8 +538,6 @@ const LiquidationForm = () => {
       total,
     };
   };
-
-  console.log("filteredData", filteredData);
 
   return (
     <>
