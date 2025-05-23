@@ -142,12 +142,14 @@ const EmployeeNewsListContainer = () => {
     },
     {
       name: "Fecha Inicio",
-      selector: (row) => row.startDate?.split(" ")[0],
+      selector: (row) =>
+        `${row.startDate?.split("T")[0]} ${row?.startTime?.slice(0, -3) || ""}`,
       sortable: true,
     },
     {
       name: "Fecha Fin",
-      selector: (row) => row.endDate?.split(" ")[0],
+      selector: (row) =>
+        `${row.endDate?.split("T")[0]} ${row?.endTime?.slice(0, -3) || ""}`,
       sortable: true,
     },
     {
@@ -170,6 +172,8 @@ const EmployeeNewsListContainer = () => {
   useEffect(() => {
     fetchData(page);
   }, [page]);
+
+  console.log(data);
 
   return (
     <>

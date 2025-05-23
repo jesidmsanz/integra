@@ -40,7 +40,7 @@ module.exports = function (config) {
       },
       startTime: {
         type: Sequelize.TIME,
-        allowNull: false,
+        allowNull: true,
         comment: "Hora de inicio",
       },
       endDate: {

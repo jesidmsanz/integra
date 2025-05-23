@@ -180,7 +180,12 @@ const EmployeeNewsForm = ({
   const validateForm = () => {
     const newErrors = {};
     Object.keys(formData).forEach((key) => {
-      if (!formData[key] && key !== "observations") {
+      if (
+        !formData[key] &&
+        key !== "observations" &&
+        key !== "startTime" &&
+        key !== "endTime"
+      ) {
         newErrors[key] = "Este campo es requerido";
       }
     });
@@ -195,14 +200,10 @@ const EmployeeNewsForm = ({
       try {
         const formattedData = {
           ...formData,
-          startDate:
-            formData.startDate && formData.startTime
-              ? `${formData.startDate}T${formData.startTime}:00-05:00`
-              : "",
-          endDate:
-            formData.endDate && formData.endTime
-              ? `${formData.endDate}T${formData.endTime}:00-05:00`
-              : "",
+          startDate: formData.startDate ? formData.startDate : null,
+          startTime: formData.startTime || null,
+          endDate: formData.endDate ? formData.endDate : null,
+          endTime: formData.endTime || null,
         };
 
         console.log("Datos a enviar:", formattedData);
@@ -375,11 +376,7 @@ const EmployeeNewsForm = ({
                   value={formData.startTime}
                   onChange={handleChange}
                   invalid={!!errors.startTime}
-                  required
                 />
-                {errors.startTime && (
-                  <FormFeedback>{errors.startTime}</FormFeedback>
-                )}
               </FormGroup>
             </Col>
           </Row>
@@ -411,11 +408,7 @@ const EmployeeNewsForm = ({
                   value={formData.endTime}
                   onChange={handleChange}
                   invalid={!!errors.endTime}
-                  required
                 />
-                {errors.endTime && (
-                  <FormFeedback>{errors.endTime}</FormFeedback>
-                )}
               </FormGroup>
             </Col>
           </Row>
