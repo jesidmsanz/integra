@@ -180,7 +180,7 @@ const LiquidationForm = () => {
     ...typeNews.map((type) => ({
       name: type.code,
       cell: (row) => {
-        const hasNews = employeeNews.some(
+        const novedad = employeeNews.find(
           (news) =>
             news.employeeId === row.id &&
             news.typeNewsId === type.id &&
@@ -188,7 +188,35 @@ const LiquidationForm = () => {
             toDateString(news.startDate) <= toDateString(form.endDate) &&
             toDateString(news.endDate) >= toDateString(form.startDate)
         );
-        return hasNews ? "✓" : "";
+        if (!novedad) return "";
+
+        let valorNovedad = 0;
+        const fechaInicio = moment.utc(novedad.startDate).startOf("day");
+        const fechaFin = moment.utc(novedad.endDate).startOf("day");
+        const dias = fechaFin.diff(fechaInicio, "days") + 1;
+
+        if (type.calculateperhour) {
+          const [startHour, startMinute] = novedad?.startTime
+            ? novedad?.startTime?.split(":").map(Number)
+            : [0, 0];
+          const [endHour, endMinute] = novedad?.endTime
+            ? novedad?.endTime?.split(":").map(Number)
+            : [0, 0];
+          let horasPorDia =
+            endHour + endMinute / 60 - (startHour + startMinute / 60);
+          if (horasPorDia < 0) {
+            horasPorDia += 24;
+          }
+          horasPorDia = Math.ceil(horasPorDia);
+          const totalHoras = horasPorDia * dias;
+          const valorHoraExtra =
+            Number(row.hourlyrate) * (Number(type.percentage) / 100);
+          valorNovedad = totalHoras * valorHoraExtra;
+        } else {
+          const valorDia = Number(row.basicmonthlysalary) / 30;
+          valorNovedad = dias * valorDia * (Number(type.percentage) / 100);
+        }
+        return formatCurrency(valorNovedad);
       },
       sortable: true,
       minWidth: "100px",
