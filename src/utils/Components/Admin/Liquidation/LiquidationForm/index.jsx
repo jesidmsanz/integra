@@ -153,15 +153,14 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
-      name: "Fecha De Inicio De Contrato",
-      selector: (row) =>
-        row.contractstartdate?.split("T")[0] || "No disponible",
+      name: "Cargo",
+      selector: (row) => row.position || "No disponible",
       sortable: true,
       minWidth: "150px",
     },
     {
-      name: "Cargo",
-      selector: (row) => row.position || "No disponible",
+      name: "Tipo de Contrato",
+      selector: (row) => row.contracttype || "No disponible",
       sortable: true,
       minWidth: "150px",
     },
@@ -174,6 +173,12 @@ const LiquidationForm = () => {
     {
       name: "Valor por hora",
       selector: (row) => formatCurrency(row.hourlyrate),
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Metodo de pago",
+      selector: (row) => row.paymentmethod || "No disponible",
       sortable: true,
       minWidth: "150px",
     },
@@ -309,10 +314,10 @@ const LiquidationForm = () => {
   ];
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setForm({
       ...form,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     });
   };
 
@@ -325,6 +330,8 @@ const LiquidationForm = () => {
       toast.error("Error al cargar los empleados");
     }
   };
+
+  console.log("employees", employees);
 
   const loadCompanies = async () => {
     try {
@@ -349,7 +356,6 @@ const LiquidationForm = () => {
   const loadTypeNews = async () => {
     try {
       const response = await typeNewsApi.list();
-      console.log("response", response);
       if (response.length) setTypeNews(response);
     } catch (error) {
       console.error("Error al cargar los tipos de novedades", error);
@@ -366,23 +372,24 @@ const LiquidationForm = () => {
 
   useEffect(() => {
     if (form.companyId) {
-      const filteredEmployees = employees.filter(
+      let filteredEmployees = employees.filter(
         (emp) => emp.companyid == form.companyId
       );
+
+      // Filtrar por método de pago
+      if (form.paymentMethod) {
+        filteredEmployees = filteredEmployees.filter(
+          (emp) => emp.paymentmethod === form.paymentMethod
+        );
+      }
 
       // Agregar información de novedades a cada empleado
       const employeesWithNews = filteredEmployees.map((emp) => {
         const hasNews = employeeNews.some((news) => {
-          const newsStartDate = new Date(news.startDate);
-          const newsEndDate = new Date(news.endDate);
-          const filterStartDate = new Date(form.startDate);
-          const filterEndDate = new Date(form.endDate);
-
           return (
             news.employeeId === emp.id &&
             news.status === "active" &&
-            newsStartDate <= filterEndDate &&
-            newsEndDate >= filterStartDate
+            isInRange(news)
           );
         });
 
@@ -396,7 +403,16 @@ const LiquidationForm = () => {
     } else {
       setDataTable([]);
     }
-  }, [form.companyId, form.startDate, form.endDate, employees, employeeNews]);
+  }, [
+    form.companyId,
+    form.startDate,
+    form.endDate,
+    form.paymentMethod,
+    form.corte1,
+    form.corte2,
+    employees,
+    employeeNews,
+  ]);
 
   const handleSearch = (e) => {
     const searchValue = e.target.value.toLowerCase();
@@ -547,17 +563,27 @@ const LiquidationForm = () => {
     const newsEnd = new Date(news.endDate);
     const filterStart = new Date(form.startDate);
     const filterEnd = new Date(form.endDate);
+
+    // Si es quincenal y se seleccionó un corte, ajustar el rango de fechas
+    if (form.paymentMethod === "Quincenal") {
+      const startMonth = filterStart.getMonth();
+      const startYear = filterStart.getFullYear();
+      const endMonth = filterEnd.getMonth();
+      const endYear = filterEnd.getFullYear();
+
+      if (form.corte1 && !form.corte2) {
+        // Corte 1: 01-15
+        filterStart.setDate(1);
+        filterEnd.setDate(15);
+      } else if (!form.corte1 && form.corte2) {
+        // Corte 2: 16-30
+        filterStart.setDate(16);
+        filterEnd.setDate(30);
+      }
+    }
+
     return newsStart <= filterEnd && newsEnd >= filterStart;
   };
-
-  console.log(
-    "employeeNews",
-    selectedEmployee
-      ? employeeNews.filter(
-          (news) => news.employeeId === selectedEmployee.id && isInRange(news)
-        )
-      : []
-  );
 
   return (
     <>
@@ -611,6 +637,55 @@ const LiquidationForm = () => {
                   />
                 </FormGroup>
               </Col>
+            </Row>
+            <Row className="mb-3">
+              <Col md="4">
+                <FormGroup>
+                  <Label for="paymentMethod">Método de Pago:</Label>
+                  <Input
+                    type="select"
+                    name="paymentMethod"
+                    id="paymentMethod"
+                    onChange={handleChange}
+                    value={form.paymentMethod}
+                  >
+                    <option value="">Todos</option>
+                    <option value="Mensual">Mensual</option>
+                    <option value="Quincenal">Quincenal</option>
+                  </Input>
+                </FormGroup>
+              </Col>
+              {form.paymentMethod === "Quincenal" && (
+                <Col md="4">
+                  <FormGroup>
+                    <Label>Corte:</Label>
+                    <div>
+                      <Input
+                        type="checkbox"
+                        name="corte1"
+                        id="corte1"
+                        onChange={handleChange}
+                        checked={form.corte1}
+                      />
+                      <Label for="corte1" className="ms-2">
+                        Corte 1 (01-15)
+                      </Label>
+                    </div>
+                    <div>
+                      <Input
+                        type="checkbox"
+                        name="corte2"
+                        id="corte2"
+                        onChange={handleChange}
+                        checked={form.corte2}
+                      />
+                      <Label for="corte2" className="ms-2">
+                        Corte 2 (16-30)
+                      </Label>
+                    </div>
+                  </FormGroup>
+                </Col>
+              )}
             </Row>
             <Row className="mb-3">
               <Col>
