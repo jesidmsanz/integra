@@ -828,35 +828,57 @@ const LiquidationForm = () => {
                           let totalHoras = 0;
 
                           if (tipoNovedad) {
-                            const fechaInicio = moment
-                              .utc(news.startDate)
-                              .startOf("day");
-                            const fechaFin = moment
-                              .utc(news.endDate)
-                              .startOf("day");
-                            const dias = fechaFin.diff(fechaInicio, "days") + 1;
+                            const fechaInicio = moment.utc(news.startDate);
+                            const fechaFin = moment.utc(news.endDate);
 
                             if (tipoNovedad.calculateperhour) {
-                              const [startHour, startMinute] = news?.startTime
-                                ? news?.startTime?.split(":").map(Number)
-                                : [0, 0];
-                              const [endHour, endMinute] = news?.endTime
-                                ? news?.endTime?.split(":").map(Number)
-                                : [0, 0];
-                              let horasPorDia =
-                                endHour +
-                                endMinute / 60 -
-                                (startHour + startMinute / 60);
-                              if (horasPorDia < 0) {
-                                horasPorDia += 24;
+                              // Si la novedad es del mismo día
+                              if (
+                                fechaInicio.format("YYYY-MM-DD") ===
+                                fechaFin.format("YYYY-MM-DD")
+                              ) {
+                                const [startHour, startMinute] = news?.startTime
+                                  ? news?.startTime?.split(":").map(Number)
+                                  : [0, 0];
+                                const [endHour, endMinute] = news?.endTime
+                                  ? news?.endTime?.split(":").map(Number)
+                                  : [0, 0];
+                                let horasPorDia =
+                                  endHour +
+                                  endMinute / 60 -
+                                  (startHour + startMinute / 60);
+                                if (horasPorDia < 0) {
+                                  horasPorDia += 24;
+                                }
+                                totalHoras = Math.ceil(horasPorDia);
+                              } else {
+                                // Si la novedad cruza días
+                                const [startHour, startMinute] = news?.startTime
+                                  ? news?.startTime?.split(":").map(Number)
+                                  : [0, 0];
+                                const [endHour, endMinute] = news?.endTime
+                                  ? news?.endTime?.split(":").map(Number)
+                                  : [0, 0];
+
+                                // Horas del primer día (desde hora inicio hasta medianoche)
+                                let horasPrimerDia =
+                                  24 - (startHour + startMinute / 60);
+
+                                // Horas del último día (desde medianoche hasta hora fin)
+                                let horasUltimoDia = endHour + endMinute / 60;
+
+                                totalHoras = Math.ceil(
+                                  horasPrimerDia + horasUltimoDia
+                                );
                               }
-                              horasPorDia = Math.ceil(horasPorDia);
-                              totalHoras = horasPorDia * dias;
+
                               const valorHoraExtra =
                                 Number(selectedEmployee.hourlyrate) *
                                 (Number(tipoNovedad.percentage) / 100);
                               valorNovedad = totalHoras * valorHoraExtra;
                             } else {
+                              const dias =
+                                fechaFin.diff(fechaInicio, "days") + 1;
                               const valorDia =
                                 Number(selectedEmployee.basicmonthlysalary) /
                                 30;
