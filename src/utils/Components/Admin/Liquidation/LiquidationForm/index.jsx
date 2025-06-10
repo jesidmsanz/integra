@@ -382,7 +382,7 @@ const LiquidationForm = () => {
   };
 
   const exportToExcel = () => {
-    if (!dataTable.length) {
+    if (!filteredData.length) {
       toast.warning("No hay datos para exportar");
       return;
     }
@@ -390,72 +390,49 @@ const LiquidationForm = () => {
     // Crear un libro de Excel
     const wb = XLSX.utils.book_new();
 
-    // Hoja de empleados
-    const dataToExport = dataTable.map((employee) => {
-      const employeeNewsList = employeeNews.filter(
-        (news) => news.employeeId === employee.id
-      );
-      const novedades = employeeNewsList
-        .map((news) => news.type_news_name)
-        .join(", ");
+    // Preparar los datos para exportar
+    const dataToExport = filteredData.map((employee) => {
+      const employeeValues = calculatedValues[employee.id] || { total: 0 };
 
-      return {
+      // Objeto base con las columnas fijas
+      const baseData = {
         Documento: `${employee.documenttype} ${employee.documentnumber}`,
-        "Nombre Completo": employee.fullname,
-        "Fecha Inicio Contrato":
-          employee.contractstartdate?.split("T")[0] || "No disponible",
+        Nombre: employee.fullname,
         Cargo: employee.position || "No disponible",
-        Estado: employee.hasNews ? "Con Novedad" : "Normal",
-        "Tipo de Novedad": novedades || "Sin novedades",
         "Tipo de Contrato": employee.contracttype || "No disponible",
-        Jornada: employee.workday || "No disponible",
         "Salario Base": formatCurrency(employee.basicmonthlysalary),
-        EPS: employee.eps || "No disponible",
-        ARL: employee.arl || "No disponible",
-        Pensión: employee.pension || "No disponible",
-        "Fondo de Cesantías": employee.severancefund || "No disponible",
-        "Caja de Compensación": employee.compensationfund || "No disponible",
+        "Valor por hora": formatCurrency(employee.hourlyrate),
+        "Metodo de pago": employee.paymentmethod || "No disponible",
       };
+
+      // Agregar columnas dinámicas de tipos de novedad
+      typeNews.forEach((type) => {
+        const novedadesDelEmpleado = filteredEmployeeNews.filter((novedad) => {
+          const esDelEmpleado = novedad.employeeId === employee.id;
+          const esDelTipoNovedad = novedad.typeNewsId === type.id;
+          return esDelEmpleado && esDelTipoNovedad;
+        });
+
+        const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
+          const { valorNovedad } = calculateNovedadValue(
+            novedad,
+            employee,
+            type
+          );
+          return sum + valorNovedad;
+        }, 0);
+
+        baseData[type.code] = totalTipo ? formatCurrency(totalTipo) : "";
+      });
+
+      // Agregar el total
+      baseData["Total"] = formatCurrency(employeeValues.total || 0);
+
+      return baseData;
     });
 
-    const wsEmployees = XLSX.utils.json_to_sheet(dataToExport);
-    XLSX.utils.book_append_sheet(wb, wsEmployees, "Empleados");
-
-    // Hoja de novedades
-    const newsToExport = dataTable.flatMap((employee) => {
-      const employeeNewsList = employeeNews.filter(
-        (news) => news.employeeId === employee.id
-      );
-
-      return employeeNewsList.map((news) => ({
-        "Documento Empleado": `${employee.documenttype} ${employee.documentnumber}`,
-        "Nombre Empleado": employee.fullname,
-        Cargo: employee.position || "No disponible",
-        "Tipo de Contrato": employee.contracttype || "No disponible",
-        "Salario Base": formatCurrency(employee.basicmonthlysalary),
-        "Tipo de Novedad": news.type_news_name,
-        "Fecha Inicio": news.startDate?.split("T")[0] || "No disponible",
-        "Fecha Fin": news.endDate?.split("T")[0] || "No disponible",
-        Estado: news.status === "active" ? "Activo" : "Inactivo",
-        Observaciones: news.observations || "Sin observaciones",
-        "Aprobado por": news.approved_by_name || "No disponible",
-        "Fecha de Aprobación":
-          news.approved_date?.split("T")[0] || "No disponible",
-        "Valor de la Novedad": news.value
-          ? formatCurrency(news.value)
-          : "No aplica",
-        "Días Afectados": news.affected_days || "No aplica",
-        "Horas Afectadas": news.affected_hours || "No aplica",
-        "Porcentaje Afectado": news.affected_percentage
-          ? `${news.affected_percentage}%`
-          : "No aplica",
-      }));
-    });
-
-    if (newsToExport.length > 0) {
-      const wsNews = XLSX.utils.json_to_sheet(newsToExport);
-      XLSX.utils.book_append_sheet(wb, wsNews, "Novedades");
-    }
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    XLSX.utils.book_append_sheet(wb, ws, "Liquidación");
 
     // Generar nombre del archivo con fecha actual
     const fileName = `Liquidacion_${
@@ -806,7 +783,7 @@ const LiquidationForm = () => {
                 <Button
                   color="success"
                   onClick={exportToExcel}
-                  disabled={!dataTable.length}
+                  disabled={!filteredData.length}
                 >
                   <i className="fa fa-file-excel-o me-2"></i>
                   Exportar a Excel
