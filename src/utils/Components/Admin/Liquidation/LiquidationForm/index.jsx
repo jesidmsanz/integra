@@ -48,6 +48,7 @@ const LiquidationForm = () => {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [employeeNews, setEmployeeNews] = useState([]);
+  const [filteredEmployeeNews, setFilteredEmployeeNews] = useState([]);
   const [typeNews, setTypeNews] = useState([]);
   const [dataTable, setDataTable] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -55,6 +56,8 @@ const LiquidationForm = () => {
   const [show, setShow] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [calculatedValues, setCalculatedValues] = useState({});
+
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CO", {
@@ -185,43 +188,27 @@ const LiquidationForm = () => {
     ...typeNews.map((type) => ({
       name: type.code,
       cell: (row) => {
-        const novedad = employeeNews.find(
-          (news) =>
-            news.employeeId === row.id &&
-            news.typeNewsId === type.id &&
-            news.status === "active" &&
-            toDateString(news.startDate) <= toDateString(form.endDate) &&
-            toDateString(news.endDate) >= toDateString(form.startDate)
-        );
-        if (!novedad) return "";
+        // Filtrar novedades que:
+        // 1. Pertenezcan al empleado actual
+        // 2. Sean del tipo de novedad que estamos calculando
+        const novedadesDelEmpleado = filteredEmployeeNews.filter((novedad) => {
+          const esDelEmpleado = novedad.employeeId === row.id;
+          const esDelTipoNovedad = novedad.typeNewsId === type.id;
+          return esDelEmpleado && esDelTipoNovedad;
+        });
 
-        let valorNovedad = 0;
-        const fechaInicio = moment.utc(novedad.startDate).startOf("day");
-        const fechaFin = moment.utc(novedad.endDate).startOf("day");
-        const dias = fechaFin.diff(fechaInicio, "days") + 1;
+        // Sumar los valores de todas las novedades filtradas
+        const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
+          const { valorNovedad } = calculateNovedadValue(novedad, row, type);
+          return sum + valorNovedad;
+        }, 0);
 
-        if (type.calculateperhour) {
-          const [startHour, startMinute] = novedad?.startTime
-            ? novedad?.startTime?.split(":").map(Number)
-            : [0, 0];
-          const [endHour, endMinute] = novedad?.endTime
-            ? novedad?.endTime?.split(":").map(Number)
-            : [0, 0];
-          let horasPorDia =
-            endHour + endMinute / 60 - (startHour + startMinute / 60);
-          if (horasPorDia < 0) {
-            horasPorDia += 24;
-          }
-          horasPorDia = Math.ceil(horasPorDia);
-          const totalHoras = horasPorDia * dias;
-          const valorHoraExtra =
-            Number(row.hourlyrate) * (Number(type.percentage) / 100);
-          valorNovedad = totalHoras * valorHoraExtra;
-        } else {
-          const valorDia = Number(row.basicmonthlysalary) / 30;
-          valorNovedad = dias * valorDia * (Number(type.percentage) / 100);
+        if (row.id === 6) {
+          console.log("novedadesDelEmpleado", novedadesDelEmpleado);
+          console.log("totalTipo", totalTipo);
         }
-        return formatCurrency(valorNovedad);
+
+        return totalTipo ? formatCurrency(totalTipo) : "";
       },
       sortable: true,
       minWidth: "100px",
@@ -229,79 +216,8 @@ const LiquidationForm = () => {
     {
       name: "Total",
       cell: (row) => {
-        // 1. Filtrar novedades activas para este empleado (igual que en el detalle)
-        const novedadesEmpleado = employeeNews.filter(
-          (news) =>
-            news.employeeId === row.id &&
-            news.status === "active" &&
-            isInRange(news)
-        );
-
-        // Si no hay novedades, el total es el salario base
-        if (novedadesEmpleado.length === 0) {
-          return formatCurrency(Number(row.basicmonthlysalary));
-        }
-
-        // Verificar si hay al menos una novedad por días
-        const tieneNovedadPorDias = novedadesEmpleado.some((news) => {
-          const tipoNovedad = typeNews.find(
-            (type) => type.id === news.typeNewsId
-          );
-          return tipoNovedad && !tipoNovedad.calculateperhour;
-        });
-
-        let totalLiquidacion = 0;
-
-        if (tieneNovedadPorDias) {
-          // Sumar solo valor de la novedad + valor de los días restantes para novedades por días
-          novedadesEmpleado.forEach((news) => {
-            const tipoNovedad = typeNews.find(
-              (type) => type.id === news.typeNewsId
-            );
-            if (tipoNovedad && !tipoNovedad.calculateperhour) {
-              const fechaInicio = moment.utc(news.startDate).startOf("day");
-              const fechaFin = moment.utc(news.endDate).startOf("day");
-              const dias = fechaFin.diff(fechaInicio, "days") + 1;
-              const valorDia = Number(row.basicmonthlysalary) / 30;
-              const valorNovedad =
-                dias * valorDia * (Number(tipoNovedad.percentage) / 100);
-              const diasRestantes = 30 - dias;
-              const valorDiasRestantes = diasRestantes * valorDia;
-              totalLiquidacion += valorNovedad + valorDiasRestantes;
-            }
-          });
-        } else {
-          // Sumar salario base + suma de novedades por horas
-          totalLiquidacion = Number(row.basicmonthlysalary);
-          novedadesEmpleado.forEach((news) => {
-            const tipoNovedad = typeNews.find(
-              (type) => type.id === news.typeNewsId
-            );
-            if (tipoNovedad && tipoNovedad.calculateperhour) {
-              const fechaInicio = moment.utc(news.startDate).startOf("day");
-              const fechaFin = moment.utc(news.endDate).startOf("day");
-              const dias = fechaFin.diff(fechaInicio, "days") + 1;
-              const [startHour, startMinute] = news?.startTime
-                ? news?.startTime?.split(":").map(Number)
-                : [0, 0];
-              const [endHour, endMinute] = news?.endTime
-                ? news?.endTime?.split(":").map(Number)
-                : [0, 0];
-              let horasPorDia =
-                endHour + endMinute / 60 - (startHour + startMinute / 60);
-              if (horasPorDia < 0) {
-                horasPorDia += 24;
-              }
-              horasPorDia = Math.ceil(horasPorDia);
-              const totalHoras = horasPorDia * dias;
-              const valorHoraExtra =
-                Number(row.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
-              const valorNovedad = totalHoras * valorHoraExtra;
-              totalLiquidacion += valorNovedad;
-            }
-          });
-        }
-        return formatCurrency(totalLiquidacion);
+        const employeeValues = calculatedValues[row.id];
+        return formatCurrency(employeeValues?.total || 0);
       },
       sortable: true,
       minWidth: "150px",
@@ -315,10 +231,10 @@ const LiquidationForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
+    setForm((prevForm) => ({
+      ...prevForm,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const loadEmployees = async () => {
@@ -330,8 +246,6 @@ const LiquidationForm = () => {
       toast.error("Error al cargar los empleados");
     }
   };
-
-  console.log("employees", employees);
 
   const loadCompanies = async () => {
     try {
@@ -557,32 +471,232 @@ const LiquidationForm = () => {
     return isNaN(d) ? "No disponible" : d.toISOString().split("T")[0];
   }
 
-  // Función para verificar si la novedad está dentro del rango de fechas seleccionado
   const isInRange = (news) => {
     const newsStart = new Date(news.startDate);
     const newsEnd = new Date(news.endDate);
     const filterStart = new Date(form.startDate);
     const filterEnd = new Date(form.endDate);
 
-    // Si es quincenal y se seleccionó un corte, ajustar el rango de fechas
-    if (form.paymentMethod === "Quincenal") {
-      const startMonth = filterStart.getMonth();
-      const startYear = filterStart.getFullYear();
-      const endMonth = filterEnd.getMonth();
-      const endYear = filterEnd.getFullYear();
-
-      if (form.corte1 && !form.corte2) {
-        // Corte 1: 01-15
-        filterStart.setDate(1);
-        filterEnd.setDate(15);
-      } else if (!form.corte1 && form.corte2) {
-        // Corte 2: 16-30
-        filterStart.setDate(16);
-        filterEnd.setDate(30);
-      }
+    // Primero verificamos si la novedad está dentro del rango general de fechas
+    if (newsStart > filterEnd || newsEnd < filterStart) {
+      return false;
     }
 
-    return newsStart <= filterEnd && newsEnd >= filterStart;
+    // Si es quincenal y se seleccionó un corte, verificamos los días
+    if (form.paymentMethod === "Quincenal" && (form.corte1 || form.corte2)) {
+      // Función auxiliar para verificar si una fecha cae en el corte seleccionado
+      const isDateInCut = (date) => {
+        const day = date.getDate();
+        if (form.corte1 && !form.corte2) {
+          return day >= 1 && day <= 15;
+        } else if (!form.corte1 && form.corte2) {
+          return day >= 16 && day <= 31;
+        }
+        return true; // Si ambos cortes están seleccionados o ninguno
+      };
+
+      // Verificamos cada día de la novedad
+      let currentDate = new Date(newsStart);
+      let hasValidDay = false;
+
+      while (currentDate <= newsEnd) {
+        // Solo verificamos si el día está dentro del rango de filtro
+        if (currentDate >= filterStart && currentDate <= filterEnd) {
+          if (isDateInCut(currentDate)) {
+            hasValidDay = true;
+            break;
+          }
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      return hasValidDay;
+    }
+
+    // Si no es quincenal o no hay cortes seleccionados, retornamos true
+    return true;
+  };
+
+  // Función para generar datos de novedades filtrados
+  const generateFilteredNews = () => {
+    const filtered = employeeNews.filter((news) => {
+      // Verificar si la novedad está activa
+      if (news.status !== "active") return false;
+
+      const newsStart = moment.utc(news.startDate);
+      const newsEnd = moment.utc(news.endDate);
+      const filterStart = moment.utc(form.startDate);
+      const filterEnd = moment.utc(form.endDate);
+
+      // Verificar si está dentro del rango de fechas general
+      const isInDateRange =
+        (newsStart.isSameOrAfter(filterStart) &&
+          newsStart.isSameOrBefore(filterEnd)) ||
+        (newsEnd.isSameOrAfter(filterStart) &&
+          newsEnd.isSameOrBefore(filterEnd)) ||
+        (newsStart.isSameOrBefore(filterStart) &&
+          newsEnd.isSameOrAfter(filterEnd));
+
+      if (!isInDateRange) return false;
+
+      // Si es quincenal y hay cortes seleccionados
+      if (form.paymentMethod === "Quincenal" && (form.corte1 || form.corte2)) {
+        const diaInicio = newsStart.date();
+
+        // Para corte 2 (16-31)
+        if (!form.corte1 && form.corte2) {
+          return diaInicio >= 16;
+        }
+
+        // Para corte 1 (1-15)
+        if (form.corte1 && !form.corte2) {
+          return diaInicio <= 15;
+        }
+      }
+
+      return true;
+    });
+
+    console.log("Novedades filtradas:", filtered.length);
+    setFilteredEmployeeNews(filtered);
+  };
+
+  // Efecto para actualizar las novedades filtradas cuando cambien los filtros
+  useEffect(() => {
+    generateFilteredNews();
+  }, [form, employeeNews]);
+
+  // Función para calcular el valor de una novedad
+  const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
+    let valorNovedad = 0;
+    let totalHoras = 0;
+
+    const fechaInicio = moment.utc(novedad.startDate);
+    const fechaFin = moment.utc(novedad.endDate);
+
+    if (tipoNovedad.calculateperhour) {
+      // Si la novedad es del mismo día
+      if (fechaInicio.format("YYYY-MM-DD") === fechaFin.format("YYYY-MM-DD")) {
+        const [startHour, startMinute] = novedad?.startTime
+          ? novedad?.startTime?.split(":").map(Number)
+          : [0, 0];
+        const [endHour, endMinute] = novedad?.endTime
+          ? novedad?.endTime?.split(":").map(Number)
+          : [0, 0];
+
+        let horasPorDia =
+          endHour + endMinute / 60 - (startHour + startMinute / 60);
+        if (horasPorDia < 0) {
+          horasPorDia += 24;
+        }
+        totalHoras = Math.ceil(horasPorDia);
+      } else {
+        // Si la novedad cruza días
+        const [startHour, startMinute] = novedad?.startTime
+          ? novedad?.startTime?.split(":").map(Number)
+          : [0, 0];
+        const [endHour, endMinute] = novedad?.endTime
+          ? novedad?.endTime?.split(":").map(Number)
+          : [0, 0];
+
+        // Calcular horas del primer día (desde hora inicio hasta medianoche)
+        const horasPrimerDia = 24 - (startHour + startMinute / 60);
+
+        // Calcular horas del último día (desde medianoche hasta hora fin)
+        const horasUltimoDia = endHour + endMinute / 60;
+
+        // Calcular días completos entre medio (si los hay)
+        const diasCompletos = fechaFin.diff(fechaInicio, "days") - 1;
+        const horasDiasCompletos = diasCompletos > 0 ? diasCompletos * 24 : 0;
+
+        // Sumar todas las horas
+        totalHoras = Math.ceil(
+          horasPrimerDia + horasUltimoDia + horasDiasCompletos
+        );
+      }
+
+      const valorHoraExtra =
+        Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+      valorNovedad = totalHoras * valorHoraExtra;
+    } else {
+      const dias = fechaFin.diff(fechaInicio, "days") + 1;
+      const valorDia = Number(employee.basicmonthlysalary) / 30;
+      valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
+    }
+
+    return { valorNovedad, totalHoras };
+  };
+
+  // Función para calcular todos los valores
+  const calculateAllValues = () => {
+    const newCalculatedValues = {};
+
+    employees.forEach((employee) => {
+      newCalculatedValues[employee.id] = {
+        novedades: {},
+        total: 0,
+      };
+
+      // Agregar el salario base según el método de pago
+      const salarioBase = Number(employee.basicmonthlysalary);
+      if (form.paymentMethod === "Quincenal") {
+        newCalculatedValues[employee.id].total += salarioBase / 2;
+      } else if (form.paymentMethod === "Mensual") {
+        newCalculatedValues[employee.id].total += salarioBase;
+      }
+
+      typeNews.forEach((type) => {
+        // Obtener todas las novedades del mismo tipo para el empleado
+        const novedadesDelTipo = filteredEmployeeNews.filter(
+          (news) =>
+            news.employeeId === employee.id && news.typeNewsId === type.id
+        );
+
+        if (novedadesDelTipo.length > 0) {
+          let valorTotal = 0;
+          let horasTotal = 0;
+
+          // Sumar todas las novedades del mismo tipo
+          novedadesDelTipo.forEach((novedad) => {
+            const { valorNovedad, totalHoras } = calculateNovedadValue(
+              novedad,
+              employee,
+              type
+            );
+            valorTotal += valorNovedad;
+            horasTotal += totalHoras;
+          });
+
+          newCalculatedValues[employee.id].novedades[type.id] = {
+            valor: valorTotal,
+            horas: horasTotal,
+            novedades: novedadesDelTipo,
+          };
+          newCalculatedValues[employee.id].total += valorTotal;
+        }
+      });
+    });
+
+    setCalculatedValues(newCalculatedValues);
+  };
+
+  // Efecto para recalcular valores cuando cambien las novedades filtradas
+  useEffect(() => {
+    calculateAllValues();
+  }, [filteredEmployeeNews, employees, typeNews]);
+
+  // Función para calcular el total en el modal de detalles
+  const calcularTotalNovedades = (novedades, employee) => {
+    return novedades.reduce((total, novedad) => {
+      const tipoNovedad = typeNews.find((t) => t.id === novedad.typeNewsId);
+      if (!tipoNovedad) return total;
+      const { valorNovedad } = calculateNovedadValue(
+        novedad,
+        employee,
+        tipoNovedad
+      );
+      return total + valorNovedad;
+    }, 0);
   };
 
   return (
@@ -789,6 +903,14 @@ const LiquidationForm = () => {
                   {formatCurrency(selectedEmployee.basicmonthlysalary)}
                 </div>
                 <div className="mb-3">
+                  <strong>Salario {form.paymentMethod}:</strong>{" "}
+                  {formatCurrency(
+                    form.paymentMethod === "Quincenal"
+                      ? selectedEmployee.basicmonthlysalary / 2
+                      : selectedEmployee.basicmonthlysalary
+                  )}
+                </div>
+                <div className="mb-3">
                   <strong>Valor por hora:</strong>{" "}
                   {formatCurrency(selectedEmployee.hourlyrate)}
                 </div>
@@ -813,113 +935,46 @@ const LiquidationForm = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {employeeNews
+                      {filteredEmployeeNews
                         .filter(
-                          (news) =>
-                            news.employeeId === selectedEmployee.id &&
-                            isInRange(news)
+                          (news) => news.employeeId === selectedEmployee.id
                         )
                         .map((news) => {
                           const tipoNovedad = typeNews.find(
                             (type) => type.id === news.typeNewsId
                           );
 
-                          let valorNovedad = 0;
-                          let totalHoras = 0;
-
-                          if (tipoNovedad) {
-                            const fechaInicio = moment.utc(news.startDate);
-                            const fechaFin = moment.utc(news.endDate);
-
-                            if (tipoNovedad.calculateperhour) {
-                              // Si la novedad es del mismo día
-                              if (
-                                fechaInicio.format("YYYY-MM-DD") ===
-                                fechaFin.format("YYYY-MM-DD")
-                              ) {
-                                const [startHour, startMinute] = news?.startTime
-                                  ? news?.startTime?.split(":").map(Number)
-                                  : [0, 0];
-                                const [endHour, endMinute] = news?.endTime
-                                  ? news?.endTime?.split(":").map(Number)
-                                  : [0, 0];
-                                let horasPorDia =
-                                  endHour +
-                                  endMinute / 60 -
-                                  (startHour + startMinute / 60);
-                                if (horasPorDia < 0) {
-                                  horasPorDia += 24;
-                                }
-                                totalHoras = Math.ceil(horasPorDia);
-                              } else {
-                                // Si la novedad cruza días
-                                const [startHour, startMinute] = news?.startTime
-                                  ? news?.startTime?.split(":").map(Number)
-                                  : [0, 0];
-                                const [endHour, endMinute] = news?.endTime
-                                  ? news?.endTime?.split(":").map(Number)
-                                  : [0, 0];
-
-                                // Horas del primer día (desde hora inicio hasta medianoche)
-                                let horasPrimerDia =
-                                  24 - (startHour + startMinute / 60);
-
-                                // Horas del último día (desde medianoche hasta hora fin)
-                                let horasUltimoDia = endHour + endMinute / 60;
-
-                                totalHoras = Math.ceil(
-                                  horasPrimerDia + horasUltimoDia
-                                );
-                              }
-
-                              const valorHoraExtra =
-                                Number(selectedEmployee.hourlyrate) *
-                                (Number(tipoNovedad.percentage) / 100);
-                              valorNovedad = totalHoras * valorHoraExtra;
-                            } else {
-                              const dias =
-                                fechaFin.diff(fechaInicio, "days") + 1;
-                              const valorDia =
-                                Number(selectedEmployee.basicmonthlysalary) /
-                                30;
-                              valorNovedad =
-                                dias *
-                                valorDia *
-                                (Number(tipoNovedad.percentage) / 100);
-                            }
-                          }
+                          // Calcular el valor de la novedad directamente
+                          const { valorNovedad, totalHoras } =
+                            calculateNovedadValue(
+                              news,
+                              selectedEmployee,
+                              tipoNovedad
+                            );
 
                           return (
                             <tr key={news.id}>
                               <td>{news.id}</td>
                               <td>{news.type_news_name}</td>
                               <td>
-                                {news?.startDate
-                                  ? moment
-                                      .utc(news.startDate)
-                                      .format("YYYY-MM-DD")
+                                {moment
+                                  .utc(news.startDate)
+                                  .format("YYYY-MM-DD")}
+                              </td>
+                              <td>
+                                {news.startTime
+                                  ? news.startTime.slice(0, -3)
                                   : ""}
                               </td>
                               <td>
-                                {news?.startTime
-                                  ? news?.startTime?.slice(0, -3)
-                                  : ""}
+                                {moment.utc(news.endDate).format("YYYY-MM-DD")}
                               </td>
                               <td>
-                                {news?.endDate
-                                  ? moment
-                                      .utc(news.endDate)
-                                      .format("YYYY-MM-DD")
-                                  : ""}
-                              </td>
-                              <td>
-                                {news?.endTime
-                                  ? news?.endTime?.slice(0, -3)
-                                  : ""}
+                                {news.endTime ? news.endTime.slice(0, -3) : ""}
                               </td>
                               <td>{totalHoras}</td>
                               <td>
-                                {news?.status === "active"
+                                {news.status === "active"
                                   ? "Activo"
                                   : "Inactivo"}
                               </td>
@@ -937,62 +992,13 @@ const LiquidationForm = () => {
                         </td>
                         <td style={{ fontWeight: "bold" }}>
                           {formatCurrency(
-                            employeeNews
-                              .filter(
+                            calcularTotalNovedades(
+                              filteredEmployeeNews.filter(
                                 (news) =>
-                                  news.employeeId === selectedEmployee.id &&
-                                  isInRange(news)
-                              )
-                              .reduce((acc, news) => {
-                                const tipoNovedad = typeNews.find(
-                                  (type) => type.id === news.typeNewsId
-                                );
-                                let valorNovedad = 0;
-                                if (tipoNovedad) {
-                                  const fechaInicio = moment
-                                    .utc(news.startDate)
-                                    .startOf("day");
-                                  const fechaFin = moment
-                                    .utc(news.endDate)
-                                    .startOf("day");
-                                  const dias =
-                                    fechaFin.diff(fechaInicio, "days") + 1;
-                                  if (tipoNovedad.calculateperhour) {
-                                    const [startHour, startMinute] =
-                                      news?.startTime
-                                        ? news?.startTime
-                                            ?.split(":")
-                                            .map(Number)
-                                        : [0, 0];
-                                    const [endHour, endMinute] = news?.endTime
-                                      ? news?.endTime?.split(":").map(Number)
-                                      : [0, 0];
-                                    let horasPorDia =
-                                      endHour +
-                                      endMinute / 60 -
-                                      (startHour + startMinute / 60);
-                                    if (horasPorDia < 0) {
-                                      horasPorDia += 24;
-                                    }
-                                    horasPorDia = Math.ceil(horasPorDia);
-                                    const totalHoras = horasPorDia * dias;
-                                    const valorHoraExtra =
-                                      Number(selectedEmployee.hourlyrate) *
-                                      (Number(tipoNovedad.percentage) / 100);
-                                    valorNovedad = totalHoras * valorHoraExtra;
-                                  } else {
-                                    const valorDia =
-                                      Number(
-                                        selectedEmployee.basicmonthlysalary
-                                      ) / 30;
-                                    valorNovedad =
-                                      dias *
-                                      valorDia *
-                                      (Number(tipoNovedad.percentage) / 100);
-                                  }
-                                }
-                                return acc + valorNovedad;
-                              }, 0)
+                                  news.employeeId === selectedEmployee.id
+                              ),
+                              selectedEmployee
+                            )
                           )}
                         </td>
                       </tr>
