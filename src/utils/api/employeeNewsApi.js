@@ -15,9 +15,30 @@ const employeeNewsApi = {
     }
   },
 
+  getById: async (id) => {
+    try {
+      const { data } = await fetchApi.get(`${mainRoute}/${id}`);
+      return data.body;
+    } catch (error) {
+      console.error("Error al obtener la novedad por ID", error);
+      throw error;
+    }
+  },
+
   create: async (obj) => {
     try {
-      const { data } = await fetchApi.post(mainRoute, obj);
+      let config = {};
+      
+      // Si es FormData (con archivo), no establecer Content-Type
+      if (obj instanceof FormData) {
+        config = {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        };
+      }
+
+      const { data } = await fetchApi.post(mainRoute, obj, config);
       return data.body;
     } catch (error) {
       console.error("Error al crear el tipo de novedad", error);
@@ -27,7 +48,18 @@ const employeeNewsApi = {
 
   update: async (id, obj) => {
     try {
-      const { data } = await fetchApi.put(`${mainRoute}/${id}`, obj);
+      let config = {};
+      
+      // Si es FormData (con archivo), no establecer Content-Type
+      if (obj instanceof FormData) {
+        config = {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        };
+      }
+
+      const { data } = await fetchApi.put(`${mainRoute}/${id}`, obj, config);
       return data.body;
     } catch (error) {
       console.error("Error al actualizar el tipo de novedad", error);

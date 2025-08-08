@@ -58,6 +58,11 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Estado de la novedad",
       },
+      approved: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        comment: "Estado de aprobación (true: aprobado, false: rechazado, null: pendiente)",
+      },
       approvedBy: {
         type: Sequelize.INTEGER,
         allowNull: true,
@@ -71,6 +76,11 @@ module.exports = function (config) {
         type: Sequelize.TEXT,
         allowNull: true,
         comment: "Observaciones",
+      },
+      document: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Path del documento subido",
       },
       active: {
         type: Sequelize.BOOLEAN,

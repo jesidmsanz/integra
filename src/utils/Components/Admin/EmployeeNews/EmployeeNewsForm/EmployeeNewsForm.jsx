@@ -41,6 +41,7 @@ const EmployeeNewsForm = ({
     status: "active",
     approvedBy: "",
     observations: "",
+    document: null,
   });
 
   const [companies, setCompanies] = useState([]);
@@ -50,6 +51,8 @@ const EmployeeNewsForm = ({
   const [users, setUsers] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [existingDocument, setExistingDocument] = useState(null);
 
   useEffect(() => {
     loadCompanies();
@@ -88,7 +91,13 @@ const EmployeeNewsForm = ({
         status: dataToUpdate.status || "active",
         approvedBy: dataToUpdate.approvedBy || "",
         observations: dataToUpdate.observations || "",
+        document: null,
       });
+
+      // Si hay un documento existente
+      if (dataToUpdate.document) {
+        setExistingDocument(dataToUpdate.document);
+      }
 
       // Cargar empleados de la empresa seleccionada
       if (dataToUpdate.companyId) {
@@ -106,7 +115,10 @@ const EmployeeNewsForm = ({
         status: "active",
         approvedBy: "",
         observations: "",
+        document: null,
       });
+      setSelectedFile(null);
+      setExistingDocument(null);
     }
   }, [isUpdate, dataToUpdate]);
 
@@ -177,6 +189,30 @@ const EmployeeNewsForm = ({
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo de archivo
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Solo se permiten archivos PDF, JPG, JPEG o PNG");
+        return;
+      }
+      
+      // Validar tamaño (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("El archivo no puede ser mayor a 5MB");
+        return;
+      }
+
+      setSelectedFile(file);
+      setFormData((prev) => ({
+        ...prev,
+        document: file,
+      }));
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
     Object.keys(formData).forEach((key) => {
@@ -184,7 +220,8 @@ const EmployeeNewsForm = ({
         !formData[key] &&
         key !== "observations" &&
         key !== "startTime" &&
-        key !== "endTime"
+        key !== "endTime" &&
+        key !== "document"
       ) {
         newErrors[key] = "Este campo es requerido";
       }
@@ -206,13 +243,28 @@ const EmployeeNewsForm = ({
           endTime: formData.endTime || null,
         };
 
-        console.log("Datos a enviar:", formattedData);
+        // Si hay un archivo seleccionado, crear FormData
+        let save;
+        if (selectedFile) {
+          const formDataToSend = new FormData();
+          Object.keys(formattedData).forEach(key => {
+            if (key === 'document') {
+              formDataToSend.append('document', selectedFile);
+            } else {
+              formDataToSend.append(key, formattedData[key]);
+            }
+          });
 
-        const save = isUpdate
-          ? await employeeNewsApi.update(dataToUpdate.id, formattedData)
-          : await employeeNewsApi.create(formattedData);
+          save = isUpdate
+            ? await employeeNewsApi.update(dataToUpdate.id, formDataToSend)
+            : await employeeNewsApi.create(formDataToSend);
+        } else {
+          // Sin archivo, enviar datos normales
+          save = isUpdate
+            ? await employeeNewsApi.update(dataToUpdate.id, formattedData)
+            : await employeeNewsApi.create(formattedData);
+        }
 
-        console.log("save", save);
         if (save?.id) {
           setFormData({
             companyId: "",
@@ -225,7 +277,10 @@ const EmployeeNewsForm = ({
             status: "active",
             approvedBy: "",
             observations: "",
+            document: null,
           });
+          setSelectedFile(null);
+          setExistingDocument(null);
           setViewForm(false);
           setIsUpdate(false);
           fetchData(1);
@@ -246,6 +301,10 @@ const EmployeeNewsForm = ({
     } else {
       setErrors(newErrors);
     }
+  };
+
+  const handleViewDocument = (documentUrl) => {
+    window.open(documentUrl, '_blank');
   };
 
   return (
@@ -437,7 +496,59 @@ const EmployeeNewsForm = ({
                 )}
               </FormGroup>
             </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="document">Documento</Label>
+                <Input
+                  type="file"
+                  name="document"
+                  id="document"
+                  onChange={handleFileChange}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                <small className="text-muted">
+                  Formatos permitidos: PDF, JPG, JPEG, PNG. Máximo 5MB.
+                </small>
+              </FormGroup>
+            </Col>
           </Row>
+          {existingDocument && (
+            <Row>
+              <Col md="12">
+                <FormGroup>
+                  <Label>Documento Actual</Label>
+                  <div className="d-flex align-items-center">
+                    <i className="fa fa-file-pdf-o me-2" style={{ fontSize: '20px', color: '#dc3545' }}></i>
+                    <span className="me-3">{existingDocument.split('/').pop()}</span>
+                    <Button
+                      color="info"
+                      size="sm"
+                      onClick={() => handleViewDocument(existingDocument)}
+                    >
+                      <i className="fa fa-eye me-1" />
+                      Ver Documento
+                    </Button>
+                  </div>
+                </FormGroup>
+              </Col>
+            </Row>
+          )}
+          {selectedFile && (
+            <Row>
+              <Col md="12">
+                <FormGroup>
+                  <Label>Nuevo Documento Seleccionado</Label>
+                  <div className="d-flex align-items-center">
+                    <i className="fa fa-file-o me-2" style={{ fontSize: '20px', color: '#007bff' }}></i>
+                    <span>{selectedFile.name}</span>
+                    <small className="text-muted ms-2">
+                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </small>
+                  </div>
+                </FormGroup>
+              </Col>
+            </Row>
+          )}
           <Row>
             <Col md="12">
               <FormGroup>
@@ -473,7 +584,10 @@ const EmployeeNewsForm = ({
                   status: "active",
                   approvedBy: "",
                   observations: "",
+                  document: null,
                 });
+                setSelectedFile(null);
+                setExistingDocument(null);
                 setIsUpdate(false);
                 setViewForm(false);
               }}

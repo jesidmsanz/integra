@@ -1,5 +1,5 @@
 "use client";
-import { Error5 } from "@/Data/Pages/PagesSvgIcons";
+import { Error5 } from "@/Data/Pages/PagesSvgIcons.tsx";
 import { useRouter } from "next/navigation";
 import { Button, Col, Container } from "reactstrap";
 

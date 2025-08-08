@@ -49,6 +49,7 @@ ORDER BY en.id DESC;
     const cond = {
       where: { id },
     };
+    
     const result = await Model.update(model, cond);
     return result ? Model.findOne(cond) : false;
   }

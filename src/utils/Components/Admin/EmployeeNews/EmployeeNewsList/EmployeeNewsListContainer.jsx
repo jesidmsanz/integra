@@ -157,11 +157,34 @@ const EmployeeNewsListContainer = () => {
       selector: (row) => (row.status === "active" ? "Activo" : "Inactivo"),
       sortable: true,
     },
-    // {
-    //   name: "Aprobado por",
-    //   selector: (row) => row.approved_by_name,
-    //   sortable: true,
-    // },
+    {
+      name: "Documento",
+      cell: (row) => (
+        <div>
+          {row.document ? (
+            <button
+              type="button"
+              title="Ver Documento"
+              onClick={() => window.open(row.document, '_blank')}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                lineHeight: 1,
+                color: "#007bff",
+              }}
+            >
+              <i className="fa fa-file-pdf-o" style={{ fontSize: '16px' }}></i>
+              <span className="ms-1">Ver</span>
+            </button>
+          ) : (
+            <span className="text-muted">Sin documento</span>
+          )}
+        </div>
+      ),
+      width: "120px",
+    },
     {
       name: "Acciones",
       cell: (row) => <EmployeeNewsListTableAction row={row} />,

@@ -52,6 +52,12 @@ export const MenuList = [
         title: "Registrar Novedades",
         type: "link",
       },
+      {
+        path: "/admin/aprobacion_novedades",
+        icon: "file",
+        title: "Aprobar Novedades",
+        type: "link",
+      },
       // {
       //   path: "/admin/eventos",
       //   icon: "calendar",

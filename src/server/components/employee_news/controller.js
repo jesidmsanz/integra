@@ -27,6 +27,12 @@ function findById(id) {
 function create(obj) {
   return new Promise(async (resolve, reject) => {
     const { EmployeeNews } = await db();
+    
+    // Si hay un archivo subido, guardar el path
+    if (obj.document) {
+      obj.document = `/files/${obj.document}`;
+    }
+    
     const result = await EmployeeNews.create(obj);
     resolve(result);
   });
@@ -35,6 +41,12 @@ function create(obj) {
 function update(_id, obj) {
   return new Promise(async (resolve, reject) => {
     const { EmployeeNews } = await db();
+    
+    // Si hay un archivo subido, guardar el path
+    if (obj.document) {
+      obj.document = `/files/${obj.document}`;
+    }
+    
     const result = await EmployeeNews.update(_id, obj);
     resolve(result);
   });
