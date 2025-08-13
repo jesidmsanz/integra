@@ -77,7 +77,7 @@ handler.put(`${apiURL}/:id`, upload.single('document'), async function (req, res
     // Combinar datos del formulario con el archivo
     const formData = {
       ...req.body,
-      document: req.file ? req.file.filename : null
+      ...(req.file ? { document: req.file.filename } : {})
     };
 
     console.log("formData update:", formData);
