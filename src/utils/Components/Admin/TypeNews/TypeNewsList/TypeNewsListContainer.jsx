@@ -40,16 +40,41 @@ const TypeNewsListContainer = () => {
     setLoading(true);
     try {
       const response = await typeNewsApi.list(page, rowsPerPage);
-      if (response.length) setData(response);
+      console.log("API Response:", response);
+      
+      // Verificar si la respuesta tiene la estructura esperada
+      if (response && response.data && Array.isArray(response.data)) {
+        setData(response.data);
+        setTotalRows(response.total || 0);
+        console.log(`Página ${page}: ${response.data.length} registros de ${response.total} total`);
+      } else if (Array.isArray(response)) {
+        // Fallback para respuestas sin paginación
+        setData(response);
+        setTotalRows(response.length);
+        console.log(`Respuesta sin paginación: ${response.length} registros`);
+      } else {
+        console.warn("Respuesta inesperada de la API:", response);
+        setData([]);
+        setTotalRows(0);
+      }
     } catch (error) {
       console.error("Error al cargar los datos", error);
+      setData([]);
+      setTotalRows(0);
     } finally {
       setLoading(false);
     }
   };
 
   const handlePageChange = (newPage) => {
+    console.log("Cambiando a página:", newPage);
     setPage(newPage);
+  };
+
+  const handleRowsPerPageChange = (currentRowsPerPage, currentPage) => {
+    console.log("Cambiando filas por página:", currentRowsPerPage, "Página:", currentPage);
+    // Si cambia el número de filas por página, volver a la primera página
+    setPage(1);
   };
 
   const handleSearch = (e) => {
@@ -207,14 +232,29 @@ const TypeNewsListContainer = () => {
                   paginationServer
                   paginationTotalRows={totalRows}
                   onChangePage={handlePageChange}
+                  onChangeRowsPerPage={handleRowsPerPageChange}
                   progressPending={loading}
-                  paginationPerPage={10}
+                  paginationPerPage={rowsPerPage}
                   paginationComponentOptions={{
                     rowsPerPageText: "Filas por página:",
                     rangeSeparatorText: "de",
                     selectAllRowsItem: true,
                     selectAllRowsItemText: "Todos",
                   }}
+                  noDataComponent={
+                    <div className="text-center py-4">
+                      <i className="fas fa-inbox fa-3x text-muted mb-3"></i>
+                      <p className="text-muted">No hay datos disponibles</p>
+                    </div>
+                  }
+                  progressComponent={
+                    <div className="text-center py-4">
+                      <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Cargando...</span>
+                      </div>
+                      <p className="mt-2">Cargando datos...</p>
+                    </div>
+                  }
                 />
               </div>
             </CardBody>

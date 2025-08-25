@@ -27,24 +27,19 @@ module.exports = function (config) {
         comment: "Información de pago",
       },
       affects: {
-        type: Sequelize.STRING(),
+        type: Sequelize.TEXT,
         allowNull: false,
-        comment: "A qué afecta la novedad",
+        comment: "Campos de dinero afectados (JSON string)",
       },
       applies_to: {
-        type: Sequelize.STRING(),
+        type: Sequelize.TEXT,
         allowNull: false,
-        comment: "A quién aplica (femenino/masculino/ambos)",
+        comment: "Opciones de género aplicables (JSON string)",
       },
       percentage: {
-        type: Sequelize.DECIMAL(10, 2),
-        allowNull: true,
-        comment: "Porcentaje si aplica",
-      },
-      status: {
         type: Sequelize.STRING(),
         allowNull: false,
-        comment: "Estado de la novedad",
+        comment: "Porcentaje de la novedad",
       },
       category: {
         type: Sequelize.STRING(),
@@ -62,14 +57,10 @@ module.exports = function (config) {
         allowNull: true,
         comment: "Notas adicionales sobre la novedad",
       },
-      noaplicaauxiliotransporte: {
-        type: Sequelize.BOOLEAN,
-        allowNull: true,
-        comment: "No aplica auxilio de transporte",
-      },
       calculateperhour: {
         type: Sequelize.BOOLEAN,
         allowNull: true,
+        defaultValue: false,
         comment: "Calcular por hora",
       },
       createdAt: {

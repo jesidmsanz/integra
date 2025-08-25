@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node src/server",
+    "dev": "next dev",
     "build": "next build",
-    "start": "cross-env NODE_ENV=production node src/server",
-    "lint": "next lint"
+    "start": "next start",
+    "lint": "next lint",
+    "migrate:type-news": "node src/server/db/migrations/run_migration.js",
+    "migrate:type-news:interactive": "node src/server/db/migrations/run_migration_interactive.js",
+    "db:list": "node src/server/db/migrations/list_databases.js",
+    "fix:type-news-data": "node src/server/db/migrations/fix_existing_data.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
@@ -33,7 +37,7 @@
     "mongoose": "^5.13.7",
     "multer": "^2.0.2",
     "next": "14.2.13",
-    "next-auth": "^4.24.7",
+    "next-auth": "^4.24.11",
     "next-connect": "^0.11.0",
     "passport": "^0.7.0",
     "passport-http": "^0.3.0",

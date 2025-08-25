@@ -17,19 +17,33 @@ import {
   FormFeedback,
 } from "reactstrap";
 
+// Campos de dinero del empleado que pueden ser afectados por la novedad
+const moneyFields = [
+  { key: "basicmonthlysalary", label: "Salario Base Mensual" },
+  { key: "hourlyrate", label: "Valor Hora" },
+  { key: "transportationassistance", label: "Auxilio de Transporte" },
+  { key: "mobilityassistance", label: "Auxilio de Movilidad" },
+  { key: "discountvalue", label: "Valor de Descuento" },
+];
+
+// Opciones de género para el campo "Aplica a"
+const genderOptions = [
+  { key: "masculino", label: "Masculino" },
+  { key: "femenino", label: "Femenino" },
+  { key: "ambos", label: "Ambos" },
+];
+
 const initialState = {
   name: "",
   code: "",
   duration: "",
   payment: "",
-  affects: "",
-  applies_to: "",
+  affects: {}, // Ahora será un objeto con los campos seleccionados
+  applies_to: {}, // Ahora será un objeto con las opciones de género seleccionadas
   percentage: "",
-  status: "active",
   category: "",
   active: true,
   notes: "",
-  noaplicaauxiliotransporte: false,
   calculateperhour: false,
 };
 
@@ -42,7 +56,21 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
 
   useEffect(() => {
     if (isUpdate && data) {
-      setForm(data);
+      // Si es actualización, convertir el string affects a objeto si es necesario
+      const affectsData = typeof data.affects === 'string' && data.affects 
+        ? JSON.parse(data.affects) 
+        : data.affects || {};
+      
+      // Si es actualización, convertir el string applies_to a objeto si es necesario
+      const appliesToData = typeof data.applies_to === 'string' && data.applies_to 
+        ? JSON.parse(data.applies_to) 
+        : data.applies_to || {};
+      
+      setForm({
+        ...data,
+        affects: affectsData,
+        applies_to: appliesToData
+      });
     } else {
       setForm(initialState);
     }
@@ -68,6 +96,42 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
     }
   };
 
+  // Manejar cambios en los checkboxes de campos de dinero
+  const handleMoneyFieldChange = (fieldKey, checked) => {
+    setForm({
+      ...form,
+      affects: {
+        ...form.affects,
+        [fieldKey]: checked
+      }
+    });
+    
+    if (errors.affects) {
+      setErrors({
+        ...errors,
+        affects: "",
+      });
+    }
+  };
+
+  // Manejar cambios en los checkboxes de género
+  const handleGenderChange = (genderKey, checked) => {
+    setForm({
+      ...form,
+      applies_to: {
+        ...form.applies_to,
+        [genderKey]: checked
+      }
+    });
+    
+    if (errors.applies_to) {
+      setErrors({
+        ...errors,
+        applies_to: "",
+      });
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
     Object.keys(form).forEach((key) => {
@@ -77,10 +141,21 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
         key !== "notes" &&
         key !== "createdAt" &&
         key !== "updatedAt" &&
-        key !== "noaplicaauxiliotransporte" &&
         key !== "calculateperhour"
       ) {
-        newErrors[key] = "Este campo es requerido";
+        if (key === "affects") {
+          // Validar que al menos un campo de dinero esté seleccionado
+          if (Object.keys(form.affects).length === 0 || Object.values(form.affects).every(val => !val)) {
+            newErrors[key] = "Debe seleccionar al menos un campo de dinero";
+          }
+        } else if (key === "applies_to") {
+          // Validar que al menos una opción de género esté seleccionada
+          if (Object.keys(form.applies_to).length === 0 || Object.values(form.applies_to).every(val => !val)) {
+            newErrors[key] = "Debe seleccionar al menos una opción de género";
+          }
+        } else {
+          newErrors[key] = "Este campo es requerido";
+        }
       }
     });
     return newErrors;
@@ -93,10 +168,17 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
     if (Object.keys(newErrors).length === 0) {
       setLoading(true);
       try {
-        console.log("form", form);
+        // Convertir affects y applies_to a string JSON para enviar al backend
+        const formDataToSend = {
+          ...form,
+          affects: JSON.stringify(form.affects),
+          applies_to: JSON.stringify(form.applies_to)
+        };
+        
+        console.log("form", formDataToSend);
         const save = isUpdate
-          ? await typeNewsApi.update(data.id, form)
-          : await typeNewsApi.create(form);
+          ? await typeNewsApi.update(data.id, formDataToSend)
+          : await typeNewsApi.create(formDataToSend);
         if (save?.id) {
           setForm(initialState);
           onSuccess();
@@ -207,40 +289,60 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="6">
+            <Col md="12">
               <FormGroup>
-                <Label for="affects">Afecta:</Label>
-                <Input
-                  type="text"
-                  name="affects"
-                  id="affects"
-                  placeholder="Afecta"
-                  onChange={handleChange}
-                  value={form.affects}
-                  invalid={!!errors.affects}
-                  required
-                />
-                {errors.affects && (
-                  <FormFeedback>{errors.affects}</FormFeedback>
-                )}
+                <Label>Afecta a:</Label>
+                <div className="border rounded p-3">
+                  <div className="d-flex flex-wrap gap-3">
+                    {moneyFields.map((field) => (
+                      <FormGroup check key={field.key} className="me-3">
+                        <Input
+                          type="checkbox"
+                          id={`affects_${field.key}`}
+                          checked={form.affects[field.key] || false}
+                          onChange={(e) => handleMoneyFieldChange(field.key, e.target.checked)}
+                        />
+                        <Label check for={`affects_${field.key}`}>
+                          {field.label}
+                        </Label>
+                      </FormGroup>
+                    ))}
+                  </div>
+                  {errors.affects && (
+                    <div className="text-danger mt-2 small">
+                      {errors.affects}
+                    </div>
+                  )}
+                </div>
               </FormGroup>
             </Col>
-            <Col md="6">
+          </Row>
+          <Row>
+            <Col md="12">
               <FormGroup>
-                <Label for="applies_to">Aplica a:</Label>
-                <Input
-                  type="text"
-                  name="applies_to"
-                  id="applies_to"
-                  placeholder="Aplica a"
-                  onChange={handleChange}
-                  value={form.applies_to}
-                  invalid={!!errors.applies_to}
-                  required
-                />
-                {errors.applies_to && (
-                  <FormFeedback>{errors.applies_to}</FormFeedback>
-                )}
+                <Label>Aplica a:</Label>
+                <div className="border rounded p-3">
+                  <div className="d-flex flex-wrap gap-3">
+                    {genderOptions.map((option) => (
+                      <FormGroup check key={option.key} className="me-3">
+                        <Input
+                          type="checkbox"
+                          id={`applies_to_${option.key}`}
+                          checked={form.applies_to[option.key] || false}
+                          onChange={(e) => handleGenderChange(option.key, e.target.checked)}
+                        />
+                        <Label check for={`applies_to_${option.key}`}>
+                          {option.label}
+                        </Label>
+                      </FormGroup>
+                    ))}
+                  </div>
+                  {errors.applies_to && (
+                    <div className="text-danger mt-2 small">
+                      {errors.applies_to}
+                    </div>
+                  )}
+                </div>
               </FormGroup>
             </Col>
           </Row>
@@ -283,65 +385,35 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="6">
+            <Col md="12">
               <FormGroup>
-                <Label for="status">Estado:</Label>
-                <Input
-                  type="text"
-                  name="status"
-                  id="status"
-                  placeholder="Estado"
-                  onChange={handleChange}
-                  value={form.status}
-                  invalid={!!errors.status}
-                  required
-                />
-                {errors.status && <FormFeedback>{errors.status}</FormFeedback>}
-              </FormGroup>
-            </Col>
-            <Col md="6">
-              <FormGroup>
-                <Label for="active">Activo</Label>
-                <div>
-                  <Input
-                    type="checkbox"
-                    name="active"
-                    id="active"
-                    checked={form.active}
-                    onChange={handleChange}
-                  />
-                </div>
-              </FormGroup>
-            </Col>
-          </Row>
-          <Row>
-            <Col md="6">
-              <FormGroup>
-                <Label for="noaplicaauxiliotransporte">
-                  No aplica auxilio de transporte
-                </Label>
-                <div>
-                  <Input
-                    type="checkbox"
-                    name="noaplicaauxiliotransporte"
-                    id="noaplicaauxiliotransporte"
-                    checked={form.noaplicaauxiliotransporte}
-                    onChange={handleChange}
-                  />
-                </div>
-              </FormGroup>
-            </Col>
-            <Col md="6">
-              <FormGroup>
-                <Label for="calculateperhour">Calcular por hora</Label>
-                <div>
-                  <Input
-                    type="checkbox"
-                    name="calculateperhour"
-                    id="calculateperhour"
-                    checked={form.calculateperhour}
-                    onChange={handleChange}
-                  />
+                <div className="border rounded p-3">
+                  <div className="d-flex flex-wrap gap-3">
+                    <FormGroup check className="me-3">
+                      <Input
+                        type="checkbox"
+                        name="active"
+                        id="active"
+                        checked={form.active}
+                        onChange={handleChange}
+                      />
+                      <Label check for="active">
+                        Activo
+                      </Label>
+                    </FormGroup>
+                    <FormGroup check className="me-3">
+                      <Input
+                        type="checkbox"
+                        name="calculateperhour"
+                        id="calculateperhour"
+                        checked={form.calculateperhour}
+                        onChange={handleChange}
+                      />
+                      <Label check for="calculateperhour">
+                        Calcular por hora
+                      </Label>
+                    </FormGroup>
+                  </div>
                 </div>
               </FormGroup>
             </Col>

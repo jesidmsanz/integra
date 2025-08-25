@@ -1,14 +1,19 @@
 "use strict";
 const { Op, QueryTypes } = require("sequelize");
 
-module.exports = function setupCountry(Model, db) {
-  function findAll() {
-    return Model.findAll();
+module.exports = function setupCountry(Model, db, sequelize) {
+  function findAll(options = {}) {
+    const { order = [["id", "ASC"]] } = options;
+    return Model.findAll({ order });
+  }
+
+  function count() {
+    return Model.count();
   }
 
   function findAllActive() {
     return sequelize.query(
-      ` select * from employees where users.status = true`,
+      ` select * from employees where employees.active = true`,
       {
         type: QueryTypes.SELECT,
       }
@@ -38,13 +43,14 @@ module.exports = function setupCountry(Model, db) {
   }
 
   function deleteById(_id) {
-    return Model.deleteOne({
-      _id,
+    return Model.destroy({
+      where: { id: _id },
     });
   }
 
   return {
     findAll,
+    count,
     findAllActive,
     findById,
     create,

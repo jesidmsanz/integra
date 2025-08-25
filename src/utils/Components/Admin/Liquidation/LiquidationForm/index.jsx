@@ -58,7 +58,6 @@ const LiquidationForm = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [calculatedValues, setCalculatedValues] = useState({});
 
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
@@ -180,7 +179,7 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
-      name: "Metodo de pago",
+      name: "Frecuencia de pago",
       selector: (row) => row.paymentmethod || "No disponible",
       sortable: true,
       minWidth: "150px",
@@ -303,6 +302,7 @@ const LiquidationForm = () => {
           return (
             news.employeeId === emp.id &&
             news.status === "active" &&
+            news.approved === true &&
             isInRange(news)
           );
         });
@@ -346,6 +346,7 @@ const LiquidationForm = () => {
         ? "normal"
         : employeeNews
             .filter((news) => news.employeeId === item.id)
+            .filter((news) => news.approved === true)
             .map((news) => news.type_news_name.toLowerCase())
             .join(" ");
 
@@ -402,7 +403,7 @@ const LiquidationForm = () => {
         "Tipo de Contrato": employee.contracttype || "No disponible",
         "Salario Base": formatCurrency(employee.basicmonthlysalary),
         "Valor por hora": formatCurrency(employee.hourlyrate),
-        "Metodo de pago": employee.paymentmethod || "No disponible",
+        "Frecuencia de pago": employee.paymentmethod || "No disponible",
       };
 
       // Agregar columnas dinámicas de tipos de novedad
@@ -497,8 +498,9 @@ const LiquidationForm = () => {
   // Función para generar datos de novedades filtrados
   const generateFilteredNews = () => {
     const filtered = employeeNews.filter((news) => {
-      // Verificar si la novedad está activa
+      // Verificar si la novedad está activa y aprobada
       if (news.status !== "active") return false;
+      if (news.approved !== true) return false;
 
       const newsStart = moment.utc(news.startDate);
       const newsEnd = moment.utc(news.endDate);
@@ -616,9 +618,13 @@ const LiquidationForm = () => {
 
       // Agregar el salario base según el método de pago
       const salarioBase = Number(employee.basicmonthlysalary);
-      if (form.paymentMethod === "Quincenal") {
+      const metodoPagoEfectivo =
+        form.paymentMethod && form.paymentMethod !== ""
+          ? form.paymentMethod
+          : employee.paymentmethod;
+      if (metodoPagoEfectivo === "Quincenal") {
         newCalculatedValues[employee.id].total += salarioBase / 2;
-      } else if (form.paymentMethod === "Mensual") {
+      } else if (metodoPagoEfectivo === "Mensual") {
         newCalculatedValues[employee.id].total += salarioBase;
       }
 
@@ -732,7 +738,7 @@ const LiquidationForm = () => {
             <Row className="mb-3">
               <Col md="4">
                 <FormGroup>
-                  <Label for="paymentMethod">Método de Pago:</Label>
+                  <Label for="paymentMethod">Frecuencia de Pago:</Label>
                   <Input
                     type="select"
                     name="paymentMethod"
@@ -778,8 +784,24 @@ const LiquidationForm = () => {
                 </Col>
               )}
             </Row>
+
             <Row className="mb-3">
-              <Col>
+              <Col md="4">
+                <div className="mb-3">
+                  <InputGroup>
+                    <InputGroupText>
+                      <i className="fas fa-search"></i>
+                    </InputGroupText>
+                    <Input
+                      type="text"
+                      placeholder="Buscar por documento, nombre, cargo o estado..."
+                      value={searchTerm}
+                      onChange={handleSearch}
+                    />
+                  </InputGroup>
+                </div>
+              </Col>
+              <Col md="3">
                 <Button
                   color="success"
                   onClick={exportToExcel}
@@ -790,19 +812,6 @@ const LiquidationForm = () => {
                 </Button>
               </Col>
             </Row>
-            <div className="mb-3">
-              <InputGroup>
-                <InputGroupText>
-                  <i className="fas fa-search"></i>
-                </InputGroupText>
-                <Input
-                  type="text"
-                  placeholder="Buscar por documento, nombre, cargo o estado..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                />
-              </InputGroup>
-            </div>
             <div className="list-product">
               <div className="table-responsive">
                 <DataTable

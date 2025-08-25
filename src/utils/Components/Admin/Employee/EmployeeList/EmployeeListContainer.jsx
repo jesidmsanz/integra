@@ -20,16 +20,12 @@ import { EmployeeListFilterHeader } from "./EmployeeListFilterHeader";
 
 const EmployeeListContainer = () => {
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalRows, setTotalRows] = useState(Infinity);
   const [viewForm, setViewForm] = useState(false);
   const [dataToUpdate, setDataToUpdate] = useState(null);
   const [isUpdate, setIsUpdate] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const rowsPerPage = 30;
 
   const fetchCompanies = async () => {
     try {
@@ -45,22 +41,57 @@ const EmployeeListContainer = () => {
     return company ? company.companyname : "No asignada";
   };
 
-  const fetchData = async (page) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await employeesApi.list(page, rowsPerPage);
-      console.log("response :>> ", response);
-      if (response.length) setData(response);
+      const response = await employeesApi.list();
+      if (Array.isArray(response)) {
+        setData(response);
+      } else {
+        setData([]);
+      }
     } catch (error) {
       console.error("Error al cargar los datos", error);
+      setData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePageChange = (newPage) => {
-    setPage(newPage);
+  const handleSearch = (e) => {
+    const searchValue = e.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+    
+    if (searchValue.trim()) {
+      // Filtrar empleados
+      const filtered = data.filter((item) => {
+        const companyName = getCompanyName(item.companyid).toLowerCase();
+        const documentInfo = `${item.documenttype} ${item.documentnumber}`.toLowerCase();
+        const fullName = item.fullname.toLowerCase();
+        const contractType = item.contracttype.toLowerCase();
+        const position = item.position.toLowerCase();
+
+        return (
+          companyName.includes(searchValue) ||
+          documentInfo.includes(searchValue) ||
+          fullName.includes(searchValue) ||
+          contractType.includes(searchValue) ||
+          position.includes(searchValue)
+        );
+      });
+      
+      // Actualizar datos filtrados
+      setData(filtered);
+    } else {
+      // Si no hay búsqueda, recargar todos los empleados
+      fetchData();
+    }
   };
+
+  useEffect(() => {
+    fetchCompanies();
+    fetchData();
+  }, []);
 
   const DirectoryListTableAction = ({ row }) => {
     return (
@@ -190,44 +221,6 @@ const EmployeeListContainer = () => {
     },
   ];
 
-  const handleSearch = (e) => {
-    const searchValue = e.target.value.toLowerCase();
-    setSearchTerm(searchValue);
-
-    if (!searchValue) {
-      setFilteredData(data);
-      return;
-    }
-
-    const filtered = data.filter((item) => {
-      const companyName = getCompanyName(item.companyid).toLowerCase();
-      const documentInfo =
-        `${item.documenttype} ${item.documentnumber}`.toLowerCase();
-      const fullName = item.fullname.toLowerCase();
-      const contractType = item.contracttype.toLowerCase();
-      const position = item.position.toLowerCase();
-
-      return (
-        companyName.includes(searchValue) ||
-        documentInfo.includes(searchValue) ||
-        fullName.includes(searchValue) ||
-        contractType.includes(searchValue) ||
-        position.includes(searchValue)
-      );
-    });
-
-    setFilteredData(filtered);
-  };
-
-  useEffect(() => {
-    fetchCompanies();
-    fetchData(page);
-  }, [page]);
-
-  useEffect(() => {
-    setFilteredData(data);
-  }, [data]);
-
   return (
     <div className="container-fluid">
       <div className="row">
@@ -277,13 +270,11 @@ const EmployeeListContainer = () => {
                   </div>
                   <DataTable
                     columns={columns}
-                    data={filteredData}
+                    data={data}
                     pagination
-                    paginationServer
-                    paginationTotalRows={totalRows}
-                    onChangePage={handlePageChange}
-                    onChangeRowsPerPage={handlePageChange}
+                    paginationServer={false}
                     progressPending={loading}
+                    paginationPerPage={30}
                     noDataComponent="No hay empleados registrados"
                     customStyles={customStyles}
                   />

@@ -2,10 +2,20 @@
 const { Op, QueryTypes } = require("sequelize");
 
 module.exports = function setupTypeNews(Model, db, sequelize) {
-  function findAll() {
-    return Model.findAll({
-      order: [["id", "ASC"]],
-    });
+  function findAll(options = {}) {
+    const { limit, offset, order = [["id", "ASC"]] } = options;
+    
+    const queryOptions = {
+      order,
+      ...(limit && { limit: parseInt(limit) }),
+      ...(offset && { offset: parseInt(offset) })
+    };
+    
+    return Model.findAll(queryOptions);
+  }
+
+  function count() {
+    return Model.count();
   }
 
   function findAllActive() {
@@ -47,6 +57,7 @@ module.exports = function setupTypeNews(Model, db, sequelize) {
 
   return {
     findAll,
+    count,
     findAllActive,
     findById,
     create,

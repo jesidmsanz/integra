@@ -767,7 +767,7 @@ const EmployeeForm = ({
               </Col>
               <Col md="4">
                 <FormGroup>
-                  <Label for="paymentmethod">Método de pago:</Label>
+                  <Label for="paymentmethod">Frecuencia de pago:</Label>
                   <Input
                     type="select"
                     name="paymentmethod"

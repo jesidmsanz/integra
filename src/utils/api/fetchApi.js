@@ -1,6 +1,6 @@
 import axios from "axios";
 import publicEnv from "../publicEnv";
-import { getSession, setSession } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
 
 const fetchApi = axios.create({
   baseURL: `${publicEnv.apiUrl || "/"}api/`,
@@ -25,10 +25,11 @@ fetchApi.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    console.log("Error :>> ", error.response.data.message);
+    console.log("Error :>> ", error.response?.data?.message || "Unknown error");
+    
     if (
       error.response &&
-      error.response.status === 403 &&
+      (error.response.status === 401 || error.response.status === 403) &&
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
@@ -49,11 +50,13 @@ fetchApi.interceptors.response.use(
           return axios(originalRequest);
         } catch (error) {
           console.error("Refresh token failed", error);
-          signOut();
+          // Redirigir al login
+          signOut({ redirect: true, callbackUrl: "/auth/login" });
           return Promise.reject(error);
         }
       } else {
-        signOut();
+        // Redirigir al login
+        signOut({ redirect: true, callbackUrl: "/auth/login" });
         return Promise.reject(error);
       }
     }

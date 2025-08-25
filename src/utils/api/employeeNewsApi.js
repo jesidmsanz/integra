@@ -28,12 +28,12 @@ const employeeNewsApi = {
   create: async (obj) => {
     try {
       let config = {};
-      
+
       // Si es FormData (con archivo), no establecer Content-Type
       if (obj instanceof FormData) {
         config = {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         };
       }
@@ -48,16 +48,18 @@ const employeeNewsApi = {
 
   update: async (id, obj) => {
     try {
+      console.log("obj", obj);
       let config = {};
-      
+      if (!obj.document) delete obj.document;
       // Si es FormData (con archivo), no establecer Content-Type
       if (obj instanceof FormData) {
         config = {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         };
       }
+      console.log("obj", obj);
 
       const { data } = await fetchApi.put(`${mainRoute}/${id}`, obj, config);
       return data.body;

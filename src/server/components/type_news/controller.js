@@ -1,10 +1,34 @@
 const db = require("../../db/index.js");
 
-function findAll() {
+function findAll(page = 1, limit = 30) {
   return new Promise(async (resolve, reject) => {
-    const { TypeNews } = await db();
-    const result = await TypeNews.findAll();
-    resolve(result);
+    try {
+      const { TypeNews } = await db();
+      
+      // Calcular offset para la paginación
+      const offset = (page - 1) * limit;
+      
+      // Obtener el total de registros
+      const total = await TypeNews.count();
+      
+      // Obtener los datos paginados
+      const result = await TypeNews.findAll({
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        order: [['id', 'ASC']]
+      });
+      
+      // Devolver objeto con datos y metadata de paginación
+      resolve({
+        data: result,
+        total: total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / limit)
+      });
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 

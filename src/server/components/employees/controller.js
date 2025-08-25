@@ -1,10 +1,20 @@
 const db = require("../../db/index.js");
 
-function findAll() {
+function findAll(page = 1, limit = 30, searchTerm = "") {
   return new Promise(async (resolve, reject) => {
-    const { Employees } = await db();
-    const result = await Employees.findAll();
-    resolve(result);
+    try {
+      const { Employees } = await db();
+      
+      // Traer TODOS los empleados
+      const result = await Employees.findAll({
+        order: [['id', 'ASC']]
+      });
+      
+      // Devolver todos los datos
+      resolve(result);
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 

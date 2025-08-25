@@ -2,10 +2,10 @@ import fetchApi, { getAxiosError } from "./fetchApi";
 
 const mainRoute = "employees";
 
-const list = async (page, pageSize, initialData) => {
+const list = async (initialData) => {
   try {
     const { data } = await fetchApi.get(
-      `${mainRoute}?currentPage=${page}&pageSize=${pageSize}`,
+      `${mainRoute}`,
       initialData
     );
     return data.body;
