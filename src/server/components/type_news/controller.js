@@ -19,14 +19,17 @@ function findAll(page = 1, limit = 30) {
       });
       
       // Devolver objeto con datos y metadata de paginación
-      resolve({
+      const response = {
         data: result,
         total: total,
         page: parseInt(page),
         limit: parseInt(limit),
         totalPages: Math.ceil(total / limit)
-      });
+      };
+      
+      resolve(response);
     } catch (error) {
+      console.error("❌ Error en controlador findAll:", error);
       reject(error);
     }
   });

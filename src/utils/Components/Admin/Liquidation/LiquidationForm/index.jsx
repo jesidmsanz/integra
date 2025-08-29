@@ -67,6 +67,22 @@ const LiquidationForm = () => {
     }).format(amount);
   };
 
+  // Función para calcular el auxilio de transporte según el método de pago
+  const calculateTransportationAssistance = (employee, paymentMethod) => {
+    const auxilioBase = Number(employee.transportationassistance) || 0;
+    
+    if (!auxilioBase) return 0;
+    
+    const metodoPagoEfectivo = paymentMethod || employee.paymentmethod;
+    
+    // LÓGICA SIMPLE: Valor del día × días del período
+    if (metodoPagoEfectivo === "Quincenal") {
+      return auxilioBase * 15;  // 15 días
+    } else {
+      return auxilioBase * 30;  // 30 días (mensual o por defecto)
+    }
+  };
+
   let formRef = createRef();
 
   const customStyles = {
@@ -173,6 +189,15 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
+      name: "Auxilio de Transporte",
+      cell: (row) => {
+        const auxilioCalculado = calculateTransportationAssistance(row, form.paymentMethod);
+        return auxilioCalculado > 0 ? formatCurrency(auxilioCalculado) : "No aplica";
+      },
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Valor por hora",
       selector: (row) => formatCurrency(row.hourlyrate),
       sortable: true,
@@ -238,49 +263,89 @@ const LiquidationForm = () => {
 
   const loadEmployees = async () => {
     try {
+      console.log("🔄 loadEmployees ejecutándose para liquidación...");
       const response = await employeesApi.list();
-      if (response.length) setEmployees(response);
+      if (response.length) {
+        console.log(`✅ ${response.length} empleados cargados para liquidación`);
+        setEmployees(response);
+      }
     } catch (error) {
-      console.error("Error al cargar los empleados", error);
-      toast.error("Error al cargar los empleados");
+      console.error("❌ Error al cargar los empleados para liquidación:", error);
+      toast.error("Error al cargar la lista de empleados");
     }
   };
 
   const loadCompanies = async () => {
     try {
+      console.log("🏢 loadCompanies ejecutándose para liquidación...");
       const response = await companiesApi.list();
-      if (response.length) setCompanies(response);
+      if (response.length) {
+        console.log(`✅ ${response.length} empresas cargadas para liquidación`);
+        setCompanies(response);
+      }
     } catch (error) {
-      console.error("Error al cargar las empresas", error);
-      toast.error("Error al cargar las empresas");
+      console.error("❌ Error al cargar las empresas para liquidación:", error);
+      toast.error("Error al cargar la lista de empresas");
     }
   };
 
   const loadEmployeeNews = async () => {
     try {
+      console.log("📰 loadEmployeeNews ejecutándose para liquidación...");
       const response = await employeeNewsApi.list();
-      if (response.length) setEmployeeNews(response);
+      if (response.length) {
+        console.log(`✅ ${response.length} novedades de empleados cargadas para liquidación`);
+        setEmployeeNews(response);
+      }
     } catch (error) {
-      console.error("Error al cargar las novedades", error);
-      toast.error("Error al cargar las novedades");
+      console.error("❌ Error al cargar las novedades para liquidación:", error);
+      toast.error("Error al cargar la lista de novedades");
     }
   };
 
   const loadTypeNews = async () => {
     try {
+      console.log("🔄 loadTypeNews ejecutándose para liquidación...");
       const response = await typeNewsApi.list();
-      if (response.length) setTypeNews(response);
+      
+      if (response && response.data && response.data.length) {
+        setTypeNews(response.data);
+      } else if (response && Array.isArray(response)) {
+        setTypeNews(response);
+      } else {
+        setTypeNews([]);
+      }
     } catch (error) {
-      console.error("Error al cargar los tipos de novedades", error);
-      toast.error("Error al cargar los tipos de novedades");
+      console.error("❌ Error al cargar los tipos de novedades para liquidación:", error);
+      toast.error("Error al cargar la lista de tipos de novedades");
+      setTypeNews([]);
     }
   };
 
   useEffect(() => {
-    loadEmployees();
-    loadCompanies();
-    loadEmployeeNews();
-    loadTypeNews();
+    console.log("🚀 useEffect ejecutándose - Cargando datos iniciales para liquidación");
+    
+    // Cargar datos en secuencia para evitar problemas de sincronización
+    const loadDataSequentially = async () => {
+      try {
+        // 1. Primero cargar empresas
+        await loadCompanies();
+        
+        // 2. Luego cargar tipos de novedad
+        await loadTypeNews();
+        
+        // 3. Luego cargar empleados
+        await loadEmployees();
+        
+        // 4. Finalmente cargar novedades de empleados
+        await loadEmployeeNews();
+        
+      } catch (error) {
+        console.error("❌ Error en carga secuencial de liquidación:", error);
+      }
+    };
+    
+    loadDataSequentially();
   }, []);
 
   useEffect(() => {
@@ -402,6 +467,10 @@ const LiquidationForm = () => {
         Cargo: employee.position || "No disponible",
         "Tipo de Contrato": employee.contracttype || "No disponible",
         "Salario Base": formatCurrency(employee.basicmonthlysalary),
+        "Auxilio de Transporte": (() => {
+          const auxilioCalculado = calculateTransportationAssistance(employee, form.paymentMethod);
+          return auxilioCalculado > 0 ? formatCurrency(auxilioCalculado) : "No aplica";
+        })(),
         "Valor por hora": formatCurrency(employee.hourlyrate),
         "Frecuencia de pago": employee.paymentmethod || "No disponible",
       };
@@ -536,7 +605,12 @@ const LiquidationForm = () => {
       return true;
     });
 
-    console.log("Novedades filtradas:", filtered.length);
+      id: n.id, 
+      employeeId: n.employeeId, 
+      typeNewsId: n.typeNewsId,
+      status: n.status,
+      approved: n.approved
+    })));
     setFilteredEmployeeNews(filtered);
   };
 
@@ -545,8 +619,26 @@ const LiquidationForm = () => {
     generateFilteredNews();
   }, [form, employeeNews]);
 
+  // useEffect adicional para asegurar que los cálculos se ejecuten solo cuando todos los datos estén disponibles
+  useEffect(() => {
+    if (typeNews.length > 0 && employees.length > 0 && filteredEmployeeNews.length >= 0) {
+      calculateAllValues();
+    } else {
+        typeNews: typeNews.length,
+        employees: employees.length,
+        filteredEmployeeNews: filteredEmployeeNews.length
+      });
+    }
+  }, [typeNews, employees, filteredEmployeeNews]);
+
   // Función para calcular el valor de una novedad
   const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
+    
+    // Verificar que tipoNovedad esté definido
+    if (!tipoNovedad) {
+      return { valorNovedad: 0, totalHoras: 0 };
+    }
+    
     let valorNovedad = 0;
     let totalHoras = 0;
 
@@ -622,10 +714,20 @@ const LiquidationForm = () => {
         form.paymentMethod && form.paymentMethod !== ""
           ? form.paymentMethod
           : employee.paymentmethod;
+      
+      let salarioBaseCalculado = 0;
       if (metodoPagoEfectivo === "Quincenal") {
-        newCalculatedValues[employee.id].total += salarioBase / 2;
+        salarioBaseCalculado = salarioBase / 2;
       } else if (metodoPagoEfectivo === "Mensual") {
-        newCalculatedValues[employee.id].total += salarioBase;
+        salarioBaseCalculado = salarioBase;
+      }
+      
+      newCalculatedValues[employee.id].total += salarioBaseCalculado;
+
+      // Agregar el auxilio de transporte según el método de pago
+      const auxilioTransporte = calculateTransportationAssistance(employee, form.paymentMethod);
+      if (auxilioTransporte > 0) {
+        newCalculatedValues[employee.id].total += auxilioTransporte;
       }
 
       typeNews.forEach((type) => {
@@ -655,18 +757,66 @@ const LiquidationForm = () => {
             horas: horasTotal,
             novedades: novedadesDelTipo,
           };
+
+          // LÓGICA DE DESCUENTOS: Si la novedad afecta a ciertos campos, se descuentan del total
+          if (type.affects) {
+            let affectsData;
+            try {
+              // Parsear el campo affects que es un JSON string
+              affectsData = typeof type.affects === 'string' && type.affects
+                ? JSON.parse(type.affects) 
+                : type.affects || {};
+            } catch (error) {
+              console.error('❌ Error al parsear affects para tipo de novedad:', type.id, error);
+              affectsData = {};
+            }
+
+
+            // Si afecta al salario base, descontar el salario base
+            if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === 'true') {
+              newCalculatedValues[employee.id].total -= salarioBaseCalculado;
+            }
+
+            // Si afecta al auxilio de transporte, descontar el auxilio de transporte
+            if (affectsData.transportationassistance === true || affectsData.transportationassistance === 'true') {
+              newCalculatedValues[employee.id].total -= auxilioTransporte;
+            }
+
+            // Si afecta a otros campos, también descontarlos
+            if (affectsData.hourlyrate === true || affectsData.hourlyrate === 'true') {
+              const valorHora = Number(employee.hourlyrate) || 0;
+              newCalculatedValues[employee.id].total -= valorHora;
+            }
+
+            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === 'true') {
+              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+              newCalculatedValues[employee.id].total -= auxilioMovilidad;
+            }
+
+            if (affectsData.discountvalue === true || affectsData.discountvalue === 'true') {
+              const valorDescuento = Number(employee.discountvalue) || 0;
+              newCalculatedValues[employee.id].total -= valorDescuento;
+            }
+          }
+
+          // Agregar el valor de la novedad al total
           newCalculatedValues[employee.id].total += valorTotal;
+          
+          console.log(`💰 Total para tipo ${type.name}: $${valorTotal}, horas: ${horasTotal}`);
+        } else {
+          console.log(`📭 No hay novedades del tipo ${type.name} para ${employee.fullname}`);
         }
       });
     });
 
+    console.log("✅ calculateAllValues completado:", newCalculatedValues);
     setCalculatedValues(newCalculatedValues);
   };
 
   // Efecto para recalcular valores cuando cambien las novedades filtradas
-  useEffect(() => {
-    calculateAllValues();
-  }, [filteredEmployeeNews, employees, typeNews]);
+  // useEffect(() => {
+  //   calculateAllValues();
+  // }, [filteredEmployeeNews, employees, typeNews]);
 
   // Función para calcular el total en el modal de detalles
   const calcularTotalNovedades = (novedades, employee) => {
@@ -895,6 +1045,13 @@ const LiquidationForm = () => {
                       ? selectedEmployee.basicmonthlysalary / 2
                       : selectedEmployee.basicmonthlysalary
                   )}
+                </div>
+                <div className="mb-3">
+                  <strong>Auxilio de Transporte:</strong>{" "}
+                  {(() => {
+                    const auxilioCalculado = calculateTransportationAssistance(selectedEmployee, form.paymentMethod);
+                    return auxilioCalculado > 0 ? formatCurrency(auxilioCalculado) : "No aplica";
+                  })()}
                 </div>
                 <div className="mb-3">
                   <strong>Valor por hora:</strong>{" "}

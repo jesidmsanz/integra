@@ -11,7 +11,8 @@ module.exports = function setupTypeNews(Model, db, sequelize) {
       ...(offset && { offset: parseInt(offset) })
     };
     
-    return Model.findAll(queryOptions);
+    const result = Model.findAll(queryOptions);
+    return result;
   }
 
   function count() {

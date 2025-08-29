@@ -48,6 +48,7 @@ const EmployeeNewsForm = ({
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [typeNews, setTypeNews] = useState([]);
+  const [filteredTypeNews, setFilteredTypeNews] = useState([]);
   const [users, setUsers] = useState([]);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -55,9 +56,31 @@ const EmployeeNewsForm = ({
   const [existingDocument, setExistingDocument] = useState(null);
 
   useEffect(() => {
-    loadCompanies();
-    loadTypeNews();
-    loadUsers();
+    
+    // Cargar datos en secuencia para evitar problemas de sincronización
+    const loadDataSequentially = async () => {
+      try {
+        // 1. Primero cargar empresas
+        await loadCompanies();
+        
+        // 2. Luego cargar tipos de novedad
+        await loadTypeNews();
+        
+        // 3. Luego cargar usuarios
+        await loadUsers();
+        
+        // 4. Finalmente cargar empleados si hay empresa seleccionada
+        if (formData.companyId) {
+          await loadEmployees(formData.companyId);
+        }
+        
+      } catch (error) {
+        console.error("❌ Error en carga secuencial:", error);
+      }
+    };
+    
+    loadDataSequentially();
+    
     if (isUpdate && dataToUpdate) {
       console.log("Datos recibidos:", dataToUpdate);
       const startDateFormatted = dataToUpdate.startDate
@@ -122,10 +145,24 @@ const EmployeeNewsForm = ({
     }
   }, [isUpdate, dataToUpdate]);
 
+  // useEffect adicional para aplicar filtrado cuando se carguen los tipos de novedad
+  useEffect(() => {
+    if (typeNews.length > 0 && employees.length > 0 && formData.employeeId) {
+      filterTypeNewsByEmployeeGender(formData.employeeId);
+    }
+  }, [typeNews, employees, formData.employeeId]);
+
+  // useEffect para monitorear cambios en formData (solo para debugging)
+  useEffect(() => {
+  }, [formData]);
+
   const loadCompanies = async () => {
     try {
+      console.log("🏢 loadCompanies ejecutándose...");
       const response = await companiesApi.list();
-      if (response.length) setCompanies(response);
+      if (response.length) {
+        setCompanies(response);
+      }
     } catch (error) {
       console.error("Error al cargar las empresas", error);
       toast.error("Error al cargar la lista de empresas");
@@ -142,8 +179,15 @@ const EmployeeNewsForm = ({
             (emp) => emp.companyid === parseInt(companyId)
           );
           setFilteredEmployees(filtered);
+          
+          // Si hay un empleado seleccionado, filtrar los tipos de novedad
+          if (formData.employeeId) {
+            filterTypeNewsByEmployeeGender(formData.employeeId);
+          }
         } else {
           setFilteredEmployees([]);
+          // Reset filtered type news when no company is selected
+          setFilteredTypeNews([]);
         }
       }
     } catch (error) {
@@ -155,17 +199,108 @@ const EmployeeNewsForm = ({
   const loadTypeNews = async () => {
     try {
       const response = await typeNewsApi.list();
-      if (response.length) setTypeNews(response);
+      
+      if (response && response.data && response.data.length) {
+        setTypeNews(response.data);
+        // No resetear filteredTypeNews aquí, se filtrará cuando se seleccione empleado
+      } else if (response && Array.isArray(response)) {
+        setTypeNews(response);
+        // No resetear filteredTypeNews aquí, se filtrará cuando se seleccione empleado
+      } else {
+        setTypeNews([]);
+        setFilteredTypeNews([]);
+      }
     } catch (error) {
-      console.error("Error al cargar los tipos de novedades", error);
+      console.error("❌ Error al cargar los tipos de novedades:", error);
       toast.error("Error al cargar la lista de tipos de novedades");
+      setTypeNews([]);
+      setFilteredTypeNews([]);
+    }
+  };
+
+  // Función para filtrar tipos de novedad según el género del empleado
+  const filterTypeNewsByEmployeeGender = (employeeId) => {
+    
+    if (!employeeId) {
+      setFilteredTypeNews([]);
+      return;
+    }
+    
+    if (!typeNews.length) {
+      return;
+    }
+    
+    if (!employees.length) {
+      return;
+    }
+
+    const selectedEmployee = employees.find(emp => emp.id === parseInt(employeeId));
+    if (!selectedEmployee) {
+      setFilteredTypeNews([]);
+      return;
+    }
+
+
+    const employeeGender = selectedEmployee.sex?.toLowerCase();
+    if (!employeeGender) {
+      setFilteredTypeNews(typeNews);
+      return;
+    }
+
+
+    const filtered = typeNews.filter(type => {
+      try {
+        
+        // Parsear el campo applies_to que es un JSON string
+        const appliesTo = typeof type.applies_to === 'string' && type.applies_to
+          ? JSON.parse(type.applies_to) 
+          : type.applies_to || {};
+        
+        
+        // Normalizar las claves del objeto applies_to
+        const normalizedAppliesTo = {
+          masculino: appliesTo.masculino === true || appliesTo.masculino === 'true',
+          femenino: appliesTo.femenino === true || appliesTo.femenino === 'true',
+          ambos: appliesTo.ambos === true || appliesTo.ambos === 'true'
+        };
+        
+        
+        // Si el empleado es femenino, mostrar novedades que apliquen a femenino o ambos
+        if (employeeGender === 'femenino') {
+          const shouldShow = normalizedAppliesTo.femenino || normalizedAppliesTo.ambos;
+          return shouldShow;
+        }
+        // Si el empleado es masculino, mostrar novedades que apliquen a masculino o ambos
+        else if (employeeGender === 'masculino') {
+          const shouldShow = normalizedAppliesTo.masculino || normalizedAppliesTo.ambos;
+          return shouldShow;
+        }
+        
+        // Si no se puede determinar el género, mostrar todas
+        return true;
+      } catch (error) {
+        console.error('❌ Error al parsear applies_to para tipo de novedad:', type.id, error);
+        // En caso de error, mostrar todas las novedades
+        return true;
+      }
+    });
+
+    setFilteredTypeNews(filtered);
+    
+    // Log para debugging
+    
+    // Si el tipo de novedad seleccionado no está en los filtrados, resetearlo
+    if (formData.typeNewsId && !filtered.find(t => t.id === parseInt(formData.typeNewsId))) {
+      setFormData(prev => ({ ...prev, typeNewsId: "" }));
     }
   };
 
   const loadUsers = async () => {
     try {
       const response = await usersApi.list();
-      if (response.length) setUsers(response);
+      if (response.length) {
+        setUsers(response);
+      }
     } catch (error) {
       console.error("Error al cargar los usuarios", error);
       toast.error("Error al cargar la lista de usuarios");
@@ -174,16 +309,48 @@ const EmployeeNewsForm = ({
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
+    
     if (name === "companyId") {
       loadEmployees(value);
       setFormData((prev) => ({
         ...prev,
+        [name]: value,
         employeeId: "", // Reset employee selection when company changes
+        typeNewsId: "", // Reset type news selection when company changes
+      }));
+      // Reset filtered type news when company changes
+      setFilteredTypeNews([]);
+    } else if (name === "employeeId") {
+      
+      // Verificar que tanto typeNews como employees estén disponibles antes de filtrar
+      if (typeNews.length > 0 && employees.length > 0) {
+        filterTypeNewsByEmployeeGender(value);
+      } else {
+        // El filtrado se aplicará automáticamente cuando los datos estén disponibles
+        // gracias al useEffect adicional
+      }
+      
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        typeNewsId: "", // Reset type news selection when employee changes
+      }));
+    } else {
+      // Para todos los demás campos, actualizar normalmente
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    
+    // Asegurar que el valor se mantenga en el estado
+    if (value !== formData[name]) {
+      setFormData((prev) => ({
+        ...prev,
         [name]: value,
       }));
     }
@@ -335,6 +502,10 @@ const EmployeeNewsForm = ({
                 {errors.companyId && (
                   <FormFeedback>{errors.companyId}</FormFeedback>
                 )}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Seleccione una empresa para cargar la lista de empleados.
+                </small>
               </FormGroup>
             </Col>
             <Col md="6">
@@ -360,6 +531,12 @@ const EmployeeNewsForm = ({
                 {errors.employeeId && (
                   <FormFeedback>{errors.employeeId}</FormFeedback>
                 )}
+                {!formData.employeeId && (
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    Seleccione un empleado para ver solo los tipos de novedad que aplican a su género.
+                  </small>
+                )}
               </FormGroup>
             </Col>
           </Row>
@@ -375,9 +552,18 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.typeNewsId}
                   required
+                  disabled={!formData.employeeId}
                 >
-                  <option value="">Seleccione un tipo de novedad</option>
-                  {typeNews.map((type) => (
+                  {console.log("🔒 Campo Tipo de Novedad - disabled:", !formData.employeeId, "employeeId:", formData.employeeId)}
+                  <option value="">
+                    {!formData.employeeId 
+                      ? "Primero seleccione un empleado" 
+                      : filteredTypeNews.length === 0
+                      ? "No hay tipos de novedad disponibles"
+                      : "Seleccione un tipo de novedad"
+                    }
+                  </option>
+                  {filteredTypeNews.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.name}
                     </option>
@@ -385,6 +571,24 @@ const EmployeeNewsForm = ({
                 </Input>
                 {errors.typeNewsId && (
                   <FormFeedback>{errors.typeNewsId}</FormFeedback>
+                )}
+                {!formData.employeeId && (
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    Seleccione un empleado para ver los tipos de novedad disponibles según su género.
+                  </small>
+                )}
+                {formData.employeeId && filteredTypeNews.length === 0 && (
+                  <small className="text-warning">
+                    <i className="fas fa-exclamation-triangle me-1"></i>
+                    No hay tipos de novedad disponibles para este empleado. Verifique la configuración de géneros en los tipos de novedad.
+                  </small>
+                )}
+                {formData.employeeId && filteredTypeNews.length > 0 && (
+                  <small className="text-muted">
+                    <i className="fas fa-check-circle me-1"></i>
+                    {filteredTypeNews.length} tipo{filteredTypeNews.length !== 1 ? 's' : ''} de novedad disponible{filteredTypeNews.length !== 1 ? 's' : ''} para este empleado.
+                  </small>
                 )}
               </FormGroup>
             </Col>
@@ -404,6 +608,10 @@ const EmployeeNewsForm = ({
                   <option value="inactive">Inactivo</option>
                 </Input>
                 {errors.status && <FormFeedback>{errors.status}</FormFeedback>}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Estado inicial de la novedad.
+                </small>
               </FormGroup>
             </Col>
           </Row>
@@ -417,12 +625,17 @@ const EmployeeNewsForm = ({
                   id="startDate"
                   value={formData.startDate}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   invalid={!!errors.startDate}
                   required
                 />
                 {errors.startDate && (
                   <FormFeedback>{errors.startDate}</FormFeedback>
                 )}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Fecha de inicio de la novedad.
+                </small>
               </FormGroup>
             </Col>
             <Col md="6">
@@ -434,8 +647,13 @@ const EmployeeNewsForm = ({
                   id="startTime"
                   value={formData.startTime}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   invalid={!!errors.startTime}
                 />
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Hora de inicio (opcional).
+                </small>
               </FormGroup>
             </Col>
           </Row>
@@ -449,12 +667,17 @@ const EmployeeNewsForm = ({
                   id="endDate"
                   value={formData.endDate}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   invalid={!!errors.endDate}
                   required
                 />
                 {errors.endDate && (
                   <FormFeedback>{errors.endDate}</FormFeedback>
                 )}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Fecha de fin de la novedad.
+                </small>
               </FormGroup>
             </Col>
             <Col md="6">
@@ -466,8 +689,13 @@ const EmployeeNewsForm = ({
                   id="endTime"
                   value={formData.endTime}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   invalid={!!errors.endTime}
                 />
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Hora de fin (opcional).
+                </small>
               </FormGroup>
             </Col>
           </Row>
@@ -494,6 +722,10 @@ const EmployeeNewsForm = ({
                 {errors.approvedBy && (
                   <FormFeedback>{errors.approvedBy}</FormFeedback>
                 )}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Seleccione quién aprobará esta novedad.
+                </small>
               </FormGroup>
             </Col>
             <Col md="6">
@@ -507,7 +739,8 @@ const EmployeeNewsForm = ({
                   accept=".pdf,.jpg,.jpeg,.png"
                 />
                 <small className="text-muted">
-                  Formatos permitidos: PDF, JPG, JPEG, PNG. Máximo 5MB.
+                  <i className="fas fa-info-circle me-1"></i>
+                  Formatos permitidos: PDF, JPG, JPEG, PNG. Máximo 5MB. Campo opcional.
                 </small>
               </FormGroup>
             </Col>
@@ -559,6 +792,7 @@ const EmployeeNewsForm = ({
                   id="observations"
                   value={formData.observations}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   rows="3"
                   placeholder="Ingrese las observaciones"
                   invalid={!!errors.observations}
@@ -566,6 +800,10 @@ const EmployeeNewsForm = ({
                 {errors.observations && (
                   <FormFeedback>{errors.observations}</FormFeedback>
                 )}
+                <small className="text-muted">
+                  <i className="fas fa-info-circle me-1"></i>
+                  Campo opcional para agregar comentarios o detalles adicionales.
+                </small>
               </FormGroup>
             </Col>
           </Row>

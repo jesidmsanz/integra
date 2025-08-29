@@ -204,8 +204,20 @@ const EmployeeForm = ({
   };
 
   const formatCurrency = (value) => {
-    if (!value) return "";
+    if (!value || value === "" || value === "0") return "";
+    
+    // Si ya está formateado como moneda, retornarlo tal como está
+    if (typeof value === 'string' && value.includes('$')) {
+      return value;
+    }
+    
     const number = parseFloat(value);
+    
+    // Verificar que sea un número válido
+    if (isNaN(number) || number === 0) {
+      return "";
+    }
+    
     return new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency: "COP",
@@ -221,23 +233,52 @@ const EmployeeForm = ({
 
   const handleCurrencyChange = (e) => {
     const { name, value } = e.target;
-    const unformattedValue = unformatCurrency(value);
-    setForm({
-      ...form,
-      [name]: unformattedValue,
-    });
-    if (errors[name]) {
-      setErrors({
-        ...errors,
+    console.log(`💸 handleCurrencyChange - Campo: ${name}, Valor: ${value}`);
+    
+    // Si el valor está vacío, limpiar el campo
+    if (!value || value.trim() === '') {
+      setForm(prev => ({
+        ...prev,
         [name]: "",
-      });
+      }));
+      if (errors[name]) {
+        setErrors(prev => ({
+          ...prev,
+          [name]: "",
+        }));
+      }
+      return;
+    }
+    
+    const unformattedValue = unformatCurrency(value);
+    
+    // Solo actualizar si el valor es válido
+    if (unformattedValue !== '') {
+      setForm(prev => ({
+        ...prev,
+        [name]: unformattedValue,
+      }));
+    }
+    
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: "",
+      }));
     }
   };
 
   const handleCurrencyBlur = (e) => {
     const { name, value } = e.target;
     const formattedValue = formatCurrency(value);
+    // Actualizar tanto el input como el estado del formulario
     e.target.value = formattedValue;
+    setForm(prev => {
+      return {
+        ...prev,
+        [name]: formattedValue
+      };
+    });
   };
 
   const loadCompanies = async () => {

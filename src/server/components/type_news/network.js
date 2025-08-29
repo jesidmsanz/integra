@@ -9,11 +9,12 @@ const apiURL = "/api/type_news";
 // GET: api/type_news
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
-    console.log("findAll: type_news");
+    
     const result = await controller.findAll();
+    
     response.success(req, res, result);
   } catch (error) {
-    console.log("ERROR: ", error);
+    console.log("❌ ERROR en GET /api/type_news:", error);
     response.error(req, res, "Error on type_news", 400, error);
   }
 });
