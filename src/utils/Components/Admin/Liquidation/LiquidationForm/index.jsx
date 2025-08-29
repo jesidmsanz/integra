@@ -307,12 +307,16 @@ const LiquidationForm = () => {
     try {
       console.log("🔄 loadTypeNews ejecutándose para liquidación...");
       const response = await typeNewsApi.list();
+      console.log("📊 Respuesta de tipos de novedad para liquidación:", response);
       
       if (response && response.data && response.data.length) {
+        console.log(`✅ ${response.data.length} tipos de novedad cargados para liquidación`);
         setTypeNews(response.data);
       } else if (response && Array.isArray(response)) {
+        console.log(`✅ ${response.length} tipos de novedad cargados para liquidación (array directo)`);
         setTypeNews(response);
       } else {
+        console.log("⚠️ Respuesta inesperada de tipos de novedad para liquidación:", response);
         setTypeNews([]);
       }
     } catch (error) {
@@ -329,17 +333,22 @@ const LiquidationForm = () => {
     const loadDataSequentially = async () => {
       try {
         // 1. Primero cargar empresas
+        console.log("🏢 Cargando empresas...");
         await loadCompanies();
         
         // 2. Luego cargar tipos de novedad
+        console.log("📋 Cargando tipos de novedad...");
         await loadTypeNews();
         
         // 3. Luego cargar empleados
+        console.log("👤 Cargando empleados...");
         await loadEmployees();
         
         // 4. Finalmente cargar novedades de empleados
+        console.log("📰 Cargando novedades de empleados...");
         await loadEmployeeNews();
         
+        console.log("✅ Carga secuencial completada para liquidación");
       } catch (error) {
         console.error("❌ Error en carga secuencial de liquidación:", error);
       }
@@ -566,6 +575,11 @@ const LiquidationForm = () => {
 
   // Función para generar datos de novedades filtrados
   const generateFilteredNews = () => {
+    console.log("🔄 generateFilteredNews ejecutándose...");
+    console.log("📰 Novedades totales disponibles:", employeeNews.length);
+    console.log("📅 Filtros de fecha:", { startDate: form.startDate, endDate: form.endDate });
+    console.log("💳 Método de pago:", form.paymentMethod);
+    
     const filtered = employeeNews.filter((news) => {
       // Verificar si la novedad está activa y aprobada
       if (news.status !== "active") return false;
@@ -605,6 +619,8 @@ const LiquidationForm = () => {
       return true;
     });
 
+    console.log("✅ Novedades filtradas:", filtered.length);
+    console.log("📊 Novedades filtradas:", filtered.map(n => ({ 
       id: n.id, 
       employeeId: n.employeeId, 
       typeNewsId: n.typeNewsId,
@@ -622,8 +638,10 @@ const LiquidationForm = () => {
   // useEffect adicional para asegurar que los cálculos se ejecuten solo cuando todos los datos estén disponibles
   useEffect(() => {
     if (typeNews.length > 0 && employees.length > 0 && filteredEmployeeNews.length >= 0) {
+      console.log("🔄 Todos los datos disponibles, ejecutando cálculos...");
       calculateAllValues();
     } else {
+      console.log("⏳ Esperando que todos los datos estén disponibles...", {
         typeNews: typeNews.length,
         employees: employees.length,
         filteredEmployeeNews: filteredEmployeeNews.length
@@ -633,9 +651,18 @@ const LiquidationForm = () => {
 
   // Función para calcular el valor de una novedad
   const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
+    console.log("🔍 calculateNovedadValue ejecutándose con:", {
+      novedadId: novedad.id,
+      employeeId: employee.id,
+      tipoNovedadId: tipoNovedad?.id,
+      tipoNovedadName: tipoNovedad?.name
+    });
     
     // Verificar que tipoNovedad esté definido
     if (!tipoNovedad) {
+      console.error("❌ tipoNovedad es undefined para novedad:", novedad.id);
+      console.error("📊 typeNews disponibles:", typeNews.length);
+      console.error("📊 typeNews:", typeNews.map(t => ({ id: t.id, name: t.name })));
       return { valorNovedad: 0, totalHoras: 0 };
     }
     
@@ -646,6 +673,7 @@ const LiquidationForm = () => {
     const fechaFin = moment.utc(novedad.endDate);
 
     if (tipoNovedad.calculateperhour) {
+      console.log(`⏰ Calculando por hora para tipo: ${tipoNovedad.name}`);
       // Si la novedad es del mismo día
       if (fechaInicio.format("YYYY-MM-DD") === fechaFin.format("YYYY-MM-DD")) {
         const [startHour, startMinute] = novedad?.startTime
@@ -690,16 +718,23 @@ const LiquidationForm = () => {
         Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
       valorNovedad = totalHoras * valorHoraExtra;
     } else {
+      console.log(`📅 Calculando por día para tipo: ${tipoNovedad.name}`);
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
       const valorDia = Number(employee.basicmonthlysalary) / 30;
       valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
     }
 
+    console.log(`💰 Resultado cálculo: valorNovedad = ${valorNovedad}, totalHoras = ${totalHoras}`);
     return { valorNovedad, totalHoras };
   };
 
   // Función para calcular todos los valores
   const calculateAllValues = () => {
+    console.log("🔢 calculateAllValues ejecutándose...");
+    console.log("👥 Empleados disponibles:", employees.length);
+    console.log("📋 Tipos de novedad disponibles:", typeNews.length);
+    console.log("📰 Novedades filtradas disponibles:", filteredEmployeeNews.length);
+    
     const newCalculatedValues = {};
 
     employees.forEach((employee) => {
@@ -723,14 +758,18 @@ const LiquidationForm = () => {
       }
       
       newCalculatedValues[employee.id].total += salarioBaseCalculado;
+      console.log(`💰 Salario base agregado para ${employee.fullname}: $${salarioBaseCalculado}`);
 
       // Agregar el auxilio de transporte según el método de pago
       const auxilioTransporte = calculateTransportationAssistance(employee, form.paymentMethod);
       if (auxilioTransporte > 0) {
         newCalculatedValues[employee.id].total += auxilioTransporte;
+        console.log(`🚌 Auxilio de transporte agregado para ${employee.fullname}: $${auxilioTransporte}`);
       }
 
       typeNews.forEach((type) => {
+        console.log(`🔍 Procesando tipo de novedad: ${type.name} (ID: ${type.id}) para empleado: ${employee.fullname}`);
+        
         // Obtener todas las novedades del mismo tipo para el empleado
         const novedadesDelTipo = filteredEmployeeNews.filter(
           (news) =>
@@ -738,6 +777,7 @@ const LiquidationForm = () => {
         );
 
         if (novedadesDelTipo.length > 0) {
+          console.log(`📊 ${novedadesDelTipo.length} novedades encontradas del tipo ${type.name} para ${employee.fullname}`);
           let valorTotal = 0;
           let horasTotal = 0;
 
@@ -771,31 +811,37 @@ const LiquidationForm = () => {
               affectsData = {};
             }
 
+            console.log(`🔍 Tipo de novedad ${type.name} afecta a:`, affectsData);
 
             // Si afecta al salario base, descontar el salario base
             if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === 'true') {
               newCalculatedValues[employee.id].total -= salarioBaseCalculado;
+              console.log(`💸 Descontando salario base para ${employee.fullname}: -$${salarioBaseCalculado}`);
             }
 
             // Si afecta al auxilio de transporte, descontar el auxilio de transporte
             if (affectsData.transportationassistance === true || affectsData.transportationassistance === 'true') {
               newCalculatedValues[employee.id].total -= auxilioTransporte;
+              console.log(`💸 Descontando auxilio de transporte para ${employee.fullname}: -$${auxilioTransporte}`);
             }
 
             // Si afecta a otros campos, también descontarlos
             if (affectsData.hourlyrate === true || affectsData.hourlyrate === 'true') {
               const valorHora = Number(employee.hourlyrate) || 0;
               newCalculatedValues[employee.id].total -= valorHora;
+              console.log(`💸 Descontando valor por hora para ${employee.fullname}: -$${valorHora}`);
             }
 
             if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === 'true') {
               const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
               newCalculatedValues[employee.id].total -= auxilioMovilidad;
+              console.log(`💸 Descontando auxilio de movilidad para ${employee.fullname}: -$${auxilioMovilidad}`);
             }
 
             if (affectsData.discountvalue === true || affectsData.discountvalue === 'true') {
               const valorDescuento = Number(employee.discountvalue) || 0;
               newCalculatedValues[employee.id].total -= valorDescuento;
+              console.log(`💸 Descontando valor de descuento para ${employee.fullname}: -$${valorDescuento}`);
             }
           }
 
