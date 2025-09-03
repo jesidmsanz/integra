@@ -1,6 +1,6 @@
-import passport from "passport";
-import nc from "next-connect";
-import { authenticateToken } from "../auth/strategies/jwt";
+const passport = require("passport");
+const nc = require("next-connect");
+const { authenticateToken } = require("../auth/strategies/jwt");
 
 const baseHandler = () =>
   nc({ attachParams: true })
@@ -15,4 +15,4 @@ const baseHandler = () =>
       authenticateToken(req, res, next);
     });
 
-export default baseHandler;
+module.exports = baseHandler;

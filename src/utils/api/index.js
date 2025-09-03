@@ -4,6 +4,7 @@ import contractsApi from "./contractsApi";
 import companiesApi from "./companiesApi";
 import typeNewsApi from "./typeNewsApi";
 import employeeNewsApi from "./employeeNewsApi";
+import liquidationsApi from "./liquidationsApi";
 
 export {
   usersApi,
@@ -12,4 +13,5 @@ export {
   companiesApi,
   typeNewsApi,
   employeeNewsApi,
+  liquidationsApi,
 };

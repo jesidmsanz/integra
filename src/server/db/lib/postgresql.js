@@ -1,5 +1,4 @@
-
-const Sequelize = require('sequelize');
+const Sequelize = require("sequelize");
 
 let sequelize = null;
 

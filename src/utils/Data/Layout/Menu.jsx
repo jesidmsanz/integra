@@ -22,6 +22,12 @@ export const MenuList = [
         title: "Liquidación",
         type: "link",
       },
+      {
+        path: "/admin/liquidaciones_guardadas",
+        icon: "file",
+        title: "Liquidaciones Guardadas",
+        type: "link",
+      },
       // {
       //   path: "/admin/usuarios",
       //   icon: "user",
@@ -107,7 +113,6 @@ export const MenuList = [
       //   title: "Solicitar Testimonios",
       //   type: "link",
       // },
-     
     ],
   },
   // {
