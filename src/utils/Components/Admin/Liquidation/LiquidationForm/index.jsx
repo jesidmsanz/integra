@@ -617,7 +617,14 @@ const LiquidationForm = () => {
           (sum, news) => sum + news.amount,
           0
         );
-        const totalDiscounts = 0; // Por ahora no hay descuentos
+        
+        // Calcular descuentos por ausentismo
+        const absenceDiscounts = calculateAbsenceDiscounts(
+          employee,
+          form.startDate,
+          form.endDate
+        );
+        const totalDiscounts = absenceDiscounts;
 
         // Convertir a números para evitar concatenación de strings
         const basicSalary = Number(employee.basicmonthlysalary) || 0;
@@ -656,8 +663,10 @@ const LiquidationForm = () => {
 
       toast.success("Liquidación guardada exitosamente");
 
-      // Opcional: redirigir al dashboard de liquidaciones
-      // router.push('/admin/liquidaciones_guardadas');
+      // Redirigir al dashboard de liquidaciones guardadas
+      setTimeout(() => {
+        window.location.href = '/admin/liquidaciones_guardadas';
+      }, 1500);
     } catch (error) {
       console.error("Error al guardar liquidación:", error);
       toast.error(
@@ -890,6 +899,53 @@ const LiquidationForm = () => {
     return { valorNovedad, totalHoras };
   };
 
+  // Función para calcular descuentos por ausentismo (días de descanso)
+  const calculateAbsenceDiscounts = (employee, periodStart, periodEnd) => {
+    // Buscar novedades de ausentismo del empleado en el período
+    const ausentismoNews = filteredEmployeeNews.filter(
+      (news) =>
+        news.employeeId === employee.id &&
+        news.typeNewsId === 26 && // ID del tipo de novedad Ausentismo
+        moment(news.startDate).isBetween(periodStart, periodEnd, null, '[]')
+    );
+
+    if (ausentismoNews.length === 0) {
+      return 0;
+    }
+
+    let totalDiscountAmount = 0;
+    const dailySalary = Number(employee.basicmonthlysalary) / 30;
+
+    ausentismoNews.forEach((absence) => {
+      const absenceDate = moment(absence.startDate);
+      const endDate = absence.endDate ? moment(absence.endDate) : absenceDate;
+      
+      // Calcular días de ausencia
+      const absenceDays = endDate.diff(absenceDate, 'days') + 1;
+      
+      // Para cada día de ausencia, calcular el descuento de días de descanso
+      for (let i = 0; i < absenceDays; i++) {
+        const currentAbsenceDate = absenceDate.clone().add(i, 'days');
+        
+        // Lógica semanal: si falta un día, descuenta el siguiente domingo
+        const nextSunday = currentAbsenceDate.clone().day(0); // Domingo = 0
+        if (nextSunday.isSameOrBefore(currentAbsenceDate)) {
+          nextSunday.add(1, 'week');
+        }
+        
+        // Verificar si el domingo a descontar está dentro del período de liquidación
+        if (nextSunday.isBetween(periodStart, periodEnd, null, '[]')) {
+          totalDiscountAmount += dailySalary;
+          console.log(
+            `📅 Ausentismo ${currentAbsenceDate.format('YYYY-MM-DD')} → Descuenta domingo ${nextSunday.format('YYYY-MM-DD')}: $${dailySalary}`
+          );
+        }
+      }
+    });
+
+    return totalDiscountAmount;
+  };
+
   // Función para calcular todos los valores
   const calculateAllValues = () => {
     console.log("🔢 calculateAllValues ejecutándose...");
@@ -1066,6 +1122,21 @@ const LiquidationForm = () => {
           );
         }
       });
+
+      // CALCULAR DESCUENTOS POR AUSENTISMO (días de descanso)
+      const absenceDiscounts = calculateAbsenceDiscounts(
+        employee,
+        form.startDate,
+        form.endDate
+      );
+      
+      if (absenceDiscounts > 0) {
+        newCalculatedValues[employee.id].total -= absenceDiscounts;
+        newCalculatedValues[employee.id].total_discounts = absenceDiscounts;
+        console.log(
+          `📅 Descuentos por ausentismo para ${employee.fullname}: -$${absenceDiscounts}`
+        );
+      }
     });
 
     console.log("✅ calculateAllValues completado:", newCalculatedValues);
@@ -1237,6 +1308,16 @@ const LiquidationForm = () => {
                       Guardar Liquidación
                     </>
                   )}
+                </Button>
+              </Col>
+              <Col md="3">
+                <Button
+                  color="info"
+                  onClick={() => window.location.href = '/admin/liquidaciones_guardadas'}
+                  className="ms-2"
+                >
+                  <i className="fa fa-list me-2"></i>
+                  Ver Liquidaciones Guardadas
                 </Button>
               </Col>
             </Row>

@@ -6,7 +6,7 @@ const multer = require("multer");
 
 const cors = require("cors");
 
-const port = parseInt(process.env.PORT, 10) || 3038;
+const port = parseInt(process.env.PORT, 10) || 3000;
 const hostname = "localhost";
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev, hostname, port });
@@ -26,6 +26,9 @@ app.prepare().then(() => {
 
   // Servir archivos estáticos desde la carpeta public/files
   server.use('/files', express.static(path.join(process.cwd(), 'public', 'files')));
+  
+  // Servir archivos PDF desde la carpeta public/pdfs
+  server.use('/pdfs', express.static(path.join(process.cwd(), 'public', 'pdfs')));
 
   // Endpoint de prueba para upload
   const storage = multer.diskStorage({

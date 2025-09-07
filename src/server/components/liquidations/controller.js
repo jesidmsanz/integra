@@ -469,6 +469,56 @@ const generatePDF = async (id, employeeId = null) => {
   });
 };
 
+const sendBulkEmails = async (liquidationId, employees) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("📧 Enviando correos masivos para liquidación:", liquidationId);
+      
+      // Importar el servicio de correo
+      const emailService = require("../../services/emailService");
+      
+      // Obtener datos de la liquidación
+      const { Liquidations } = await db();
+      const result = await Liquidations.findByIdWithNames(liquidationId);
+      
+      if (!result || result.length === 0) {
+        reject({
+          success: false,
+          message: "Liquidación no encontrada",
+        });
+        return;
+      }
+
+      const liquidation = result[0];
+      
+      // Preparar datos para el envío
+      const liquidationData = {
+        id: liquidation.id,
+        period: liquidation.period,
+        company_name: liquidation.company_name || "PROFESIONALES DE ASEO DE COLOMBIA SAS"
+      };
+
+      // Enviar correos masivos
+      const results = await emailService.sendBulkPayrollStubs(employees, liquidationData);
+      
+      console.log("✅ Correos enviados:", results);
+
+      resolve({
+        success: true,
+        data: results,
+        message: "Correos enviados exitosamente",
+      });
+    } catch (error) {
+      console.error("❌ Error al enviar correos:", error);
+      reject({
+        success: false,
+        message: "Error interno del servidor",
+        error: error.message,
+      });
+    }
+  });
+};
+
 module.exports = {
   list,
   getById,
@@ -478,4 +528,5 @@ module.exports = {
   markAsPaid,
   deleteById,
   generatePDF,
+  sendBulkEmails,
 };

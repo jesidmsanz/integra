@@ -100,22 +100,34 @@ class PDFGenerator {
   }
 
   addHeader(doc, liquidation) {
-    // Logo o título de la empresa
-    doc.fontSize(20).text("LIQUIDACIÓN DE NÓMINA", { align: "center" });
+    // Fondo del header
+    const headerHeight = 60;
+    doc.rect(0, 0, doc.page.width, headerHeight)
+       .fill('#34495e');
 
-    doc.fontSize(12).text(`Empresa: ${liquidation.companyname || "N/A"}`, {
-      align: "center",
-    });
+    // Título principal
+    doc.fillColor('white')
+       .fontSize(20)
+       .font('Helvetica-Bold')
+       .text("COMPROBANTE DE NÓMINA", 0, 15, { align: "center" });
 
-    doc.text(`Período: ${liquidation.period || "N/A"}`, {
-      align: "center",
-    });
-    doc.text(`Frecuencia: Mensual`, {
-      align: "center",
-    });
-    doc.text(`Estado: ${this.getStatusText(liquidation.status)}`, {
-      align: "center",
-    });
+    // Información de la empresa (izquierda)
+    doc.fillColor('white')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text("PROFESIONALES DE ASEO DE COLOMBIA SAS", 50, 35)
+       .fontSize(9)
+       .font('Helvetica')
+       .text("Nit 901831125", 50, 48);
+
+    // Información del período y empleado (derecha)
+    const rightX = 400;
+    doc.fillColor('white')
+       .fontSize(9)
+       .font('Helvetica')
+       .text(`Período: ${liquidation.period || "N/A"}`, rightX, 15)
+       .text(`Comprobante Número: ${liquidation.id}`, rightX, 28)
+       .text(`Estado: ${this.getStatusText(liquidation.status)}`, rightX, 41);
 
     doc.moveDown(2);
   }
@@ -203,14 +215,23 @@ class PDFGenerator {
   }
 
   addEmployeeInfo(doc, liquidation, employeeDetail) {
-    doc.fontSize(14).text("INFORMACIÓN DEL EMPLEADO", { underline: true });
+    // Fondo gris para la información del empleado
+    const infoY = doc.y;
+    const infoHeight = 35;
+    
+    doc.rect(50, infoY, doc.page.width - 100, infoHeight)
+       .fill('#f8f9fa');
 
-    doc
-      .fontSize(10)
-      .text(`Nombre: ${employeeDetail.employee_name || "N/A"}`)
-      .text(`Documento: ${employeeDetail.employee_document || "N/A"}`)
-      .text(`Cargo: ${employeeDetail.employee_position || "N/A"}`)
-      .text(`ID Empleado: ${employeeDetail.employee_id}`);
+    // Información del empleado
+    doc.fillColor('black')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text(`Nombre: ${employeeDetail.employee_name || "N/A"}`, 60, infoY + 8)
+       .fontSize(9)
+       .font('Helvetica')
+       .text(`Identificación: ${employeeDetail.employee_document || "N/A"}`, 60, infoY + 22)
+       .text(`Cargo: ${employeeDetail.employee_position || "N/A"}`, 350, infoY + 8)
+       .text(`Salario básico: ${this.formatCurrency(employeeDetail.basic_salary)}`, 350, infoY + 22);
 
     doc.moveDown(2);
   }
@@ -263,32 +284,156 @@ class PDFGenerator {
   }
 
   addEmployeeSummary(doc, employeeDetail) {
-    doc.fontSize(14).text("RESUMEN DE LIQUIDACIÓN", { underline: true });
+    const startY = doc.y;
+    const tableWidth = doc.page.width - 100;
+    const leftTableX = 50;
+    const rightTableX = leftTableX + (tableWidth / 2) + 10;
+    const tableHeight = 120;
 
-    doc
-      .fontSize(10)
-      .text(
-        `Salario Básico: ${this.formatCurrency(employeeDetail.basic_salary)}`
-      )
-      .text(
-        `Auxilio de Transporte: ${this.formatCurrency(
-          employeeDetail.transportation_assistance
-        )}`
-      )
-      .text(
-        `Total Novedades: ${this.formatCurrency(
-          employeeDetail.total_novedades
-        )}`
-      )
-      .text(
-        `Total Descuentos: ${this.formatCurrency(
-          employeeDetail.total_discounts
-        )}`
-      )
-      .text(
-        `VALOR NETO A PAGAR: ${this.formatCurrency(employeeDetail.net_amount)}`,
-        { underline: true }
-      );
+    // Tabla de INGRESOS (izquierda)
+    doc.rect(leftTableX, startY, tableWidth / 2, tableHeight)
+       .stroke();
+
+    // Header INGRESOS
+    doc.rect(leftTableX, startY, tableWidth / 2, 25)
+       .fill('#e9ecef');
+    
+    doc.fillColor('black')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text("INGRESOS", leftTableX, startY + 8, { align: "center", width: tableWidth / 2 });
+
+    // Subheader INGRESOS
+    doc.rect(leftTableX, startY + 25, tableWidth / 2, 18)
+       .fill('#f8f9fa');
+    
+    doc.fillColor('black')
+       .fontSize(8)
+       .font('Helvetica-Bold')
+       .text("Concepto", leftTableX + 5, startY + 30)
+       .text("Cantidad", leftTableX + 120, startY + 30)
+       .text("Valor", leftTableX + 180, startY + 30);
+
+    // Datos INGRESOS
+    let currentY = startY + 43;
+    const rowHeight = 18;
+
+    // Sueldo
+    this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
+      "Sueldo", "15.00", this.formatCurrency(employeeDetail.basic_salary));
+    currentY += rowHeight;
+
+    // Auxilio de transporte
+    if (employeeDetail.transportation_assistance > 0) {
+      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
+        "Aux. de transporte", "15.00", this.formatCurrency(employeeDetail.transportation_assistance));
+      currentY += rowHeight;
+    }
+
+    // Novedades
+    if (employeeDetail.total_novedades > 0) {
+      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
+        "Novedades", "1.00", this.formatCurrency(employeeDetail.total_novedades));
+      currentY += rowHeight;
+    }
+
+    // Total Ingresos
+    const totalIngresos = employeeDetail.basic_salary + employeeDetail.transportation_assistance + employeeDetail.total_novedades;
+    doc.rect(leftTableX, currentY, tableWidth / 2, rowHeight)
+       .fill('#dee2e6');
+    
+    doc.fillColor('black')
+       .fontSize(9)
+       .font('Helvetica-Bold')
+       .text("Total Ingresos", leftTableX + 5, currentY + 5)
+       .text(this.formatCurrency(totalIngresos), leftTableX + 180, currentY + 5);
+
+    // Tabla de DEDUCCIONES (derecha)
+    doc.rect(rightTableX, startY, tableWidth / 2, tableHeight)
+       .stroke();
+
+    // Header DEDUCCIONES
+    doc.rect(rightTableX, startY, tableWidth / 2, 25)
+       .fill('#e9ecef');
+    
+    doc.fillColor('black')
+       .fontSize(11)
+       .font('Helvetica-Bold')
+       .text("DEDUCCIONES", rightTableX, startY + 8, { align: "center", width: tableWidth / 2 });
+
+    // Subheader DEDUCCIONES
+    doc.rect(rightTableX, startY + 25, tableWidth / 2, 18)
+       .fill('#f8f9fa');
+    
+    doc.fillColor('black')
+       .fontSize(8)
+       .font('Helvetica-Bold')
+       .text("Concepto", rightTableX + 5, startY + 30)
+       .text("Cantidad", rightTableX + 120, startY + 30)
+       .text("Valor", rightTableX + 180, startY + 30);
+
+    // Datos DEDUCCIONES
+    currentY = startY + 43;
+
+    // Salud (4% del salario básico)
+    const salud = employeeDetail.basic_salary * 0.04;
+    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+      "Fondo de salud", "0", this.formatCurrency(salud));
+    currentY += rowHeight;
+
+    // Pensión (4% del salario básico)
+    const pension = employeeDetail.basic_salary * 0.04;
+    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+      "Fondo de pensión", "0", this.formatCurrency(pension));
+    currentY += rowHeight;
+
+    // Descuentos adicionales
+    if (employeeDetail.total_discounts > 0) {
+      this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+        "Otros descuentos", "1.00", this.formatCurrency(employeeDetail.total_discounts));
+      currentY += rowHeight;
+    }
+
+    // Total Deducciones
+    const totalDeducciones = salud + pension + employeeDetail.total_discounts;
+    doc.rect(rightTableX, currentY, tableWidth / 2, rowHeight)
+       .fill('#dee2e6');
+    
+    doc.fillColor('black')
+       .fontSize(9)
+       .font('Helvetica-Bold')
+       .text("Total Deducciones", rightTableX + 5, currentY + 5)
+       .text(this.formatCurrency(totalDeducciones), rightTableX + 180, currentY + 5);
+
+    // NETO A PAGAR
+    const netoAPagar = totalIngresos - totalDeducciones;
+    const netoY = startY + tableHeight + 15;
+    
+    doc.rect(leftTableX, netoY, tableWidth, 25)
+       .fill('#6c757d');
+    
+    doc.fillColor('white')
+       .fontSize(12)
+       .font('Helvetica-Bold')
+       .text("NETO A PAGAR", leftTableX + 10, netoY + 7)
+       .fontSize(14)
+       .text(this.formatCurrency(netoAPagar), rightTableX + 180, netoY + 5);
+
+    doc.moveDown(2);
+  }
+
+  addTableRow(doc, x, y, width, height, concepto, cantidad, valor) {
+    // Fondo de la fila
+    doc.rect(x, y, width, height)
+       .stroke();
+
+    // Texto
+    doc.fillColor('black')
+       .fontSize(8)
+       .font('Helvetica')
+       .text(concepto, x + 5, y + 5)
+       .text(cantidad, x + 120, y + 5)
+       .text(valor, x + 180, y + 5);
   }
 
   addSummary(doc, liquidation) {
@@ -307,22 +452,17 @@ class PDFGenerator {
 
   addFooter(doc) {
     const pageHeight = doc.page.height;
-    const footerY = pageHeight - 50;
+    const footerY = pageHeight - 30;
 
-    doc
-      .fontSize(8)
-      .text(
-        "Este documento fue generado automáticamente por el sistema de liquidaciones",
-        50,
-        footerY,
-        { align: "center" }
-      )
-      .text(
-        `Fecha de generación: ${this.formatDateTime(new Date())}`,
-        50,
-        footerY + 15,
-        { align: "center" }
-      );
+    doc.fillColor('black')
+       .fontSize(7)
+       .font('Helvetica')
+       .text(
+         "Este comprobante de nómina fue elaborado y enviado a través de INTEGRA. Si desea esta funcionalidad contáctenos.",
+         50,
+         footerY,
+         { align: "center" }
+       );
   }
 
   formatCurrency(amount) {

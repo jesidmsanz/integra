@@ -28,6 +28,12 @@ export const MenuList = [
         title: "Liquidaciones Guardadas",
         type: "link",
       },
+      {
+        path: "/admin/volantes_pago",
+        icon: "file-text",
+        title: "Volantes de Pago",
+        type: "link",
+      },
       // {
       //   path: "/admin/usuarios",
       //   icon: "user",

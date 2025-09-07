@@ -5,8 +5,20 @@ export default async function handler(req, res) {
     console.log(`🔍 ${req.method} /api/liquidations - Iniciando...`);
 
     if (req.method === "GET") {
-      // Si hay un ID en los parámetros, obtener por ID
-      if (req.query.params && req.query.params[0]) {
+      // Verificar si es una solicitud de PDF
+      if (req.query.params && req.query.params[0] === "pdf") {
+        // Generar PDF
+        const id = req.query.params[1];
+        const employeeId = req.query.employee_id;
+
+        console.log("📄 Generando PDF para liquidación:", id, "empleado:", employeeId);
+
+        const result = await controller.generatePDF(id, employeeId);
+        console.log("✅ PDF generado:", result);
+
+        res.status(200).json(result);
+      } else if (req.query.params && req.query.params[0]) {
+        // Si hay un ID en los parámetros, obtener por ID
         const id = req.query.params[0];
         console.log("🔍 Obteniendo liquidación por ID:", id);
 
@@ -33,18 +45,17 @@ export default async function handler(req, res) {
 
       res.status(201).json(result);
     } else if (
-      req.method === "GET" &&
+      req.method === "POST" &&
       req.query.params &&
-      req.query.params[0] === "pdf"
+      req.query.params[0] === "send-emails"
     ) {
-      // Generar PDF
-      const id = req.query.params[1];
-      const employeeId = req.query.employee_id;
+      // Envío masivo de correos
+      const { liquidationId, employees } = req.body;
 
-      console.log("📄 Generando PDF para liquidación:", id);
+      console.log("📧 Enviando correos masivos para liquidación:", liquidationId);
 
-      const result = await controller.generatePDF(id, employeeId);
-      console.log("✅ PDF generado:", result);
+      const result = await controller.sendBulkEmails(liquidationId, employees);
+      console.log("✅ Correos enviados:", result);
 
       res.status(200).json(result);
     } else {

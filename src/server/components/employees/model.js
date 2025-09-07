@@ -210,6 +210,56 @@ module.exports = function (config) {
         allowNull: true,
         comment: "Shoe Size",
       },
+      // Campos sociodemográficos
+      dependents_count: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "Número de personas a cargo",
+      },
+      children_count: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "Número de hijos",
+      },
+      is_head_of_family: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+        comment: "Cabeza de familia",
+      },
+      housing_type: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Tipo de vivienda",
+      },
+      ethnic_group: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Grupo étnico",
+      },
+      socioeconomic_stratum: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Estrato socioeconómico",
+      },
+      residence_place: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Lugar de residencia",
+      },
+      has_disability: {
+        type: Sequelize.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
+        comment: "Persona en condición de discapacidad",
+      },
+      disability_type: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: "Tipo de discapacidad",
+      },
       companyid: {
         type: Sequelize.INTEGER,
         allowNull: false,

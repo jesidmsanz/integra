@@ -60,6 +60,16 @@ const initialState = {
   shirtsize: "",
   pantssize: "",
   shoesize: "",
+  // Campos sociodemográficos
+  dependents_count: 0,
+  children_count: 0,
+  is_head_of_family: false,
+  housing_type: "",
+  ethnic_group: "",
+  socioeconomic_stratum: "",
+  residence_place: "",
+  has_disability: false,
+  disability_type: "",
   companyid: null,
   active: true,
 };
@@ -201,6 +211,42 @@ const EmployeeForm = ({
     pantssize: ["28", "30", "32", "34", "36", "38", "40", "42"],
     shoesize: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45"],
     active: ["SI", "NO"],
+    // Opciones sociodemográficas
+    housing_type: [
+      "Propia urbana",
+      "Arriendo urbano", 
+      "Familiar urbano",
+      "Familiar rural",
+      "Propia rural",
+      "Arriendo rural"
+    ],
+    ethnic_group: [
+      "Gitano",
+      "Raizal del archipiélago de San Andrés y Providencia",
+      "Indígena",
+      "Negro",
+      "Mulato",
+      "Afrocolombiano",
+      "Blanco",
+      "Ninguna de las anteriores"
+    ],
+    socioeconomic_stratum: [
+      "1",
+      "2", 
+      "3",
+      "4",
+      "5",
+      "6",
+      "Finca o vereda",
+      "No reportan"
+    ],
+    disability_type: [
+      "Sin discapacidad",
+      "Discapacidad visual",
+      "Discapacidad auditiva", 
+      "Discapacidad física",
+      "Discapacidad múltiple"
+    ],
   };
 
   const formatCurrency = (value) => {
@@ -344,10 +390,38 @@ const EmployeeForm = ({
     }
   }, [isUpdate, dataToUpdate]);
 
+  // useEffect para manejar la lógica del campo de discapacidad
+  useEffect(() => {
+    if (form.has_disability === false || form.has_disability === "false") {
+      setForm(prev => ({
+        ...prev,
+        disability_type: ""
+      }));
+    }
+  }, [form.has_disability]);
+
   const validateForm = () => {
     const newErrors = {};
     Object.keys(form).forEach((key) => {
-      if (!form[key]) {
+      // Excluir campos que no son requeridos
+      const nonRequiredFields = [
+        'dependents_count', 
+        'children_count', 
+        'is_head_of_family', 
+        'housing_type', 
+        'ethnic_group', 
+        'socioeconomic_stratum', 
+        'residence_place',
+        'disability_type' // No requerido si has_disability es false
+      ];
+      
+      // Si el campo no está en la lista de no requeridos y está vacío, es requerido
+      if (!nonRequiredFields.includes(key) && !form[key]) {
+        newErrors[key] = "Este campo es requerido";
+      }
+      
+      // Validación especial para disability_type: solo es requerido si has_disability es true
+      if (key === 'disability_type' && form.has_disability === true && !form[key]) {
         newErrors[key] = "Este campo es requerido";
       }
     });
@@ -1340,6 +1414,200 @@ const EmployeeForm = ({
                   </Input>
                   {errors.shoesize && (
                     <FormFeedback>{errors.shoesize}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+
+            <h4 className="mt-4 mb-3">Información Sociodemográfica</h4>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="dependents_count">Número de personas a cargo:</Label>
+                  <Input
+                    type="number"
+                    name="dependents_count"
+                    id="dependents_count"
+                    placeholder="0"
+                    onChange={handleChange}
+                    value={form.dependents_count}
+                    invalid={!!errors.dependents_count}
+                    min="0"
+                  />
+                  {errors.dependents_count && (
+                    <FormFeedback>{errors.dependents_count}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="children_count">Número de hijos:</Label>
+                  <Input
+                    type="number"
+                    name="children_count"
+                    id="children_count"
+                    placeholder="0"
+                    onChange={handleChange}
+                    value={form.children_count}
+                    invalid={!!errors.children_count}
+                    min="0"
+                  />
+                  {errors.children_count && (
+                    <FormFeedback>{errors.children_count}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="is_head_of_family">Cabeza de familia:</Label>
+                  <Input
+                    type="select"
+                    name="is_head_of_family"
+                    id="is_head_of_family"
+                    onChange={handleChange}
+                    value={form.is_head_of_family}
+                    invalid={!!errors.is_head_of_family}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    <option value={true}>Sí</option>
+                    <option value={false}>No</option>
+                  </Input>
+                  {errors.is_head_of_family && (
+                    <FormFeedback>{errors.is_head_of_family}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="housing_type">Tipo de vivienda:</Label>
+                  <Input
+                    type="select"
+                    name="housing_type"
+                    id="housing_type"
+                    onChange={handleChange}
+                    value={form.housing_type}
+                    invalid={!!errors.housing_type}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.housing_type.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.housing_type && (
+                    <FormFeedback>{errors.housing_type}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="ethnic_group">Grupo étnico:</Label>
+                  <Input
+                    type="select"
+                    name="ethnic_group"
+                    id="ethnic_group"
+                    onChange={handleChange}
+                    value={form.ethnic_group}
+                    invalid={!!errors.ethnic_group}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.ethnic_group.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.ethnic_group && (
+                    <FormFeedback>{errors.ethnic_group}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="4">
+                <FormGroup>
+                  <Label for="socioeconomic_stratum">Estrato socioeconómico:</Label>
+                  <Input
+                    type="select"
+                    name="socioeconomic_stratum"
+                    id="socioeconomic_stratum"
+                    onChange={handleChange}
+                    value={form.socioeconomic_stratum}
+                    invalid={!!errors.socioeconomic_stratum}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.socioeconomic_stratum.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.socioeconomic_stratum && (
+                    <FormFeedback>{errors.socioeconomic_stratum}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="6">
+                <FormGroup>
+                  <Label for="residence_place">Lugar de residencia:</Label>
+                  <Input
+                    type="text"
+                    name="residence_place"
+                    id="residence_place"
+                    placeholder="Ingresa el lugar de residencia"
+                    onChange={handleChange}
+                    value={form.residence_place}
+                    invalid={!!errors.residence_place}
+                  />
+                  {errors.residence_place && (
+                    <FormFeedback>{errors.residence_place}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="3">
+                <FormGroup>
+                  <Label for="has_disability">Persona en condición de discapacidad:</Label>
+                  <Input
+                    type="select"
+                    name="has_disability"
+                    id="has_disability"
+                    onChange={handleChange}
+                    value={form.has_disability}
+                    invalid={!!errors.has_disability}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    <option value={true}>Sí</option>
+                    <option value={false}>No</option>
+                  </Input>
+                  {errors.has_disability && (
+                    <FormFeedback>{errors.has_disability}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+              <Col md="3">
+                <FormGroup>
+                  <Label for="disability_type">Tipo de discapacidad:</Label>
+                  <Input
+                    type="select"
+                    name="disability_type"
+                    id="disability_type"
+                    onChange={handleChange}
+                    value={form.disability_type}
+                    invalid={!!errors.disability_type}
+                    disabled={!form.has_disability}
+                  >
+                    <option value="">Selecciona una opción</option>
+                    {selectOptions.disability_type.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </Input>
+                  {errors.disability_type && (
+                    <FormFeedback>{errors.disability_type}</FormFeedback>
                   )}
                 </FormGroup>
               </Col>

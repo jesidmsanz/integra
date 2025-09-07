@@ -74,7 +74,19 @@ const liquidationsApi = {
   generatePDF: async (id, employeeId = null) => {
     try {
       const params = employeeId ? `?employee_id=${employeeId}` : "";
-      const response = await fetchApi.get(`/${mainRoute}/${id}/pdf${params}`);
+      const response = await fetchApi.get(`/${mainRoute}/pdf/${id}${params}`);
+      return response.data;
+    } catch (error) {
+      throw getAxiosError(error);
+    }
+  },
+
+  sendBulkEmails: async (liquidationId, employees) => {
+    try {
+      const response = await fetchApi.post(`/${mainRoute}/send-emails`, {
+        liquidationId,
+        employees
+      });
       return response.data;
     } catch (error) {
       throw getAxiosError(error);
