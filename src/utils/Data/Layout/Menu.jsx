@@ -17,22 +17,26 @@ export const MenuList = [
     lanClass: "lan-1",
     Items: [
       {
-        path: "/admin/liquidacion",
-        icon: "user",
-        title: "Liquidación",
-        type: "link",
-      },
-      {
-        path: "/admin/liquidaciones_guardadas",
+        title: "Liquidaciones",
         icon: "file",
-        title: "Liquidaciones Guardadas",
-        type: "link",
-      },
-      {
-        path: "/admin/volantes_pago",
-        icon: "file-text",
-        title: "Volantes de Pago",
-        type: "link",
+        type: "sub",
+        children: [
+          {
+            path: "/admin/liquidacion",
+            title: "Nueva Liquidación",
+            type: "link",
+          },
+          {
+            path: "/admin/liquidaciones_guardadas",
+            title: "Guardadas",
+            type: "link",
+          },
+          {
+            path: "/admin/volantes_pago",
+            title: "Volantes de Pago",
+            type: "link",
+          },
+        ],
       },
       // {
       //   path: "/admin/usuarios",
@@ -44,6 +48,12 @@ export const MenuList = [
         path: "/admin/empresas",
         icon: "file",
         title: "Empresas",
+        type: "link",
+      },
+      {
+        path: "/admin/normativas",
+        icon: "file",
+        title: "Normativas",
         type: "link",
       },
       {

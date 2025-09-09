@@ -11,6 +11,7 @@ const setupTypeNewsModel = require("../../components/type_news/model");
 const setupLiquidationsModel = require("../../components/liquidations/model");
 const setupLiquidationDetailsModel = require("../../components/liquidations/liquidation_details_model");
 const setupLiquidationNewsModel = require("../../components/liquidations/liquidation_news_model");
+const setupNormativasModel = require("../../components/normativas/model");
 
 // Stores
 const setupUsers = require("../../components/users/store");
@@ -22,6 +23,7 @@ const setupTypeNews = require("../../components/type_news/store");
 const setupLiquidations = require("../../components/liquidations/store");
 const setupLiquidationDetails = require("../../components/liquidations/liquidation_details_store");
 const setupLiquidationNews = require("../../components/liquidations/liquidation_news_store");
+const setupNormativas = require("../../components/normativas/store");
 
 module.exports = async (config) => {
   const sequelize = setupDatabase(config);
@@ -40,6 +42,7 @@ module.exports = async (config) => {
     const LiquidationsModel = setupLiquidationsModel(sequelize);
     const LiquidationDetailsModel = setupLiquidationDetailsModel(sequelize);
     const LiquidationNewsModel = setupLiquidationNewsModel(sequelize);
+    const NormativasModel = setupNormativasModel(sequelize);
 
     // Establecer relaciones entre modelos
     // Liquidations -> Companies
@@ -122,6 +125,16 @@ module.exports = async (config) => {
       as: "liquidationNews",
     });
 
+    // Normativas -> Users (creator)
+    NormativasModel.belongsTo(UsersModel, {
+      foreignKey: "created_by",
+      as: "creator",
+    });
+    UsersModel.hasMany(NormativasModel, {
+      foreignKey: "created_by",
+      as: "normativas",
+    });
+
     // Sincroniza los modelos con la base de datos
     await sequelize.sync({ force: false });
     console.log("Conexión a la base de datos establecida con éxito.");
@@ -152,6 +165,7 @@ module.exports = async (config) => {
       config,
       sequelize
     );
+    const Normativas = setupNormativas(NormativasModel, config, sequelize);
 
     return {
       Users,
@@ -163,6 +177,7 @@ module.exports = async (config) => {
       Liquidations,
       LiquidationDetails,
       LiquidationNews,
+      Normativas,
     };
   } catch (error) {
     console.error("No se pudo conectar a la base de datos:", error);

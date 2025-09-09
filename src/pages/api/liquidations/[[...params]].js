@@ -44,6 +44,31 @@ export default async function handler(req, res) {
       console.log("✅ Liquidación creada:", result);
 
       res.status(201).json(result);
+    } else if (req.method === "PUT") {
+      // Actualizar liquidación (aprobar, marcar como pagada, etc.)
+      const id = req.query.params && req.query.params[0];
+      const action = req.query.params && req.query.params[1];
+      
+      console.log("🔄 Actualizando liquidación:", id, "acción:", action);
+      console.log("📦 Datos recibidos:", req.body);
+
+      let result;
+      
+      if (action === "approve") {
+        // Aprobar liquidación
+        result = await controller.approve(id, req.body);
+        console.log("✅ Liquidación aprobada:", result);
+      } else if (action === "paid") {
+        // Marcar como pagada
+        result = await controller.markAsPaid(id);
+        console.log("✅ Liquidación marcada como pagada:", result);
+      } else {
+        // Actualización general
+        result = await controller.update(id, req.body);
+        console.log("✅ Liquidación actualizada:", result);
+      }
+
+      res.status(200).json(result);
     } else if (
       req.method === "POST" &&
       req.query.params &&

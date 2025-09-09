@@ -1,58 +1,85 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Card, CardBody, Button, Table, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Alert } from "reactstrap";
-import Breadcrumbs from "@/utils/CommonComponent/Breadcrumb";
-import { normativesApi } from "@/utils/api";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import RootLayout from "../layout";
+import React, { useState, useEffect } from 'react';
+import RootLayout from '../layout';
+import { 
+  Container, 
+  Card, 
+  CardBody, 
+  Row, 
+  Col, 
+  Button, 
+  Table, 
+  Input, 
+  FormGroup, 
+  Label, 
+  Spinner, 
+  Alert, 
+  Modal, 
+  ModalHeader, 
+  ModalBody, 
+  ModalFooter,
+  Badge,
+  Form
+} from 'reactstrap';
+import { toast } from 'react-toastify';
+import Breadcrumbs from '@/utils/CommonComponent/Breadcrumb';
+import normativasApi from '@/utils/api/normativasApi';
+import moment from 'moment';
 
 const NormativasPage = () => {
   const [normativas, setNormativas] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [editingNormativa, setEditingNormativa] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    effective_date: "",
-    expiration_date: "",
-    minimum_wage: "",
-    transportation_assistance: "",
-    workday_hours: 8.0,
-    hourly_rate: "",
-    max_overtime_hours_daily: 2,
-    max_overtime_hours_weekly: 12,
-    max_daily_hours: 8,
-    max_weekly_hours: 48,
-    overtime_rate: 1.25,
-    night_shift_rate: 1.35,
-    holiday_rate: 1.75,
-    sunday_rate: 1.75,
-    prima_legal_percentage: 8.33,
-    cesantias_legal_percentage: 8.33,
-    intereses_cesantias_percentage: 12.00,
-    vacations_legal_days: 15,
-    health_contribution_percentage: 4.00,
-    pension_contribution_percentage: 4.00,
-    solidarity_pension_fund_percentage: 1.00,
-    arl_contribution_percentage: 0.522,
-    sena_contribution_percentage: 2.00,
-    icbf_contribution_percentage: 3.00,
-    ccf_contribution_percentage: 4.00,
+  const [filters, setFilters] = useState({
+    tipo: '',
+    activa: '',
+    search: ''
   });
+
+  // Estados del formulario
+  const [formData, setFormData] = useState({
+    nombre: '',
+    tipo: '',
+    valor: '',
+    unidad: 'pesos',
+    vigencia_desde: '',
+    vigencia_hasta: '',
+    descripcion: '',
+    activa: true
+  });
+
+  const tiposNormativa = [
+    { value: 'salario_minimo', label: 'Salario Mínimo' },
+    { value: 'auxilio_transporte', label: 'Auxilio de Transporte' },
+    { value: 'hora_extra', label: 'Hora Extra' },
+    { value: 'recargo_nocturno', label: 'Recargo Nocturno' },
+    { value: 'recargo_domingo', label: 'Recargo Domingo' },
+    { value: 'vacaciones', label: 'Vacaciones' },
+    { value: 'cesantias', label: 'Cesantías' },
+    { value: 'prima', label: 'Prima' },
+    { value: 'otro', label: 'Otro' }
+  ];
+
+  const unidades = [
+    { value: 'pesos', label: 'Pesos ($)' },
+    { value: 'porcentaje', label: 'Porcentaje (%)' },
+    { value: 'horas', label: 'Horas' },
+    { value: 'dias', label: 'Días' }
+  ];
 
   useEffect(() => {
     loadNormativas();
-  }, []);
+  }, [filters]);
 
   const loadNormativas = async () => {
     try {
       setLoading(true);
-      const response = await normativesApi.list(1, 100);
-      setNormativas(response.data || []);
+      const result = await normativasApi.list(filters);
+      setNormativas(result.data || []);
     } catch (error) {
-      console.error("Error al cargar normativas:", error);
-      toast.error("Error al cargar las normativas");
+      console.error('Error cargando normativas:', error);
+      toast.error('Error al cargar normativas');
     } finally {
       setLoading(false);
     }
@@ -66,348 +93,437 @@ const NormativasPage = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingNormativa) {
-        await normativesApi.update(editingNormativa.id, formData);
-        toast.success("Normativa actualizada exitosamente");
-      } else {
-        await normativesApi.create(formData);
-        toast.success("Normativa creada exitosamente");
-      }
-      setModalOpen(false);
-      setEditingNormativa(null);
-      setFormData({
-        name: "",
-        description: "",
-        effective_date: "",
-        expiration_date: "",
-        minimum_wage: "",
-        transportation_assistance: "",
-        workday_hours: 8.0,
-        hourly_rate: "",
-        max_overtime_hours_daily: 2,
-        max_overtime_hours_weekly: 12,
-        max_daily_hours: 8,
-        max_weekly_hours: 48,
-        overtime_rate: 1.25,
-        night_shift_rate: 1.35,
-        holiday_rate: 1.75,
-        sunday_rate: 1.75,
-        prima_legal_percentage: 8.33,
-        cesantias_legal_percentage: 8.33,
-        intereses_cesantias_percentage: 12.00,
-        vacations_legal_days: 15,
-        health_contribution_percentage: 4.00,
-        pension_contribution_percentage: 4.00,
-        solidarity_pension_fund_percentage: 1.00,
-        arl_contribution_percentage: 0.522,
-        sena_contribution_percentage: 2.00,
-        icbf_contribution_percentage: 3.00,
-        ccf_contribution_percentage: 4.00,
-      });
-      loadNormativas();
-    } catch (error) {
-      console.error("Error al guardar normativa:", error);
-      toast.error("Error al guardar la normativa");
-    }
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nombre: '',
+      tipo: '',
+      valor: '',
+      unidad: 'pesos',
+      vigencia_desde: '',
+      vigencia_hasta: '',
+      descripcion: '',
+      activa: true
+    });
+    setEditingNormativa(null);
+  };
+
+  const handleCreate = () => {
+    resetForm();
+    setShowModal(true);
   };
 
   const handleEdit = (normativa) => {
-    setEditingNormativa(normativa);
     setFormData({
-      ...normativa,
-      effective_date: normativa.effective_date?.split('T')[0] || '',
-      expiration_date: normativa.expiration_date?.split('T')[0] || '',
+      nombre: normativa.nombre,
+      tipo: normativa.tipo,
+      valor: normativa.valor.toString(),
+      unidad: normativa.unidad,
+      vigencia_desde: normativa.vigencia_desde,
+      vigencia_hasta: normativa.vigencia_hasta || '',
+      descripcion: normativa.descripcion || '',
+      activa: normativa.activa
     });
-    setModalOpen(true);
+    setEditingNormativa(normativa);
+    setShowModal(true);
   };
 
-  const handleDeactivate = async (id) => {
-    if (window.confirm("¿Está seguro de que desea desactivar esta normativa?")) {
-      try {
-        await normativesApi.deactivate(id);
-        toast.success("Normativa desactivada exitosamente");
-        loadNormativas();
-      } catch (error) {
-        console.error("Error al desactivar normativa:", error);
-        toast.error("Error al desactivar la normativa");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      setActionLoading(true);
+      
+      const normativaData = {
+        ...formData,
+        valor: parseFloat(formData.valor),
+        vigencia_desde: formData.vigencia_desde,
+        vigencia_hasta: formData.vigencia_hasta || null,
+        created_by: 1 // TODO: Obtener del usuario autenticado
+      };
+
+      if (editingNormativa) {
+        await normativasApi.update(editingNormativa.id, normativaData);
+        toast.success('Normativa actualizada exitosamente');
+      } else {
+        await normativasApi.create(normativaData);
+        toast.success('Normativa creada exitosamente');
       }
+
+      setShowModal(false);
+      resetForm();
+      loadNormativas();
+    } catch (error) {
+      console.error('Error guardando normativa:', error);
+      toast.error('Error al guardar normativa');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      minimumFractionDigits: 0,
-    }).format(amount || 0);
+  const handleDelete = async (normativa) => {
+    if (!window.confirm(`¿Está seguro de eliminar la normativa "${normativa.nombre}"?`)) {
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await normativasApi.delete(normativa.id);
+      toast.success('Normativa eliminada exitosamente');
+      loadNormativas();
+    } catch (error) {
+      console.error('Error eliminando normativa:', error);
+      toast.error('Error al eliminar normativa');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("es-CO");
+  const getTipoLabel = (tipo) => {
+    const tipoObj = tiposNormativa.find(t => t.value === tipo);
+    return tipoObj ? tipoObj.label : tipo;
+  };
+
+  const getUnidadLabel = (unidad) => {
+    const unidadObj = unidades.find(u => u.value === unidad);
+    return unidadObj ? unidadObj.label : unidad;
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatValue = (normativa) => {
+    if (normativa.unidad === 'pesos') {
+      return formatCurrency(normativa.valor);
+    } else if (normativa.unidad === 'porcentaje') {
+      return `${normativa.valor}%`;
+    } else {
+      return `${normativa.valor} ${getUnidadLabel(normativa.unidad)}`;
+    }
   };
 
   return (
     <RootLayout>
-      <Breadcrumbs pageTitle="Normativas Laborales" parent="Configuración" />
+      <Breadcrumbs main="Normativas" parent="Administración" title="Gestión de Normativas" />
+      
       <Container fluid>
-        <Card>
-          <CardBody>
-            <Row className="mb-3">
-              <Col md="12">
-                <div className="d-flex justify-content-between align-items-center">
-                  <h4>Gestión de Normativas Laborales</h4>
-                  <Button
-                    color="primary"
-                    onClick={() => {
-                      setEditingNormativa(null);
-                      setFormData({
-                        name: "",
-                        description: "",
-                        effective_date: "",
-                        expiration_date: "",
-                        minimum_wage: "",
-                        transportation_assistance: "",
-                        workday_hours: 8.0,
-                        hourly_rate: "",
-                        max_overtime_hours_daily: 2,
-                        max_overtime_hours_weekly: 12,
-                        max_daily_hours: 8,
-                        max_weekly_hours: 48,
-                        overtime_rate: 1.25,
-                        night_shift_rate: 1.35,
-                        holiday_rate: 1.75,
-                        sunday_rate: 1.75,
-                        prima_legal_percentage: 8.33,
-                        cesantias_legal_percentage: 8.33,
-                        intereses_cesantias_percentage: 12.00,
-                        vacations_legal_days: 15,
-                        health_contribution_percentage: 4.00,
-                        pension_contribution_percentage: 4.00,
-                        solidarity_pension_fund_percentage: 1.00,
-                        arl_contribution_percentage: 0.522,
-                        sena_contribution_percentage: 2.00,
-                        icbf_contribution_percentage: 3.00,
-                        ccf_contribution_percentage: 4.00,
-                      });
-                      setModalOpen(true);
-                    }}
-                  >
-                    <i className="fa fa-plus me-2"></i>
+        <Row>
+          <Col>
+            <Card>
+              <CardBody>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h4 className="card-title mb-0">Normativas de Salarios</h4>
+                  <Button color="primary" onClick={handleCreate}>
+                    <i className="fa fa-plus me-2" />
                     Nueva Normativa
                   </Button>
                 </div>
-              </Col>
-            </Row>
 
-            <div className="table-responsive">
-              <Table responsive striped hover>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Fecha Vigencia</th>
-                    <th>Fecha Expiración</th>
-                    <th>Salario Mínimo</th>
-                    <th>Auxilio Transporte</th>
-                    <th>Jornada (h)</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="8" className="text-center">
-                        <i className="fa fa-spinner fa-spin me-2"></i>
-                        Cargando...
-                      </td>
-                    </tr>
-                  ) : normativas.length === 0 ? (
-                    <tr>
-                      <td colSpan="8" className="text-center">
-                        No hay normativas registradas
-                      </td>
-                    </tr>
-                  ) : (
-                    normativas.map((normativa) => (
-                      <tr key={normativa.id}>
-                        <td>
-                          <strong>{normativa.name}</strong>
-                          {normativa.description && (
-                            <>
-                              <br />
-                              <small className="text-muted">{normativa.description}</small>
-                            </>
-                          )}
-                        </td>
-                        <td>{formatDate(normativa.effective_date)}</td>
-                        <td>{formatDate(normativa.expiration_date)}</td>
-                        <td>{formatCurrency(normativa.minimum_wage)}</td>
-                        <td>{formatCurrency(normativa.transportation_assistance)}</td>
-                        <td>{normativa.workday_hours}</td>
-                        <td>
-                          <span className={`badge ${normativa.is_active ? 'bg-success' : 'bg-secondary'}`}>
-                            {normativa.is_active ? 'Activa' : 'Inactiva'}
-                          </span>
-                        </td>
-                        <td>
-                          <Button
-                            color="info"
-                            size="sm"
-                            onClick={() => handleEdit(normativa)}
-                            className="me-2"
-                          >
-                            <i className="fa fa-edit"></i>
-                          </Button>
-                          {normativa.is_active && (
-                            <Button
-                              color="warning"
-                              size="sm"
-                              onClick={() => handleDeactivate(normativa.id)}
-                            >
-                              <i className="fa fa-ban"></i>
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </Table>
-            </div>
-          </CardBody>
-        </Card>
+                {/* Filtros */}
+                <Row className="mb-4">
+                  <Col md={3}>
+                    <FormGroup>
+                      <Label>Tipo</Label>
+                      <Input
+                        type="select"
+                        name="tipo"
+                        value={filters.tipo}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">Todos los tipos</option>
+                        {tiposNormativa.map(tipo => (
+                          <option key={tipo.value} value={tipo.value}>
+                            {tipo.label}
+                          </option>
+                        ))}
+                      </Input>
+                    </FormGroup>
+                  </Col>
+                  <Col md={3}>
+                    <FormGroup>
+                      <Label>Estado</Label>
+                      <Input
+                        type="select"
+                        name="activa"
+                        value={filters.activa}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">Todas</option>
+                        <option value="true">Activas</option>
+                        <option value="false">Inactivas</option>
+                      </Input>
+                    </FormGroup>
+                  </Col>
+                  <Col md={6}>
+                    <FormGroup>
+                      <Label>Buscar</Label>
+                      <Input
+                        type="text"
+                        name="search"
+                        placeholder="Buscar por nombre..."
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                      />
+                    </FormGroup>
+                  </Col>
+                </Row>
+
+                {/* Tabla */}
+                {loading ? (
+                  <div className="text-center py-4">
+                    <Spinner color="primary" />
+                    <p className="mt-2">Cargando normativas...</p>
+                  </div>
+                ) : normativas.length > 0 ? (
+                  <div className="table-responsive">
+                    <Table>
+                      <thead>
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Tipo</th>
+                          <th>Valor</th>
+                          <th>Vigencia Desde</th>
+                          <th>Vigencia Hasta</th>
+                          <th>Estado</th>
+                          <th>Creado por</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {normativas.map((normativa) => (
+                          <tr key={normativa.id}>
+                            <td>
+                              <strong>{normativa.nombre}</strong>
+                              {normativa.descripcion && (
+                                <div className="text-muted small">
+                                  {normativa.descripcion}
+                                </div>
+                              )}
+                            </td>
+                            <td>
+                              <Badge color="info">
+                                {getTipoLabel(normativa.tipo)}
+                              </Badge>
+                            </td>
+                            <td>
+                              <strong>{formatValue(normativa)}</strong>
+                            </td>
+                            <td>
+                              {moment(normativa.vigencia_desde).format('DD/MM/YYYY')}
+                            </td>
+                            <td>
+                              {normativa.vigencia_hasta 
+                                ? moment(normativa.vigencia_hasta).format('DD/MM/YYYY')
+                                : 'Indefinida'
+                              }
+                            </td>
+                            <td>
+                              <Badge color={normativa.activa ? 'success' : 'secondary'}>
+                                {normativa.activa ? 'Activa' : 'Inactiva'}
+                              </Badge>
+                            </td>
+                            <td>
+                              {normativa.creator 
+                                ? `${normativa.creator.firstName} ${normativa.creator.lastName}`
+                                : 'N/A'
+                              }
+                            </td>
+                            <td>
+                              <div className="d-flex gap-1">
+                                <Button
+                                  size="sm"
+                                  color="primary"
+                                  onClick={() => handleEdit(normativa)}
+                                  disabled={actionLoading}
+                                >
+                                  <i className="fa fa-edit" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  color="danger"
+                                  onClick={() => handleDelete(normativa)}
+                                  disabled={actionLoading}
+                                >
+                                  <i className="fa fa-trash" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </div>
+                ) : (
+                  <Alert color="info">
+                    <i className="fa fa-info-circle me-2" />
+                    No se encontraron normativas
+                  </Alert>
+                )}
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
       </Container>
 
       {/* Modal para crear/editar normativa */}
-      <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} size="xl">
-        <ModalHeader toggle={() => setModalOpen(false)}>
-          {editingNormativa ? "Editar Normativa" : "Nueva Normativa"}
+      <Modal isOpen={showModal} toggle={() => setShowModal(false)} size="lg">
+        <ModalHeader toggle={() => setShowModal(false)}>
+          {editingNormativa ? 'Editar Normativa' : 'Nueva Normativa'}
         </ModalHeader>
-        <ModalBody>
-          <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit}>
+          <ModalBody>
             <Row>
-              <Col md="6">
+              <Col md={6}>
                 <FormGroup>
-                  <Label for="name">Nombre de la Normativa *</Label>
+                  <Label>Nombre *</Label>
                   <Input
                     type="text"
-                    name="name"
-                    id="name"
-                    value={formData.name}
+                    name="nombre"
+                    value={formData.nombre}
                     onChange={handleInputChange}
                     required
+                    placeholder="Ej: Salario Mínimo 2025"
                   />
                 </FormGroup>
               </Col>
-              <Col md="6">
+              <Col md={6}>
                 <FormGroup>
-                  <Label for="effective_date">Fecha de Vigencia *</Label>
+                  <Label>Tipo *</Label>
+                  <Input
+                    type="select"
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Seleccionar tipo</option>
+                    {tiposNormativa.map(tipo => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </option>
+                    ))}
+                  </Input>
+                </FormGroup>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <FormGroup>
+                  <Label>Valor *</Label>
+                  <Input
+                    type="number"
+                    name="valor"
+                    value={formData.valor}
+                    onChange={handleInputChange}
+                    required
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                  />
+                </FormGroup>
+              </Col>
+              <Col md={6}>
+                <FormGroup>
+                  <Label>Unidad *</Label>
+                  <Input
+                    type="select"
+                    name="unidad"
+                    value={formData.unidad}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    {unidades.map(unidad => (
+                      <option key={unidad.value} value={unidad.value}>
+                        {unidad.label}
+                      </option>
+                    ))}
+                  </Input>
+                </FormGroup>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <FormGroup>
+                  <Label>Vigencia Desde *</Label>
                   <Input
                     type="date"
-                    name="effective_date"
-                    id="effective_date"
-                    value={formData.effective_date}
+                    name="vigencia_desde"
+                    value={formData.vigencia_desde}
                     onChange={handleInputChange}
                     required
+                  />
+                </FormGroup>
+              </Col>
+              <Col md={6}>
+                <FormGroup>
+                  <Label>Vigencia Hasta</Label>
+                  <Input
+                    type="date"
+                    name="vigencia_hasta"
+                    value={formData.vigencia_hasta}
+                    onChange={handleInputChange}
+                    placeholder="Dejar vacío para indefinida"
                   />
                 </FormGroup>
               </Col>
             </Row>
 
             <Row>
-              <Col md="12">
+              <Col md={12}>
                 <FormGroup>
-                  <Label for="description">Descripción</Label>
+                  <Label>Descripción</Label>
                   <Input
                     type="textarea"
-                    name="description"
-                    id="description"
-                    value={formData.description}
+                    name="descripcion"
+                    value={formData.descripcion}
                     onChange={handleInputChange}
-                    rows="2"
+                    rows="3"
+                    placeholder="Descripción detallada de la normativa..."
                   />
                 </FormGroup>
               </Col>
             </Row>
 
             <Row>
-              <Col md="6">
-                <FormGroup>
-                  <Label for="minimum_wage">Salario Mínimo *</Label>
+              <Col md={12}>
+                <FormGroup check>
                   <Input
-                    type="number"
-                    name="minimum_wage"
-                    id="minimum_wage"
-                    value={formData.minimum_wage}
+                    type="checkbox"
+                    name="activa"
+                    checked={formData.activa}
                     onChange={handleInputChange}
-                    required
-                    step="0.01"
                   />
-                </FormGroup>
-              </Col>
-              <Col md="6">
-                <FormGroup>
-                  <Label for="transportation_assistance">Auxilio de Transporte *</Label>
-                  <Input
-                    type="number"
-                    name="transportation_assistance"
-                    id="transportation_assistance"
-                    value={formData.transportation_assistance}
-                    onChange={handleInputChange}
-                    required
-                    step="0.01"
-                  />
+                  <Label check>
+                    Normativa activa
+                  </Label>
                 </FormGroup>
               </Col>
             </Row>
-
-            <Row>
-              <Col md="6">
-                <FormGroup>
-                  <Label for="workday_hours">Jornada Laboral (horas) *</Label>
-                  <Input
-                    type="number"
-                    name="workday_hours"
-                    id="workday_hours"
-                    value={formData.workday_hours}
-                    onChange={handleInputChange}
-                    required
-                    step="0.01"
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="6">
-                <FormGroup>
-                  <Label for="hourly_rate">Valor Hora Laboral</Label>
-                  <Input
-                    type="number"
-                    name="hourly_rate"
-                    id="hourly_rate"
-                    value={formData.hourly_rate}
-                    onChange={handleInputChange}
-                    step="0.01"
-                  />
-                </FormGroup>
-              </Col>
-            </Row>
-
-            <Alert color="info" className="mt-3">
-              <strong>Nota:</strong> Los demás campos se configurarán con valores por defecto según la normativa colombiana vigente.
-            </Alert>
-          </Form>
-        </ModalBody>
-        <ModalFooter>
-          <Button color="secondary" onClick={() => setModalOpen(false)}>
-            Cancelar
-          </Button>
-          <Button color="primary" onClick={handleSubmit}>
-            {editingNormativa ? "Actualizar" : "Crear"}
-          </Button>
-        </ModalFooter>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="secondary" onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button color="primary" type="submit" disabled={actionLoading}>
+              {actionLoading ? <Spinner size="sm" /> : 'Guardar'}
+            </Button>
+          </ModalFooter>
+        </Form>
       </Modal>
     </RootLayout>
   );

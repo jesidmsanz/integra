@@ -75,24 +75,24 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
 
   // Buscar por ID
   function findById(id) {
-    return Model.findByPk(id, {
-      include: [
-        {
-          model: db.Companies,
-          as: "company",
-          attributes: ["id", "companyname"],
-        },
-        {
-          model: db.Users,
-          as: "creator",
-          attributes: ["id", "firstName", "lastName"],
-        },
-        {
-          model: db.Users,
-          as: "approver",
-          attributes: ["id", "firstName", "lastName"],
-        },
-      ],
+    const query = `
+      SELECT 
+        l.*,
+        c.companyname,
+        u."firstName" as user_first_name,
+        u."lastName" as user_last_name,
+        approver."firstName" as approver_first_name,
+        approver."lastName" as approver_last_name
+      FROM liquidations l
+      LEFT JOIN companies c ON l.company_id = c.id
+      LEFT JOIN users u ON l.user_id = u.id
+      LEFT JOIN users approver ON l.approved_by = approver.id
+      WHERE l.id = :id
+    `;
+    
+    return sequelize.query(query, {
+      replacements: { id },
+      type: QueryTypes.SELECT,
     });
   }
 
@@ -107,10 +107,12 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
   }
 
   // Actualizar liquidación
-  async function update(id, model) {
+  async function update(id, updateData) {
     try {
-      const [updatedRowsCount] = await Model.update(model, {
-        where: { id },
+      console.log("🔄 Actualizando liquidación ID:", id, "con datos:", updateData);
+      
+      const [updatedRowsCount] = await Model.update(updateData, {
+        where: { id: parseInt(id) }, // Asegurar que id sea un entero
       });
 
       if (updatedRowsCount === 0) {
@@ -119,6 +121,7 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
 
       return await findById(id);
     } catch (error) {
+      console.error("❌ Error en update:", error);
       throw new Error(`Error al actualizar liquidación: ${error.message}`);
     }
   }

@@ -21,6 +21,7 @@ import {
 } from "reactstrap";
 import { toast } from "react-toastify";
 import moment from "moment";
+import ExcelJS from 'exceljs';
 import liquidationsApi from "@/utils/api/liquidationsApi";
 import companiesApi from "@/utils/api/companiesApi";
 
@@ -192,32 +193,311 @@ const LiquidationsDashboard = () => {
     }
   };
 
-  const handleGeneratePDF = async (liquidation) => {
+  const handleGenerateExcel = async (liquidation) => {
     try {
       setActionLoading(true);
-      console.log("🔍 Generando PDF para liquidación:", liquidation.id);
+      console.log("🔍 Generando Excel CORPORATIVO PREMIUM para liquidación:", liquidation.id);
 
-      const result = await liquidationsApi.generatePDF(liquidation.id);
-      console.log("📄 Resultado del PDF:", result);
+      // Obtener detalles de la liquidación
+      const details = await liquidationsApi.getById(liquidation.id);
+      
+      if (details.data && details.data.liquidation_details) {
+        // Crear libro de trabajo con ExcelJS
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Liquidación');
 
-      if (result.success && result.data) {
-        toast.success("PDF generado exitosamente");
+        // Configurar anchos de columna CON TÍTULOS COMPLETOS
+        worksheet.columns = [
+          { key: 'id', width: 8 },
+          { key: 'nombre', width: 25 },
+          { key: 'documento', width: 15 },
+          { key: 'cargo', width: 20 },
+          { key: 'salario', width: 20 },
+          { key: 'transporte', width: 22 },
+          { key: 'devengado', width: 22 },
+          { key: 'descuentos', width: 22 },
+          { key: 'neto', width: 20 }
+        ];
 
-        // Crear enlace de descarga
-        const downloadUrl = result.data.downloadUrl;
-        if (downloadUrl) {
-          // Abrir PDF en nueva ventana
-          window.open(downloadUrl, "_blank");
-        } else {
-          console.error("No se recibió URL de descarga");
-          toast.error("Error: No se pudo obtener el enlace de descarga");
+        // === DISEÑO CORPORATIVO PREMIUM ===
+
+        // 1. ENCABEZADO CORPORATIVO COMPACTO
+        const headerRow1 = worksheet.getRow(1);
+        headerRow1.height = 30;
+        headerRow1.getCell(1).value = 'INTEGRA - SISTEMA DE GESTIÓN DE NÓMINA';
+        headerRow1.getCell(1).font = {
+          name: 'Arial',
+          size: 16,
+          bold: true,
+          color: { argb: 'FFFFFFFF' }
+        };
+        headerRow1.getCell(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF1F4E79' }
+        };
+        headerRow1.getCell(1).alignment = {
+          horizontal: 'center',
+          vertical: 'middle'
+        };
+        worksheet.mergeCells('A1:I1');
+
+        // 2. TÍTULO DEL REPORTE COMPACTO
+        const titleRow = worksheet.getRow(2);
+        titleRow.height = 25;
+        titleRow.getCell(1).value = 'REPORTE DE LIQUIDACIÓN DE NÓMINA';
+        titleRow.getCell(1).font = {
+          name: 'Arial',
+          size: 14,
+          bold: true,
+          color: { argb: 'FF1F4E79' }
+        };
+        titleRow.getCell(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE6F3FF' }
+        };
+        titleRow.getCell(1).alignment = {
+          horizontal: 'center',
+          vertical: 'middle'
+        };
+        titleRow.getCell(1).border = {
+          top: { style: 'medium', color: { argb: 'FF1F4E79' } },
+          bottom: { style: 'medium', color: { argb: 'FF1F4E79' } },
+          left: { style: 'medium', color: { argb: 'FF1F4E79' } },
+          right: { style: 'medium', color: { argb: 'FF1F4E79' } }
+        };
+        worksheet.mergeCells('A2:I2');
+
+        // 3. INFORMACIÓN DE LA EMPRESA COMPACTA
+        const infoStartRow = 4;
+        const infoHeaderRow = worksheet.getRow(infoStartRow);
+        infoHeaderRow.height = 22;
+        infoHeaderRow.getCell(1).value = 'INFORMACIÓN DE LA EMPRESA';
+        infoHeaderRow.getCell(1).font = {
+          name: 'Arial',
+          size: 12,
+          bold: true,
+          color: { argb: 'FFFFFFFF' }
+        };
+        infoHeaderRow.getCell(1).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4472C4' }
+        };
+        infoHeaderRow.getCell(1).alignment = {
+          horizontal: 'left',
+          vertical: 'middle'
+        };
+        worksheet.mergeCells(`A${infoStartRow}:I${infoStartRow}`);
+
+        // Datos de la empresa COMPACTOS
+        const companyData = [
+          `Empresa: ${details.data.companyname || `Empresa ${details.data.company_id}`}`,
+          `Período: ${details.data.period} | Fecha: ${moment().format('DD/MM/YYYY HH:mm')} | Empleados: ${details.data.total_employees} | Total: ${formatCurrency(details.data.total_net_amount)}`
+        ];
+
+        companyData.forEach((data, index) => {
+          const row = worksheet.getRow(infoStartRow + 1 + index);
+          row.height = 18;
+          row.getCell(1).value = data;
+          row.getCell(1).font = {
+            name: 'Arial',
+            size: 10,
+            bold: true,
+            color: { argb: 'FF2F2F2F' }
+          };
+          row.getCell(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF8F9FA' }
+          };
+          row.getCell(1).alignment = {
+            horizontal: 'left',
+            vertical: 'middle'
+          };
+          row.getCell(1).border = {
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+          worksheet.mergeCells(`A${infoStartRow + 1 + index}:I${infoStartRow + 1 + index}`);
+        });
+
+        // 4. TABLA DE EMPLEADOS COMPACTA
+        const dataStartRow = infoStartRow + 4;
+        
+        // Encabezados de la tabla COMPACTOS - MANUAL
+        const headerRow = worksheet.getRow(dataStartRow);
+        headerRow.height = 25;
+        
+        // Títulos de columnas manuales CON TAMAÑO ADECUADO
+        const columnTitles = [
+          'ID',
+          'NOMBRE COMPLETO',
+          'DOCUMENTO',
+          'CARGO',
+          'SALARIO BÁSICO',
+          'AUXILIO TRANSPORTE',
+          'TOTAL DEVENGADO',
+          'TOTAL DESCUENTOS',
+          'NETO A PAGAR'
+        ];
+        
+        columnTitles.forEach((title, index) => {
+          const cell = headerRow.getCell(index + 1);
+          cell.value = title;
+          cell.font = {
+            name: 'Arial',
+            size: 9,
+            bold: true,
+            color: { argb: 'FFFFFFFF' }
+          };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF2E75B6' }
+          };
+          cell.alignment = {
+            horizontal: 'center',
+            vertical: 'middle'
+          };
+          cell.border = {
+            top: { style: 'medium', color: { argb: 'FF1F4E79' } },
+            bottom: { style: 'medium', color: { argb: 'FF1F4E79' } },
+            left: { style: 'thin', color: { argb: 'FFFFFFFF' } },
+            right: { style: 'thin', color: { argb: 'FFFFFFFF' } }
+          };
+        });
+
+        // Datos de empleados COMPACTOS
+        details.data.liquidation_details.forEach((detail, index) => {
+          const row = worksheet.getRow(dataStartRow + 1 + index);
+          row.height = 22;
+          
+          const isEven = index % 2 === 0;
+          
+          row.getCell(1).value = detail.employee_id;
+          row.getCell(2).value = detail.employee_name;
+          row.getCell(3).value = detail.employee_document;
+          row.getCell(4).value = detail.employee_position;
+          row.getCell(5).value = detail.basic_salary;
+          row.getCell(6).value = detail.transportation_assistance;
+          row.getCell(7).value = detail.total_earnings;
+          row.getCell(8).value = detail.total_deductions;
+          row.getCell(9).value = detail.net_amount;
+
+          // Aplicar estilos a toda la fila COMPACTOS
+          for (let col = 1; col <= 9; col++) {
+            const cell = row.getCell(col);
+            cell.font = {
+              name: 'Arial',
+              size: 9,
+              color: { argb: isEven ? 'FF2F2F2F' : 'FF1F1F1F' }
+            };
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: isEven ? 'FFFFFFFF' : 'FFF8F9FA' }
+            };
+            cell.alignment = {
+              horizontal: col <= 4 ? 'left' : 'right',
+              vertical: 'middle'
+            };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+            };
+
+            // Formato de moneda para columnas numéricas
+            if (col >= 5) {
+              cell.numFmt = '"$"#,##0';
+            }
+          }
+        });
+
+        // 5. FILA DE TOTALES COMPACTA
+        const totalRow = dataStartRow + details.data.liquidation_details.length + 1;
+        const totalRowObj = worksheet.getRow(totalRow);
+        totalRowObj.height = 25;
+        
+        totalRowObj.getCell(4).value = 'TOTAL GENERAL:';
+        totalRowObj.getCell(5).value = { formula: `SUM(E${dataStartRow + 1}:E${dataStartRow + details.data.liquidation_details.length})` };
+        totalRowObj.getCell(6).value = { formula: `SUM(F${dataStartRow + 1}:F${dataStartRow + details.data.liquidation_details.length})` };
+        totalRowObj.getCell(7).value = { formula: `SUM(G${dataStartRow + 1}:G${dataStartRow + details.data.liquidation_details.length})` };
+        totalRowObj.getCell(8).value = { formula: `SUM(H${dataStartRow + 1}:H${dataStartRow + details.data.liquidation_details.length})` };
+        totalRowObj.getCell(9).value = { formula: `SUM(I${dataStartRow + 1}:I${dataStartRow + details.data.liquidation_details.length})` };
+
+        // Estilo de la fila de totales COMPACTA
+        for (let col = 1; col <= 9; col++) {
+          const cell = totalRowObj.getCell(col);
+          cell.font = {
+            name: 'Arial',
+            size: 10,
+            bold: true,
+            color: { argb: 'FFFFFFFF' }
+          };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF1F4E79' }
+          };
+          cell.alignment = {
+            horizontal: col <= 4 ? 'left' : 'right',
+            vertical: 'middle'
+          };
+          cell.border = {
+            top: { style: 'thick', color: { argb: 'FF1F4E79' } },
+            bottom: { style: 'thick', color: { argb: 'FF1F4E79' } },
+            left: { style: 'thin', color: { argb: 'FF1F4E79' } },
+            right: { style: 'thin', color: { argb: 'FF1F4E79' } }
+          };
+
+          if (col >= 5) {
+            cell.numFmt = '"$"#,##0';
+          }
         }
+
+        // 6. PIE DE PÁGINA COMPACTO
+        const footerStartRow = totalRow + 2;
+        const footerData = [
+          `Este reporte fue generado automáticamente por el Sistema Integra | Fecha: ${moment().format('DD/MM/YYYY HH:mm')} | © 2025 Integra - Todos los derechos reservados`
+        ];
+
+        footerData.forEach((text, index) => {
+          const row = worksheet.getRow(footerStartRow + index);
+          row.height = 16;
+          row.getCell(1).value = text;
+          row.getCell(1).font = {
+            name: 'Arial',
+            size: 8,
+            italic: true,
+            color: { argb: 'FF666666' }
+          };
+          row.getCell(1).alignment = {
+            horizontal: 'center',
+            vertical: 'middle'
+          };
+          worksheet.mergeCells(`A${footerStartRow + index}:I${footerStartRow + index}`);
+        });
+
+        // Generar y descargar archivo
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `LIQUIDACION_${liquidation.id}_${liquidation.period.replace(/[^a-zA-Z0-9]/g, '_')}_${moment().format('YYYYMMDD_HHmm')}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+
+        toast.success("Excel CORPORATIVO PREMIUM generado exitosamente");
       } else {
-        toast.error("Error al generar el PDF");
+        toast.error("No se encontraron datos para exportar");
       }
     } catch (error) {
-      console.error("Error al generar PDF:", error);
-      toast.error("Error al generar el PDF");
+      console.error("Error al generar Excel:", error);
+      toast.error("Error al generar el Excel");
     } finally {
       setActionLoading(false);
     }
@@ -394,11 +674,11 @@ const LiquidationsDashboard = () => {
                               <Button
                                 size="sm"
                                 color="secondary"
-                                onClick={() => handleGeneratePDF(liquidation)}
+                                onClick={() => handleGenerateExcel(liquidation)}
                                 disabled={actionLoading}
                                 className="px-3"
                               >
-                                PDF
+                                Excel
                               </Button>
                               {canDelete(liquidation) && (
                                 <Button

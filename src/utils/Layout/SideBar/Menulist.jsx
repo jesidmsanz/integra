@@ -77,11 +77,18 @@ const Menulist = ({ menu, setActiveMenu, activeMenu, level }) => {
                 ? "active"
                 : ""
             }`}
-            href={item?.path ? item?.path : ""}
-            onClick={() => {
-              const temp = activeMenu;
-              temp[level] = item.title !== temp[level] && item.title;
-              setActiveMenu([...temp]);
+            href={item?.path ? item?.path : "#"}
+            onClick={(e) => {
+              if (item.children) {
+                e.preventDefault();
+                const temp = [...activeMenu];
+                temp[level] = temp[level] === item.title ? "" : item.title;
+                setActiveMenu(temp);
+              } else {
+                const temp = [...activeMenu];
+                temp[level] = item.title;
+                setActiveMenu(temp);
+              }
             }}
           >
             {item.icon && (

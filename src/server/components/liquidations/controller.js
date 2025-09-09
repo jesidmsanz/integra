@@ -244,7 +244,7 @@ const update = async (id, updateData) => {
     try {
       const { Liquidations } = await db();
       const liquidation = await Liquidations.findById(id);
-      if (!liquidation) {
+      if (!liquidation || liquidation.length === 0) {
         reject({
           success: false,
           message: "Liquidación no encontrada",
@@ -266,7 +266,7 @@ const update = async (id, updateData) => {
 
       resolve({
         success: true,
-        data: updatedLiquidation,
+        data: updatedLiquidation[0] || updatedLiquidation, // Manejar tanto array como objeto
         message: "Liquidación actualizada exitosamente",
       });
     } catch (error) {
@@ -283,9 +283,11 @@ const update = async (id, updateData) => {
 const approve = async (id, approvedBy) => {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("🔄 Aprobando liquidación ID:", id, "por usuario:", approvedBy);
+      
       const { Liquidations } = await db();
       const liquidation = await Liquidations.findById(id);
-      if (!liquidation) {
+      if (!liquidation || liquidation.length === 0) {
         reject({
           success: false,
           message: "Liquidación no encontrada",
@@ -293,7 +295,10 @@ const approve = async (id, approvedBy) => {
         return;
       }
 
-      if (liquidation.status !== "draft") {
+      const liquidationData = liquidation[0]; // Obtener el primer elemento del array
+      console.log("📊 Estado actual de la liquidación:", liquidationData.status);
+      
+      if (liquidationData.status !== "draft") {
         reject({
           success: false,
           message: "Solo se pueden aprobar liquidaciones en estado borrador",
@@ -301,17 +306,33 @@ const approve = async (id, approvedBy) => {
         return;
       }
 
+      // Extraer el ID del usuario que aprueba
+      console.log("🔍 approvedBy recibido:", approvedBy);
+      let approverId;
+      
+      if (typeof approvedBy === 'object' && approvedBy !== null) {
+        approverId = approvedBy.id || approvedBy.userId || approvedBy.approved_by || approvedBy.user_id;
+      } else {
+        approverId = approvedBy;
+      }
+      
+      console.log("🔍 approverId extraído:", approverId);
+      
+      // Asegurar que approverId sea un número entero
+      const finalApproverId = parseInt(approverId);
+      console.log("🔍 finalApproverId (entero):", finalApproverId);
+      
       await Liquidations.update(id, {
         status: "approved",
         approved_at: new Date(),
-        approved_by: approvedBy,
+        approved_by: finalApproverId,
       });
 
       const updatedLiquidation = await Liquidations.findById(id);
 
       resolve({
         success: true,
-        data: updatedLiquidation,
+        data: updatedLiquidation[0] || updatedLiquidation, // Manejar tanto array como objeto
         message: "Liquidación aprobada exitosamente",
       });
     } catch (error) {

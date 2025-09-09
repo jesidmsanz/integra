@@ -21,7 +21,6 @@ export const HtmlColumnData = [
         <a
           className="pdf"
           onClick={handlePDFClick}
-          rel="/assets/images/favicon.png"
           href="/public/assets/pdf/sample.pdf"
           target="_blank"
         >
