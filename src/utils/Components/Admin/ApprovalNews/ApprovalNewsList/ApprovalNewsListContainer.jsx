@@ -160,10 +160,21 @@ const ApprovalNewsListContainer = () => {
       // Observaciones heredadas si existen
       if (selectedNews.observations) formDataToSend.append("observations", selectedNews.observations);
 
-      await employeeNewsApi.create(formDataToSend);
+      // PRIMERO: Marcar la novedad actual como rechazada
+      console.log("Marcando novedad como rechazada - ID:", selectedNews.id);
+      
+      const rejectData = { approved: false };
+      console.log("Datos de rechazo:", rejectData);
+      
+      const rejectResult = await employeeNewsApi.update(selectedNews.id, rejectData);
+      console.log("Resultado del rechazo:", rejectResult);
+      
+      if (!rejectResult) {
+        throw new Error("No se pudo rechazar la novedad original");
+      }
 
-      // Marcar la novedad actual como rechazada
-      await employeeNewsApi.update(selectedNews.id, { approved: false });
+      // SEGUNDO: Crear la nueva novedad aprobada
+      await employeeNewsApi.create(formDataToSend);
 
       toast.success("Novedad rechazada y nueva novedad creada correctamente");
       setData((prev) => prev.map((item) => (item.id === selectedNews.id ? { ...item, approved: false } : item)));

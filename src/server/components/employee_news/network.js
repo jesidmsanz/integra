@@ -2,7 +2,7 @@ import passport from "passport";
 import controller from "./controller";
 import response from "../../network/response";
 import baseHandler from "@/server/network/baseHandler";
-import upload from "../../middleware/upload";
+import { upload, requestLogger } from "../../middleware/upload";
 
 console.log("=== EMPLOYEE NEWS NETWORK LOADING ===");
 
@@ -43,7 +43,7 @@ handler.get(`${apiURL}/:id`, async function (req, res) {
 });
 
 // POST: api/employee_news
-handler.post(`${apiURL}/`, upload.single('document'), async function (req, res) {
+handler.post(`${apiURL}/`, requestLogger, async function (req, res) {
   try {
     console.log("=== DEBUG UPLOAD ===");
     console.log("req.body:", req.body);
@@ -68,11 +68,14 @@ handler.post(`${apiURL}/`, upload.single('document'), async function (req, res) 
 });
 
 // PUT: api/employee_news/1
-handler.put(`${apiURL}/:id`, upload.single('document'), async function (req, res) {
+handler.put(`${apiURL}/:id`, requestLogger, async function (req, res) {
   try {
     console.log("=== DEBUG UPDATE UPLOAD ===");
+    console.log("req.params.id:", req.params.id);
     console.log("req.body:", req.body);
     console.log("req.file:", req.file);
+    console.log("req.files:", req.files);
+    console.log("Content-Type:", req.headers['content-type']);
 
     // Combinar datos del formulario con el archivo
     const formData = {
@@ -81,12 +84,18 @@ handler.put(`${apiURL}/:id`, upload.single('document'), async function (req, res
     };
 
     console.log("formData update:", formData);
+    console.log("formData keys:", Object.keys(formData));
+    console.log("formData values:", Object.values(formData));
 
+    console.log("Llamando a controller.update...");
     const result = await controller.update(req.params.id, formData);
+    console.log("Resultado del controller:", result);
+    
     response.success(req, res, result);
   } catch (error) {
-    console.log("ERROR: ", error);
-    response.error(req, res, "Error on employee_news", 400, error);
+    console.log("ERROR EN NETWORK: ", error);
+    console.log("Error stack:", error.stack);
+    response.error(req, res, "Error on employee_news", 500, error);
   }
 });
 

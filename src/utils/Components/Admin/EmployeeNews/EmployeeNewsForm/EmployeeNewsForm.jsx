@@ -410,27 +410,28 @@ const EmployeeNewsForm = ({
           endTime: formData.endTime || null,
         };
 
-        // Si hay un archivo seleccionado, crear FormData
-        let save;
-        if (selectedFile) {
-          const formDataToSend = new FormData();
-          Object.keys(formattedData).forEach(key => {
-            if (key === 'document') {
-              formDataToSend.append('document', selectedFile);
-            } else {
-              formDataToSend.append(key, formattedData[key]);
-            }
-          });
+        // Siempre crear FormData para mantener consistencia
+        const formDataToSend = new FormData();
+        Object.keys(formattedData).forEach(key => {
+          if (key === 'document' && selectedFile) {
+            formDataToSend.append('document', selectedFile);
+          } else if (formattedData[key] !== null && formattedData[key] !== undefined) {
+            formDataToSend.append(key, formattedData[key]);
+          }
+        });
 
-          save = isUpdate
-            ? await employeeNewsApi.update(dataToUpdate.id, formDataToSend)
-            : await employeeNewsApi.create(formDataToSend);
-        } else {
-          // Sin archivo, enviar datos normales
-          save = isUpdate
-            ? await employeeNewsApi.update(dataToUpdate.id, formattedData)
-            : await employeeNewsApi.create(formattedData);
+        console.log("FormData creado:", formDataToSend);
+        console.log("Archivo seleccionado:", selectedFile);
+        console.log("Datos formateados:", formattedData);
+
+        // Debug: mostrar contenido del FormData
+        for (let [key, value] of formDataToSend.entries()) {
+          console.log(`FormData - ${key}:`, value);
         }
+
+        const save = isUpdate
+          ? await employeeNewsApi.update(dataToUpdate.id, formDataToSend)
+          : await employeeNewsApi.create(formDataToSend);
 
         if (save?.id) {
           setFormData({

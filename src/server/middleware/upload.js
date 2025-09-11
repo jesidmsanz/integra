@@ -23,11 +23,16 @@ const storage = multer.diskStorage({
     console.log("=== STORAGE DESTINATION CALLED ===");
     console.log("file:", file);
     console.log("uploadDir:", uploadDir);
+    console.log("req.method:", req.method);
+    console.log("req.url:", req.url);
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     console.log("=== STORAGE FILENAME CALLED ===");
     console.log("file:", file);
+    console.log("file.fieldname:", file.fieldname);
+    console.log("file.originalname:", file.originalname);
+    console.log("file.mimetype:", file.mimetype);
     // Generar nombre único para el archivo
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
@@ -47,4 +52,16 @@ const upload = multer({
 
 console.log("=== UPLOAD MIDDLEWARE LOADED ===");
 
-module.exports = upload; 
+// Middleware de logging para todas las peticiones
+const requestLogger = (req, res, next) => {
+  console.log("=== REQUEST LOGGER ===");
+  console.log("Method:", req.method);
+  console.log("URL:", req.url);
+  console.log("Content-Type:", req.headers['content-type']);
+  console.log("Body keys:", Object.keys(req.body || {}));
+  console.log("File:", req.file ? req.file.filename : 'No file');
+  console.log("Files:", req.files ? Object.keys(req.files) : 'No files');
+  next();
+};
+
+module.exports = { upload, requestLogger }; 

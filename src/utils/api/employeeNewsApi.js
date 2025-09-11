@@ -28,7 +28,6 @@ const employeeNewsApi = {
   create: async (obj) => {
     try {
       let config = {};
-
       // Si es FormData (con archivo), no establecer Content-Type
       if (obj instanceof FormData) {
         config = {
@@ -48,20 +47,39 @@ const employeeNewsApi = {
 
   update: async (id, obj) => {
     try {
-      console.log("obj", obj);
+      console.log("=== EMPLOYEE NEWS API UPDATE ===");
+      console.log("ID:", id);
+      console.log("obj:", obj);
+      console.log("Es FormData:", obj instanceof FormData);
+      
       let config = {};
-      if (!obj.document) delete obj.document;
-      // Si es FormData (con archivo), no establecer Content-Type
+      
+      // Si es FormData (con archivo), configurar para multipart
       if (obj instanceof FormData) {
         config = {
           headers: {
             "Content-Type": "multipart/form-data",
           },
         };
+        console.log("Usando FormData - config:", config);
+      } else {
+        // Para objetos JSON normales, usar application/json
+        config = {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        };
+        console.log("Usando JSON - config:", config);
+        
+        // Solo para objetos normales, eliminar document si no existe
+        if (!obj.document) delete obj.document;
       }
-      console.log("obj", obj);
+      
+      console.log("Config final:", config);
+      console.log("Datos a enviar:", obj);
 
       const { data } = await fetchApi.put(`${mainRoute}/${id}`, obj, config);
+      console.log("Respuesta del servidor:", data);
       return data.body;
     } catch (error) {
       console.error("Error al actualizar el tipo de novedad", error);

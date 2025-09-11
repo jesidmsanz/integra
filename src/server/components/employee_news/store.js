@@ -46,12 +46,46 @@ ORDER BY en.id DESC;
   }
 
   async function update(id, model) {
-    const cond = {
-      where: { id },
-    };
-    
-    const result = await Model.update(model, cond);
-    return result ? Model.findOne(cond) : false;
+    try {
+      console.log("=== STORE UPDATE DEBUG ===");
+      console.log("ID recibido:", id);
+      console.log("Model recibido:", model);
+      console.log("Model keys:", Object.keys(model));
+      console.log("Model values:", Object.values(model));
+      
+      // Verificar que el registro existe antes de actualizar
+      const existingRecord = await Model.findByPk(id);
+      console.log("Registro existente antes de actualizar:", existingRecord);
+      
+      if (!existingRecord) {
+        console.log("❌ No se encontró el registro con ID:", id);
+        return false;
+      }
+      
+      const cond = {
+        where: { id },
+      };
+      
+      console.log("Condición de búsqueda:", cond);
+      console.log("Datos a actualizar:", model);
+      
+      const result = await Model.update(model, cond);
+      console.log("Resultado de Model.update:", result);
+      console.log("Número de registros afectados:", result[0]);
+      
+      if (result && result[0] > 0) {
+        const updatedRecord = await Model.findByPk(id);
+        console.log("✅ Registro actualizado exitosamente:", updatedRecord);
+        return updatedRecord;
+      } else {
+        console.log("❌ No se actualizó ningún registro - posible problema con los datos");
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error en store.update:", error);
+      console.error("Error stack:", error.stack);
+      throw error;
+    }
   }
 
   function deleteById(_id) {

@@ -26,29 +26,63 @@ function findById(id) {
 
 function create(obj) {
   return new Promise(async (resolve, reject) => {
-    const { EmployeeNews } = await db();
-    
-    // Si hay un archivo subido, guardar el path
-    if (obj.document) {
-      obj.document = `/files/${obj.document}`;
+    try {
+      const { EmployeeNews } = await db();
+      
+      // Crear una copia del objeto para no modificar el original
+      const createData = { ...obj };
+      
+      // Si hay un archivo subido, guardar el path
+      if (createData.document) {
+        createData.document = `/files/${createData.document}`;
+      }
+      
+      console.log("Datos para crear:", createData);
+      
+      const result = await EmployeeNews.create(createData);
+      resolve(result);
+    } catch (error) {
+      console.error("Error en create controller:", error);
+      reject(error);
     }
-    
-    const result = await EmployeeNews.create(obj);
-    resolve(result);
   });
 }
 
 function update(_id, obj) {
   return new Promise(async (resolve, reject) => {
-    const { EmployeeNews } = await db();
-    
-    // Si hay un archivo subido, guardar el path
-    if (obj.document) {
-      obj.document = `/files/${obj.document}`;
+    try {
+      const { EmployeeNews } = await db();
+      
+      // Crear una copia del objeto para no modificar el original
+      const updateData = { ...obj };
+      
+      // Si hay un archivo subido, guardar el path
+      if (updateData.document) {
+        updateData.document = `/files/${updateData.document}`;
+      }
+      
+      console.log("=== UPDATE CONTROLLER ===");
+      console.log("ID a actualizar:", _id);
+      console.log("Datos para actualizar:", updateData);
+      console.log("Campo approved:", updateData.approved);
+      
+      const result = await EmployeeNews.update(_id, updateData);
+      console.log("Resultado de la actualización:", result);
+      
+      // Verificar que se actualizó correctamente
+      if (result && result[0] > 0) {
+        console.log("✅ Registro actualizado exitosamente");
+        const updatedRecord = await EmployeeNews.findById(_id);
+        console.log("Registro actualizado:", updatedRecord);
+      } else {
+        console.log("❌ No se actualizó ningún registro");
+      }
+      
+      resolve(result);
+    } catch (error) {
+      console.error("Error en update controller:", error);
+      reject(error);
     }
-    
-    const result = await EmployeeNews.update(_id, obj);
-    resolve(result);
   });
 }
 

@@ -154,7 +154,28 @@ const EmployeeNewsListContainer = () => {
     },
     {
       name: "Estado",
-      selector: (row) => (row.status === "active" ? "Activo" : "Inactivo"),
+      cell: (row) => {
+        // Determinar el estado basado en el campo 'approved'
+        let statusText = "";
+        let statusClass = "";
+        
+        if (row.approved === true) {
+          statusText = "Aprobado";
+          statusClass = "badge bg-success";
+        } else if (row.approved === false) {
+          statusText = "Rechazado";
+          statusClass = "badge bg-danger";
+        } else {
+          statusText = "Pendiente";
+          statusClass = "badge bg-warning";
+        }
+        
+        return (
+          <span className={statusClass}>
+            {statusText}
+          </span>
+        );
+      },
       sortable: true,
     },
     {
