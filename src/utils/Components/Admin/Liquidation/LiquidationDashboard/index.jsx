@@ -24,11 +24,13 @@ import moment from "moment";
 import ExcelJS from 'exceljs';
 import liquidationsApi from "@/utils/api/liquidationsApi";
 import companiesApi from "@/utils/api/companiesApi";
+import typeNewsApi from "@/utils/api/typeNewsApi";
 
 const LiquidationsDashboard = () => {
   const router = useRouter();
   const [liquidations, setLiquidations] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [typeNews, setTypeNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filteredLiquidations, setFilteredLiquidations] = useState([]);
   const [filters, setFilters] = useState({
@@ -59,6 +61,16 @@ const LiquidationsDashboard = () => {
       const companiesResponse = await companiesApi.list();
       if (companiesResponse.length) {
         setCompanies(companiesResponse);
+      }
+
+      // Cargar tipos de novedades
+      const typeNewsResponse = await typeNewsApi.list();
+      if (typeNewsResponse && typeNewsResponse.data && typeNewsResponse.data.length) {
+        setTypeNews(typeNewsResponse.data);
+      } else if (typeNewsResponse && Array.isArray(typeNewsResponse)) {
+        setTypeNews(typeNewsResponse);
+      } else {
+        setTypeNews([]);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -206,22 +218,58 @@ const LiquidationsDashboard = () => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Liquidación');
 
-        // Configurar anchos de columna CON TÍTULOS COMPLETOS
-        worksheet.columns = [
-          { key: 'id', width: 8 },
-          { key: 'nombre', width: 25 },
-          { key: 'documento', width: 15 },
-          { key: 'cargo', width: 20 },
-          { key: 'salario', width: 20 },
-          { key: 'transporte', width: 22 },
-          { key: 'devengado', width: 22 },
-          { key: 'descuentos', width: 22 },
-          { key: 'neto', width: 20 }
+        // Configurar anchos de columna - COINCIDIR CON LIQUIDACIÓN
+        const baseColumns = [
+          { key: 'documento', width: 18 },
+          { key: 'nombre', width: 20 },
+          { key: 'cargo', width: 18 },
+          { key: 'tipo_contrato', width: 18 },
+          { key: 'salario_base', width: 18 },
+          { key: 'auxilio_transporte', width: 18 },
+          { key: 'valor_hora', width: 18 },
+          { key: 'frecuencia_pago', width: 18 }
         ];
+
+        // Agregar columnas de novedades
+        const newsColumns = typeNews.map(type => ({
+          key: `novedad_${type.id}`,
+          width: 15
+        }));
+
+        const finalColumns = [
+          ...baseColumns,
+          ...newsColumns,
+          { key: 'total', width: 25 }
+        ];
+
+        worksheet.columns = finalColumns;
+        
+        console.log("🔍 Columnas definidas:", finalColumns.length);
+        console.log("🔍 Detalles de columnas:", finalColumns.map(col => ({ key: col.key, width: col.width })));
 
         // === DISEÑO CORPORATIVO PREMIUM ===
 
         // 1. ENCABEZADO CORPORATIVO COMPACTO
+        const totalColumns = 8 + typeNews.length + 1; // base + novedades + final
+        console.log("🔍 Total de columnas para merge:", totalColumns);
+        
+        // Función para obtener letra de columna
+        const getColumnLetter = (num) => {
+          let result = '';
+          while (num > 0) {
+            num--;
+            result = String.fromCharCode(65 + (num % 26)) + result;
+            num = Math.floor(num / 26);
+          }
+          return result;
+        };
+        
+        const lastColumn = getColumnLetter(totalColumns);
+        console.log("🔍 Rango de merge:", `A1:${lastColumn}1`);
+        
+        // COMBINAR CELDAS PRIMERO
+        worksheet.mergeCells(`A1:${lastColumn}1`);
+        
         const headerRow1 = worksheet.getRow(1);
         headerRow1.height = 30;
         headerRow1.getCell(1).value = 'INTEGRA - SISTEMA DE GESTIÓN DE NÓMINA';
@@ -237,15 +285,17 @@ const LiquidationsDashboard = () => {
           fgColor: { argb: 'FF1F4E79' }
         };
         headerRow1.getCell(1).alignment = {
-          horizontal: 'center',
+          horizontal: 'left',
           vertical: 'middle'
         };
-        worksheet.mergeCells('A1:I1');
 
         // 2. TÍTULO DEL REPORTE COMPACTO
+        // COMBINAR CELDAS PRIMERO
+        worksheet.mergeCells(`A2:${lastColumn}2`);
+        
         const titleRow = worksheet.getRow(2);
         titleRow.height = 25;
-        titleRow.getCell(1).value = 'REPORTE DE LIQUIDACIÓN DE NÓMINA';
+        titleRow.getCell(1).value = 'LIQUIDACIÓN DE NÓMINA';
         titleRow.getCell(1).font = {
           name: 'Arial',
           size: 14,
@@ -258,7 +308,7 @@ const LiquidationsDashboard = () => {
           fgColor: { argb: 'FFE6F3FF' }
         };
         titleRow.getCell(1).alignment = {
-          horizontal: 'center',
+          horizontal: 'left',
           vertical: 'middle'
         };
         titleRow.getCell(1).border = {
@@ -267,10 +317,13 @@ const LiquidationsDashboard = () => {
           left: { style: 'medium', color: { argb: 'FF1F4E79' } },
           right: { style: 'medium', color: { argb: 'FF1F4E79' } }
         };
-        worksheet.mergeCells('A2:I2');
 
         // 3. INFORMACIÓN DE LA EMPRESA COMPACTA
         const infoStartRow = 4;
+        
+        // COMBINAR CELDAS PRIMERO
+        worksheet.mergeCells(`A${infoStartRow}:${lastColumn}${infoStartRow}`);
+        
         const infoHeaderRow = worksheet.getRow(infoStartRow);
         infoHeaderRow.height = 22;
         infoHeaderRow.getCell(1).value = 'INFORMACIÓN DE LA EMPRESA';
@@ -289,7 +342,6 @@ const LiquidationsDashboard = () => {
           horizontal: 'left',
           vertical: 'middle'
         };
-        worksheet.mergeCells(`A${infoStartRow}:I${infoStartRow}`);
 
         // Datos de la empresa COMPACTOS
         const companyData = [
@@ -298,6 +350,9 @@ const LiquidationsDashboard = () => {
         ];
 
         companyData.forEach((data, index) => {
+          // COMBINAR CELDAS PRIMERO
+          worksheet.mergeCells(`A${infoStartRow + 1 + index}:${lastColumn}${infoStartRow + 1 + index}`);
+          
           const row = worksheet.getRow(infoStartRow + 1 + index);
           row.height = 18;
           row.getCell(1).value = data;
@@ -319,7 +374,6 @@ const LiquidationsDashboard = () => {
           row.getCell(1).border = {
             bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } }
           };
-          worksheet.mergeCells(`A${infoStartRow + 1 + index}:I${infoStartRow + 1 + index}`);
         });
 
         // 4. TABLA DE EMPLEADOS COMPACTA
@@ -329,22 +383,27 @@ const LiquidationsDashboard = () => {
         const headerRow = worksheet.getRow(dataStartRow);
         headerRow.height = 25;
         
-        // Títulos de columnas manuales CON TAMAÑO ADECUADO
+        // Títulos de columnas - COINCIDIR CON LIQUIDACIÓN
         const columnTitles = [
-          'ID',
-          'NOMBRE COMPLETO',
           'DOCUMENTO',
+          'NOMBRE',
           'CARGO',
-          'SALARIO BÁSICO',
-          'AUXILIO TRANSPORTE',
-          'TOTAL DEVENGADO',
-          'TOTAL DESCUENTOS',
-          'NETO A PAGAR'
+          'TIPO DE CONTRATO',
+          'SALARIO BASE',
+          'AUXILIO DE TRANSPORTE',
+          'VALOR POR HORA',
+          'FRECUENCIA DE PAGO',
+          ...typeNews.map(type => type.code || type.name),
+          'TOTAL'
         ];
+        console.log("🔍 Títulos de columnas generados:", columnTitles);
+        console.log("🔍 Total de columnas:", columnTitles.length);
+        console.log("🔍 Últimas 3 columnas:", columnTitles.slice(-3));
         
         columnTitles.forEach((title, index) => {
           const cell = headerRow.getCell(index + 1);
           cell.value = title;
+          console.log(`🔍 Columna ${index + 1}: "${title}"`);
           cell.font = {
             name: 'Arial',
             size: 9,
@@ -368,25 +427,39 @@ const LiquidationsDashboard = () => {
           };
         });
 
-        // Datos de empleados COMPACTOS
+        // Datos de empleados COMPACTOS - COINCIDIR CON LIQUIDACIÓN
         details.data.liquidation_details.forEach((detail, index) => {
           const row = worksheet.getRow(dataStartRow + 1 + index);
           row.height = 22;
           
           const isEven = index % 2 === 0;
           
-          row.getCell(1).value = detail.employee_id;
-          row.getCell(2).value = detail.employee_name;
-          row.getCell(3).value = detail.employee_document;
-          row.getCell(4).value = detail.employee_position;
-          row.getCell(5).value = detail.basic_salary;
-          row.getCell(6).value = detail.transportation_assistance;
-          row.getCell(7).value = detail.total_earnings;
-          row.getCell(8).value = detail.total_deductions;
-          row.getCell(9).value = detail.net_amount;
+          // Columnas base - COINCIDIR CON LIQUIDACIÓN
+          row.getCell(1).value = detail.employee_document; // DOCUMENTO
+          row.getCell(2).value = detail.employee_name; // NOMBRE
+          row.getCell(3).value = detail.employee_position; // CARGO
+          row.getCell(4).value = detail.contract_type || "No disponible"; // TIPO DE CONTRATO
+          row.getCell(5).value = detail.basic_salary; // SALARIO BASE
+          row.getCell(6).value = detail.transportation_assistance; // AUXILIO DE TRANSPORTE
+          row.getCell(7).value = detail.hourly_rate || 0; // VALOR POR HORA
+          row.getCell(8).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
+
+          // Agregar datos de novedades - LLENAR CON 0 SI NO HAY
+          let currentCol = 9;
+          typeNews.forEach((type) => {
+            const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
+            const amount = novedad ? novedad.total_amount : 0;
+            row.getCell(currentCol).value = amount;
+            currentCol++;
+          });
+
+          // Columna final - TOTAL
+          const totalCol = 8 + typeNews.length + 1;
+          row.getCell(totalCol).value = detail.net_amount;
 
           // Aplicar estilos a toda la fila COMPACTOS
-          for (let col = 1; col <= 9; col++) {
+          const totalCols = 8 + typeNews.length + 1; // base + novedades + final
+          for (let col = 1; col <= totalCols; col++) {
             const cell = row.getCell(col);
             cell.font = {
               name: 'Arial',
@@ -410,26 +483,57 @@ const LiquidationsDashboard = () => {
             };
 
             // Formato de moneda para columnas numéricas
-            if (col >= 5) {
+            if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
+              cell.numFmt = '"$"#,##0';
+            } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 8 + typeNews.length + 1) { // TOTAL
               cell.numFmt = '"$"#,##0';
             }
           }
         });
 
-        // 5. FILA DE TOTALES COMPACTA
+        // 5. FILA DE TOTALES COMPACTA - COINCIDIR CON LIQUIDACIÓN
         const totalRow = dataStartRow + details.data.liquidation_details.length + 1;
         const totalRowObj = worksheet.getRow(totalRow);
         totalRowObj.height = 25;
         
         totalRowObj.getCell(4).value = 'TOTAL GENERAL:';
-        totalRowObj.getCell(5).value = { formula: `SUM(E${dataStartRow + 1}:E${dataStartRow + details.data.liquidation_details.length})` };
-        totalRowObj.getCell(6).value = { formula: `SUM(F${dataStartRow + 1}:F${dataStartRow + details.data.liquidation_details.length})` };
-        totalRowObj.getCell(7).value = { formula: `SUM(G${dataStartRow + 1}:G${dataStartRow + details.data.liquidation_details.length})` };
-        totalRowObj.getCell(8).value = { formula: `SUM(H${dataStartRow + 1}:H${dataStartRow + details.data.liquidation_details.length})` };
-        totalRowObj.getCell(9).value = { formula: `SUM(I${dataStartRow + 1}:I${dataStartRow + details.data.liquidation_details.length})` };
+        
+        // Calcular totales manualmente (SIN FÓRMULAS)
+        let totalSalario = 0;
+        let totalTransporte = 0;
+        let totalNeto = 0;
+        
+        details.data.liquidation_details.forEach(detail => {
+          totalSalario += detail.basic_salary || 0;
+          totalTransporte += detail.transportation_assistance || 0;
+          totalNeto += detail.net_amount || 0;
+        });
+        
+        totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
+        totalRowObj.getCell(6).value = totalTransporte; // AUXILIO DE TRANSPORTE
+        // Columnas 7 y 8 (VALOR POR HORA y FRECUENCIA DE PAGO) no tienen totales
+        
+        // Totales de novedades (SIN FÓRMULAS)
+        let currentCol = 9;
+        typeNews.forEach((type) => {
+          let totalNovedad = 0;
+          details.data.liquidation_details.forEach(detail => {
+            const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
+            totalNovedad += novedad ? (novedad.total_amount || 0) : 0;
+          });
+          totalRowObj.getCell(currentCol).value = totalNovedad;
+          currentCol++;
+        });
+        
+        // Total final (SIN FÓRMULAS)
+        const totalCol = 8 + typeNews.length + 1;
+        totalRowObj.getCell(totalCol).value = totalNeto;
 
         // Estilo de la fila de totales COMPACTA
-        for (let col = 1; col <= 9; col++) {
+        const totalCols = 8 + typeNews.length + 1; // base + novedades + final
+        for (let col = 1; col <= totalCols; col++) {
           const cell = totalRowObj.getCell(col);
           cell.font = {
             name: 'Arial',
@@ -453,7 +557,12 @@ const LiquidationsDashboard = () => {
             right: { style: 'thin', color: { argb: 'FF1F4E79' } }
           };
 
-          if (col >= 5) {
+          // Formato de moneda para columnas numéricas en totales
+          if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
+            cell.numFmt = '"$"#,##0';
+          } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 8 + typeNews.length + 1) { // TOTAL
             cell.numFmt = '"$"#,##0';
           }
         }
@@ -478,7 +587,7 @@ const LiquidationsDashboard = () => {
             horizontal: 'center',
             vertical: 'middle'
           };
-          worksheet.mergeCells(`A${footerStartRow + index}:I${footerStartRow + index}`);
+          worksheet.mergeCells(`A${footerStartRow + index}:${lastColumn}${footerStartRow + index}`);
         });
 
         // Generar y descargar archivo
