@@ -8,7 +8,7 @@ const typeNewsApi = {
       const { data } = await fetchApi.get(
         `${mainRoute}?page=${page}&limit=${limit}`
       );
-      return data.body;
+      return data.body?.data || data.body || [];
     } catch (error) {
       console.error("Error al obtener la lista de tipos de novedades", error);
       throw error;
