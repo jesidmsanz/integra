@@ -32,7 +32,35 @@ const VolantesPago = () => {
     try {
       setLoading(true);
       const result = await liquidationsApi.list();
-      setLiquidations(result.data || []);
+      console.log('🔍 RESULTADO COMPLETO DE LA API:', result);
+      console.log('🔍 result.data:', result.data);
+      console.log('🔍 result.body:', result.body);
+      console.log('🔍 typeof result:', typeof result);
+      console.log('🔍 Object.keys(result):', Object.keys(result));
+      
+      // Intentar diferentes estructuras de respuesta
+      let liquidations = [];
+      if (result.data && Array.isArray(result.data)) {
+        liquidations = result.data;
+      } else if (result.body && Array.isArray(result.body)) {
+        liquidations = result.body;
+      } else if (Array.isArray(result)) {
+        liquidations = result;
+      } else {
+        console.log('🔍 Estructura de respuesta no reconocida:', result);
+      }
+      
+      console.log('🔍 Liquidaciones extraídas:', liquidations);
+      console.log('🔍 Total liquidaciones:', liquidations.length);
+      console.log('🔍 Estados de liquidaciones:', liquidations.map(l => l.status));
+      
+      // Filtrar solo liquidaciones aprobadas y pagadas para volantes de pago
+      const approvedLiquidations = liquidations.filter(liquidation => 
+        liquidation.status === 'approved' || liquidation.status === 'paid'
+      );
+      
+      console.log('🔍 Liquidaciones aprobadas/pagadas:', approvedLiquidations.length);
+      setLiquidations(approvedLiquidations);
     } catch (error) {
       console.error('Error cargando liquidaciones:', error);
       toast.error('Error al cargar liquidaciones');
@@ -45,17 +73,40 @@ const VolantesPago = () => {
     try {
       setLoadingEmployees(true);
       const result = await liquidationsApi.getById(liquidationId);
-      if (result.data && result.data.liquidation_details) {
+      console.log('🔍 RESULTADO getById:', result);
+      console.log('🔍 result.data:', result.data);
+      console.log('🔍 result.body:', result.body);
+      console.log('🔍 typeof result:', typeof result);
+      
+      // Intentar diferentes estructuras de respuesta
+      let liquidationData = null;
+      if (result.data) {
+        liquidationData = result.data;
+      } else if (result.body) {
+        liquidationData = result.body;
+      } else if (Array.isArray(result) && result.length > 0) {
+        liquidationData = result[0]; // Si es un array, tomar el primer elemento
+      } else {
+        liquidationData = result;
+      }
+      
+      console.log('🔍 liquidationData:', liquidationData);
+      console.log('🔍 liquidationData.liquidation_details:', liquidationData?.liquidation_details);
+      
+      if (liquidationData && liquidationData.liquidation_details && Array.isArray(liquidationData.liquidation_details)) {
+        console.log('🔍 Número de detalles de liquidación:', liquidationData.liquidation_details.length);
         // Extraer empleados de los detalles de la liquidación
-        const employeesFromLiquidation = result.data.liquidation_details.map(detail => ({
+        const employeesFromLiquidation = liquidationData.liquidation_details.map(detail => ({
           id: detail.employee_id,
           fullname: detail.employee_name,
           documentnumber: detail.employee_document,
           email: detail.employee_email || '',
           position: detail.employee_position || ''
         }));
+        console.log('🔍 Empleados extraídos:', employeesFromLiquidation);
         setEmployees(employeesFromLiquidation);
       } else {
+        console.log('🔍 No se encontraron liquidation_details válidos');
         setEmployees([]);
       }
     } catch (error) {
@@ -434,10 +485,17 @@ const VolantesPago = () => {
                     }}
                     disabled={loading}
                   >
-                    <option value="">{loading ? 'Cargando liquidaciones...' : 'Seleccione una liquidación'}</option>
+                    <option value="">
+                      {loading ? 'Cargando liquidaciones...' : 
+                       liquidations.length === 0 ? 'No hay liquidaciones aprobadas' : 
+                       'Seleccione una liquidación'}
+                    </option>
                     {liquidations.map(liquidation => (
                       <option key={liquidation.id} value={liquidation.id}>
-                        {liquidation.period} - {liquidation.status}
+                        {liquidation.period} - {liquidation.companyname} - {liquidation.status}
+                        {liquidation.start_date && liquidation.end_date && 
+                          ` (${liquidation.start_date} a ${liquidation.end_date})`
+                        }
                       </option>
                     ))}
                   </Input>
@@ -498,13 +556,30 @@ const VolantesPago = () => {
               </Col>
             </Row>
 
+            {/* Información sobre liquidaciones */}
+            {!loading && liquidations.length === 0 && (
+              <Row className="mb-3">
+                <Col md="12">
+                  <Alert color="warning" className="text-center">
+                    <i className="fa fa-exclamation-triangle me-2" />
+                    <strong>No hay liquidaciones aprobadas disponibles</strong>
+                    <br />
+                    <small>Para generar volantes de pago, primero debe aprobar las liquidaciones en el módulo de Liquidación.</small>
+                  </Alert>
+                </Col>
+              </Row>
+            )}
+
             {/* Tabla de Empleados */}
             <Row>
               <Col md="12">
                 {!selectedLiquidation ? (
                   <Alert color="info" className="text-center">
                     <i className="fa fa-info-circle me-2" />
-                    Seleccione una liquidación para ver los empleados
+                    {liquidations.length === 0 ? 
+                      'No hay liquidaciones aprobadas para seleccionar' : 
+                      'Seleccione una liquidación para ver los empleados'
+                    }
                   </Alert>
                 ) : loadingEmployees ? (
                   <div className="text-center py-4">

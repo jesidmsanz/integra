@@ -112,8 +112,9 @@ ORDER BY en.id DESC;
       INNER JOIN employees e ON en."employeeId" = e.id
       INNER JOIN type_news tn ON en."typeNewsId" = tn.id
       INNER JOIN companies c ON en."companyId" = c.id
-      WHERE en.status = 'active'
+      WHERE en.active = true
         AND en.approved = true
+        AND en.liquidation_status = 'pending'
         AND en."companyId" = :companyId
         AND DATE(en."startDate") >= :startDate
         AND DATE(en."endDate") <= :endDate
@@ -130,6 +131,78 @@ ORDER BY en.id DESC;
     );
   }
 
+  // Nueva función para obtener novedades por estado de liquidación
+  function getByLiquidationStatus(status, companyId = null, startDate = null, endDate = null) {
+    let whereClause = "WHERE en.liquidation_status = :status";
+    const replacements = { status };
+
+    if (companyId) {
+      whereClause += " AND en.\"companyId\" = :companyId";
+      replacements.companyId = companyId;
+    }
+
+    if (startDate) {
+      whereClause += " AND DATE(en.\"startDate\") >= :startDate";
+      replacements.startDate = startDate;
+    }
+
+    if (endDate) {
+      whereClause += " AND DATE(en.\"endDate\") <= :endDate";
+      replacements.endDate = endDate;
+    }
+
+    return sequelize.query(
+      `
+      SELECT 
+        en.*,
+        e.fullname AS employee_name,
+        e.documentnumber AS employee_document,
+        e.position AS employee_position,
+        tn.name AS type_news_name,
+        tn.code AS type_news_code,
+        c.companyname
+      FROM employee_news en
+      INNER JOIN employees e ON en."employeeId" = e.id
+      INNER JOIN type_news tn ON en."typeNewsId" = tn.id
+      INNER JOIN companies c ON en."companyId" = c.id
+      ${whereClause}
+      ORDER BY en.id ASC
+      `,
+      {
+        replacements,
+        type: QueryTypes.SELECT,
+      }
+    );
+  }
+
+  // Función para marcar novedades como liquidadas e inactivas
+  function markAsLiquidated(employeeNewsIds, liquidationId) {
+    return sequelize.query(
+      `
+      UPDATE employee_news 
+      SET liquidation_status = 'liquidated', active = false 
+      WHERE id IN (${employeeNewsIds.join(',')})
+      `,
+      {
+        type: QueryTypes.UPDATE,
+      }
+    );
+  }
+
+  // Función para restaurar novedades a pendientes y activas
+  function restoreToPending(employeeNewsIds) {
+    return sequelize.query(
+      `
+      UPDATE employee_news 
+      SET liquidation_status = 'pending', active = true 
+      WHERE id IN (${employeeNewsIds.join(',')})
+      `,
+      {
+        type: QueryTypes.UPDATE,
+      }
+    );
+  }
+
   return {
     findAll,
     findAllActive,
@@ -138,5 +211,8 @@ ORDER BY en.id DESC;
     update,
     deleteById,
     getPendingByPeriod,
+    getByLiquidationStatus,
+    markAsLiquidated,
+    restoreToPending,
   };
 };

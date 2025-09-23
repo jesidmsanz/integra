@@ -114,6 +114,61 @@ function getPendingByPeriod(startDate, endDate, companyId) {
   });
 }
 
+function getByLiquidationStatus(status, companyId = null, startDate = null, endDate = null) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("🔄 Obteniendo novedades por estado de liquidación...");
+      console.log("📊 Parámetros:", { status, companyId, startDate, endDate });
+      
+      const { EmployeeNews } = await db();
+      const result = await EmployeeNews.getByLiquidationStatus(status, companyId, startDate, endDate);
+      
+      console.log("📋 Novedades encontradas:", result.length);
+      resolve(result);
+    } catch (error) {
+      console.error("❌ Error en getByLiquidationStatus controller:", error);
+      reject(error);
+    }
+  });
+}
+
+function markAsLiquidated(employeeNewsIds, liquidationId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("🔄 Marcando novedades como liquidadas...");
+      console.log("📊 IDs de novedades:", employeeNewsIds);
+      console.log("📊 ID de liquidación:", liquidationId);
+      
+      const { EmployeeNews } = await db();
+      await EmployeeNews.markAsLiquidated(employeeNewsIds, liquidationId);
+      
+      console.log("✅ Novedades marcadas como liquidadas exitosamente");
+      resolve({ success: true, message: "Novedades marcadas como liquidadas" });
+    } catch (error) {
+      console.error("❌ Error en markAsLiquidated controller:", error);
+      reject(error);
+    }
+  });
+}
+
+function restoreToPending(employeeNewsIds) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("🔄 Restaurando novedades a pendientes...");
+      console.log("📊 IDs de novedades:", employeeNewsIds);
+      
+      const { EmployeeNews } = await db();
+      await EmployeeNews.restoreToPending(employeeNewsIds);
+      
+      console.log("✅ Novedades restauradas a pendientes exitosamente");
+      resolve({ success: true, message: "Novedades restauradas a pendientes" });
+    } catch (error) {
+      console.error("❌ Error en restoreToPending controller:", error);
+      reject(error);
+    }
+  });
+}
+
 module.exports = {
   findAll,
   findAllActive,
@@ -122,4 +177,7 @@ module.exports = {
   update,
   deleteById,
   getPendingByPeriod,
+  getByLiquidationStatus,
+  markAsLiquidated,
+  restoreToPending,
 };

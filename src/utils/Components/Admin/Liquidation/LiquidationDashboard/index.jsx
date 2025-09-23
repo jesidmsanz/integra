@@ -25,6 +25,8 @@ import ExcelJS from 'exceljs';
 import liquidationsApi from "@/utils/api/liquidationsApi";
 import companiesApi from "@/utils/api/companiesApi";
 import typeNewsApi from "@/utils/api/typeNewsApi";
+import liquidationNewsTrackingApi from "@/utils/api/liquidationNewsTrackingApi";
+// import ReLiquidationModal from "../ReLiquidationModal";
 
 const LiquidationsDashboard = () => {
   const router = useRouter();
@@ -41,6 +43,9 @@ const LiquidationsDashboard = () => {
   const [selectedLiquidation, setSelectedLiquidation] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [trackingData, setTrackingData] = useState(null);
+  // const [reLiquidationModalOpen, setReLiquidationModalOpen] = useState(false);
+  // const [selectedLiquidationForReLiquidation, setSelectedLiquidationForReLiquidation] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -137,6 +142,16 @@ const LiquidationsDashboard = () => {
       setActionLoading(true);
       const details = await liquidationsApi.getById(liquidation.id);
       setSelectedLiquidation(details.body || details.data);
+      
+      // Cargar datos de trazabilidad
+      try {
+        const tracking = await liquidationNewsTrackingApi.getByLiquidationId(liquidation.id);
+        setTrackingData(tracking);
+      } catch (trackingError) {
+        console.warn("No se pudieron cargar los datos de trazabilidad:", trackingError);
+        setTrackingData(null);
+      }
+      
       setModalOpen(true);
     } catch (error) {
       console.error("Error al cargar detalles:", error);
@@ -199,6 +214,35 @@ const LiquidationsDashboard = () => {
       setActionLoading(false);
     }
   };
+
+  // const handleReLiquidation = async (liquidation) => {
+  //   try {
+  //     // Cargar detalles completos de la liquidación
+  //     const details = await liquidationsApi.getById(liquidation.id);
+  //     setSelectedLiquidationForReLiquidation(details.body || details.data);
+  //     setReLiquidationModalOpen(true);
+  //   } catch (error) {
+  //     console.error("Error al cargar liquidación para re-liquidación:", error);
+  //     toast.error("Error al cargar los detalles de la liquidación");
+  //   }
+  // };
+
+  // const handleConfirmReLiquidation = async (reLiquidationData) => {
+  //   try {
+  //     console.log("🔄 Procesando re-liquidación:", reLiquidationData);
+      
+  //     // Aquí implementarías la lógica de re-liquidación
+  //     // Por ahora, solo mostramos un mensaje de éxito
+  //     toast.success(`Re-liquidación solicitada para ${reLiquidationData.selectedNewsIds.length} novedades`);
+      
+  //     // Recargar datos
+  //     loadData();
+  //   } catch (error) {
+  //     console.error("Error en re-liquidación:", error);
+  //     toast.error("Error al procesar la re-liquidación");
+  //     throw error;
+  //   }
+  // };
 
   const handleGenerateExcel = async (liquidation) => {
     try {
@@ -599,6 +643,7 @@ const LiquidationsDashboard = () => {
   const canApprove = (liquidation) => liquidation.status === "draft";
   const canMarkAsPaid = (liquidation) => liquidation.status === "approved";
   const canDelete = (liquidation) => liquidation.status === "draft";
+  // const canReLiquidation = (liquidation) => liquidation.status === "approved";
 
   if (loading) {
     return (
@@ -622,12 +667,21 @@ const LiquidationsDashboard = () => {
               <Col md="12">
                 <div className="d-flex justify-content-between align-items-center">
                   <h3>Listado de Liquidaciones Guardadas</h3>
-                  <Button
-                    color="primary"
-                    onClick={() => router.push("/admin/liquidacion")}
-                  >
-                    Nueva Liquidación
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button
+                      color="primary"
+                      onClick={() => router.push("/admin/liquidacion")}
+                    >
+                      Nueva Liquidación
+                    </Button>
+                    <Button
+                      color="info"
+                      onClick={() => router.push("/admin/reporte_novedades")}
+                    >
+                      <i className="fa fa-chart-bar me-2"></i>
+                      Reporte Novedades
+                    </Button>
+                  </div>
                 </div>
               </Col>
             </Row>
@@ -713,8 +767,16 @@ const LiquidationsDashboard = () => {
                             {liquidation.companyname ||
                               `Empresa ${liquidation.company_id}`}
                           </td>
-                          <td>{liquidation.period}</td>
-                          <td>Mensual</td>
+                          <td>
+                            {liquidation.start_date && liquidation.end_date 
+                              ? `${moment(liquidation.start_date).format('DD/MM')} - ${moment(liquidation.end_date).format('DD/MM/YYYY')}`
+                              : liquidation.period
+                            }
+                          </td>
+                          <td>
+                            {liquidation.payment_frequency || 'Mensual'}
+                            {liquidation.cut_number && ` (Corte ${liquidation.cut_number})`}
+                          </td>
                           <td>{liquidation.total_employees}</td>
                           <td>
                             {formatCurrency(liquidation.total_net_amount)}
@@ -773,6 +835,17 @@ const LiquidationsDashboard = () => {
                               >
                                 Excel
                               </Button>
+                              {/* {canReLiquidation(liquidation) && (
+                                <Button
+                                  size="sm"
+                                  color="warning"
+                                  onClick={() => handleReLiquidation(liquidation)}
+                                  disabled={actionLoading}
+                                  className="px-3"
+                                >
+                                  Re-liquidar
+                                </Button>
+                              )} */}
                               {canDelete(liquidation) && (
                                 <Button
                                   size="sm"
@@ -818,7 +891,15 @@ const LiquidationsDashboard = () => {
                   <div>
                     <strong>Período:</strong>
                     <br />
-                    {selectedLiquidation.period}
+                    {selectedLiquidation.start_date && selectedLiquidation.end_date 
+                      ? `${moment(selectedLiquidation.start_date).format('DD/MM')} - ${moment(selectedLiquidation.end_date).format('DD/MM/YYYY')}`
+                      : selectedLiquidation.period
+                    }
+                    <br />
+                    <small className="text-muted">
+                      {selectedLiquidation.payment_frequency || 'Mensual'}
+                      {selectedLiquidation.cut_number && ` (Corte ${selectedLiquidation.cut_number})`}
+                    </small>
                   </div>
                 </Col>
                 <Col md="2">
@@ -978,72 +1059,59 @@ const LiquidationsDashboard = () => {
                   </div>
                 )}
 
-              {/* Sección de Novedades Detalladas */}
-              {selectedLiquidation.liquidation_details &&
-                selectedLiquidation.liquidation_details.length > 0 && (
-                  <div className="mt-4">
-                    <h5>Novedades Detalladas por Empleado</h5>
-                    {selectedLiquidation.liquidation_details.map((detail) => (
-                      <div key={detail.id} className="mb-4">
-                        <div className="d-flex align-items-center mb-2">
-                          <h6 className="mb-0 me-3">
-                            {detail.employee_name} ({detail.employee_document})
-                          </h6>
-                          <Badge color="info">
-                            {detail.novedades && detail.novedades.length > 0
-                              ? `${detail.novedades.length} novedades`
-                              : "Sin novedades"}
-                          </Badge>
-                        </div>
-                        
-                        {detail.novedades && detail.novedades.length > 0 ? (
-                          <div className="table-responsive">
-                            <Table size="sm" className="mb-0">
-                              <thead>
-                                <tr>
-                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                    Tipo de Novedad
-                                  </th>
-                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                    Horas
-                                  </th>
-                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                    Días
-                                  </th>
-                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                    Valor
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {detail.novedades.map((novedad) => (
-                                  <tr key={novedad.id}>
-                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                      {novedad.type_name || `Tipo ${novedad.type_news_id}`}
-                                    </td>
-                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                      {novedad.hours || 0}
-                                    </td>
-                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                      {novedad.days || 0}
-                                    </td>
-                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
-                                      {formatCurrency(novedad.total_amount || novedad.amount || 0)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </Table>
-                          </div>
-                        ) : (
-                          <div className="text-muted">
-                            <small>No se encontraron novedades para este empleado.</small>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+              {/* Sección de Trazabilidad */}
+              {trackingData && trackingData.length > 0 && (
+                <div className="mt-4">
+                  <h5>Trazabilidad de Novedades</h5>
+                  <div className="table-responsive">
+                    <Table size="sm" className="mb-0">
+                      <thead>
+                        <tr>
+                          <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                            Empleado
+                          </th>
+                          <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                            Tipo de Novedad
+                          </th>
+                          <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                            Período
+                          </th>
+                          <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                            Estado
+                          </th>
+                          <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                            Fecha Inclusión
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trackingData.map((track) => (
+                          <tr key={track.id}>
+                            <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                              {track.employee_name} ({track.employee_document})
+                            </td>
+                            <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                              {track.type_news_name}
+                            </td>
+                            <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                              {moment(track.startDate).format('DD/MM/YYYY')} - {moment(track.endDate).format('DD/MM/YYYY')}
+                            </td>
+                            <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                              <Badge color={track.status === 'included' ? 'success' : 'warning'}>
+                                {track.status === 'included' ? 'Incluida' : track.status}
+                              </Badge>
+                            </td>
+                            <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                              {moment(track.created_at).format('DD/MM/YYYY HH:mm')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
                   </div>
-                )}
+                </div>
+              )}
+
             </div>
           )}
         </ModalBody>
@@ -1053,6 +1121,14 @@ const LiquidationsDashboard = () => {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Modal de Re-liquidación - COMENTADO TEMPORALMENTE */}
+      {/* <ReLiquidationModal
+        isOpen={reLiquidationModalOpen}
+        toggle={() => setReLiquidationModalOpen(false)}
+        liquidation={selectedLiquidationForReLiquidation}
+        onConfirm={handleConfirmReLiquidation}
+      /> */}
     </>
   );
 };

@@ -1,6 +1,44 @@
 const db = require("../../db/index.js");
 const { Op, QueryTypes } = require("sequelize");
 
+// Función para validar que el período no esté ya liquidado
+async function validatePeriodNotLiquidated(companyId, startDate, endDate) {
+  const { sequelize } = await db();
+  
+  // Validar que las fechas existan
+  if (!startDate || !endDate) {
+    console.error('❌ Fechas faltantes:', { startDate, endDate });
+    throw new Error('Las fechas de inicio y fin son requeridas');
+  }
+  
+  console.log('🔍 Validando período:', { companyId, startDate, endDate });
+  
+  // Verificar si ya existe una liquidación que se solape con el período seleccionado
+  // Esto permite múltiples liquidaciones por mes (ej: quincenas) pero evita solapamientos
+  const existing = await sequelize.query(
+    `SELECT id, period, created_at FROM liquidations 
+     WHERE company_id = :companyId 
+     AND status != 'cancelled'`,
+    {
+      replacements: { companyId },
+      type: QueryTypes.SELECT,
+    }
+  );
+  
+  // Por ahora, permitimos múltiples liquidaciones por mes
+  // Solo mostramos un warning si hay muchas liquidaciones en el mismo mes
+  const sameMonthLiquidations = existing.filter(liq => 
+    liq.period === startDate.substring(0, 7)
+  );
+  
+  if (sameMonthLiquidations.length >= 2) {
+    console.log('⚠️ Ya existen múltiples liquidaciones en el mismo mes:', sameMonthLiquidations);
+    // No bloqueamos, solo advertimos
+  }
+  
+  console.log('✅ Período validado correctamente');
+}
+
 function list(page = 1, limit = 30, status, company_id) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -35,7 +73,15 @@ function getById(id) {
 function create(liquidationData) {
   return new Promise(async (resolve, reject) => {
     try {
-      const { Liquidations, LiquidationDetails, LiquidationNews } = await db();
+      const { Liquidations, LiquidationDetails, LiquidationNews, LiquidationNewsTracking, sequelize } = await db();
+
+      console.log('📝 Datos de liquidación recibidos:', {
+        company_id: liquidationData.company_id,
+        startDate: liquidationData.startDate,
+        endDate: liquidationData.endDate,
+        hasEmployees: !!liquidationData.employees_data,
+        employeeCount: liquidationData.employees_data?.length
+      });
 
       // Validar datos
       if (!liquidationData.company_id || !liquidationData.employees_data) {
@@ -45,6 +91,13 @@ function create(liquidationData) {
         });
         return;
       }
+
+      // Validar que el período no esté ya liquidado
+      await validatePeriodNotLiquidated(
+        liquidationData.company_id,
+        liquidationData.startDate,
+        liquidationData.endDate
+      );
 
       // Calcular totales
       const employees = liquidationData.employees_data;
@@ -70,7 +123,11 @@ function create(liquidationData) {
       const liquidationRecord = await Liquidations.create({
         company_id: liquidationData.company_id,
         user_id: liquidationData.user_id || 1,
-        period: liquidationData.period_start.substring(0, 7),
+        period: liquidationData.startDate.substring(0, 7),
+        start_date: liquidationData.startDate,
+        end_date: liquidationData.endDate,
+        payment_frequency: liquidationData.payment_frequency || "Mensual",
+        cut_number: liquidationData.cut_number || null,
         status: "draft",
         total_employees: totalEmployees,
         total_basic_salary: totalBasicSalary,
@@ -95,9 +152,10 @@ function create(liquidationData) {
           net_amount: toDecimal(employee.net_amount),
         });
 
-        // Crear novedades para cada empleado
+        // Crear novedades para cada empleado y registrar trazabilidad
+        const employeeNewsIds = [];
         for (const news of employee.news_data || []) {
-          await LiquidationNews.create({
+          const liquidationNews = await LiquidationNews.create({
             liquidation_detail_id: detail.id,
             employee_news_id: news.employee_news_id,
             type_news_id: news.type_news_id,
@@ -105,6 +163,26 @@ function create(liquidationData) {
             days: toDecimal(news.days),
             amount: toDecimal(news.amount),
           });
+
+          // Crear registro de trazabilidad
+          await LiquidationNewsTracking.create({
+            employee_news_id: news.employee_news_id,
+            liquidation_id: liquidationRecord.id,
+            liquidation_detail_id: detail.id,
+            status: 'included'
+          });
+
+          employeeNewsIds.push(news.employee_news_id);
+        }
+
+        // Marcar novedades como liquidadas e inactivas
+        if (employeeNewsIds.length > 0) {
+          await sequelize.query(
+            `UPDATE employee_news 
+             SET liquidation_status = 'liquidated', active = false 
+             WHERE id IN (${employeeNewsIds.join(',')})`,
+            { type: QueryTypes.UPDATE }
+          );
         }
       }
 
@@ -183,10 +261,27 @@ function approve(id, approvedBy) {
         approverId = approvedBy;
       }
 
+      // Validar que el ID del aprobador sea válido
+      const validApproverId = parseInt(approverId);
+      if (isNaN(validApproverId) || validApproverId <= 0) {
+        console.log("❌ ID de aprobador inválido:", approverId);
+        reject({
+          success: false,
+          message: "ID de usuario aprobador inválido",
+        });
+        return;
+      }
+
+      console.log("🔄 Actualizando liquidación ID:", id, "con datos:", {
+        status: "approved",
+        approved_at: new Date(),
+        approved_by: validApproverId,
+      });
+
       await Liquidations.update(id, {
         status: "approved",
         approved_at: new Date(),
-        approved_by: parseInt(approverId),
+        approved_by: validApproverId,
       });
 
       const updatedLiquidation = await Liquidations.findById(id);
@@ -245,7 +340,7 @@ function markAsPaid(id, paidBy) {
 function deleteById(id) {
   return new Promise(async (resolve, reject) => {
     try {
-      const { Liquidations, LiquidationDetails, LiquidationNews, sequelize } = await db();
+      const { Liquidations, LiquidationDetails, LiquidationNews, LiquidationNewsTracking, sequelize } = await db();
       
       console.log("🔄 Eliminando liquidación ID:", id);
       
@@ -266,10 +361,25 @@ function deleteById(id) {
         return;
       }
 
-      // Eliminar en cascada: primero liquidation_news, luego liquidation_details, finalmente liquidations
+      // Obtener novedades que se van a restaurar
+      const newsToRestore = await sequelize.query(
+        `SELECT ln.employee_news_id 
+         FROM liquidation_news ln
+         JOIN liquidation_details ld ON ln.liquidation_detail_id = ld.id
+         WHERE ld.liquidation_id = :liquidationId`,
+        {
+          replacements: { liquidationId: id },
+          type: QueryTypes.SELECT
+        }
+      );
+
+      // Eliminar en cascada: primero liquidation_news_tracking, luego liquidation_news, luego liquidation_details, finalmente liquidations
       console.log("🗑️ Eliminando registros relacionados...");
       
-      // 1. Eliminar liquidation_news relacionados usando SQL directo
+      // 1. Eliminar registros de trazabilidad
+      await LiquidationNewsTracking.deleteByLiquidationId(id);
+      
+      // 2. Eliminar liquidation_news relacionados usando SQL directo
       await sequelize.query(
         `DELETE FROM liquidation_news WHERE liquidation_detail_id IN (
           SELECT id FROM liquidation_details WHERE liquidation_id = :liquidationId
@@ -280,7 +390,7 @@ function deleteById(id) {
         }
       );
       
-      // 2. Eliminar liquidation_details relacionados
+      // 3. Eliminar liquidation_details relacionados
       await sequelize.query(
         'DELETE FROM liquidation_details WHERE liquidation_id = :liquidationId',
         {
@@ -289,7 +399,19 @@ function deleteById(id) {
         }
       );
       
-      // 3. Finalmente eliminar la liquidación
+      // 4. Restaurar novedades a pendientes y activas
+      if (newsToRestore.length > 0) {
+        const employeeNewsIds = newsToRestore.map(n => n.employee_news_id);
+        await sequelize.query(
+          `UPDATE employee_news 
+           SET liquidation_status = 'pending', active = true 
+           WHERE id IN (${employeeNewsIds.join(',')})`,
+          { type: QueryTypes.UPDATE }
+        );
+        console.log("🔄 Restauradas", employeeNewsIds.length, "novedades a pendientes y activas");
+      }
+      
+      // 5. Finalmente eliminar la liquidación
       await Liquidations.deleteById(id);
       
       console.log("✅ Liquidación eliminada exitosamente");

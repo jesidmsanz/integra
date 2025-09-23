@@ -8,6 +8,7 @@ const setupContractsModel = require("../../components/contracts/model");
 const setupCompaniesModel = require("../../components/companies/model");
 const setupEmployeeNewsModel = require("../../components/employee_news/model");
 const setupTypeNewsModel = require("../../components/type_news/model");
+const setupLiquidationNewsTrackingModel = require("../../components/liquidation_news_tracking/model");
 const setupLiquidationsModel = require("../../components/liquidations/model");
 const setupLiquidationDetailsModel = require("../../components/liquidations/liquidation_details_model");
 const setupLiquidationNewsModel = require("../../components/liquidations/liquidation_news_model");
@@ -20,6 +21,7 @@ const setupContracts = require("../../components/contracts/store");
 const setupCompanies = require("../../components/companies/store");
 const setupEmployeeNews = require("../../components/employee_news/store");
 const setupTypeNews = require("../../components/type_news/store");
+const setupLiquidationNewsTracking = require("../../components/liquidation_news_tracking/store");
 const setupLiquidations = require("../../components/liquidations/store");
 const setupLiquidationDetails = require("../../components/liquidations/liquidation_details_store");
 const setupLiquidationNews = require("../../components/liquidations/liquidation_news_store");
@@ -39,6 +41,7 @@ module.exports = async (config) => {
     const CompaniesModel = setupCompaniesModel(sequelize);
     const EmployeeNewsModel = setupEmployeeNewsModel(sequelize);
     const TypeNewsModel = setupTypeNewsModel(sequelize);
+    const LiquidationNewsTrackingModel = setupLiquidationNewsTrackingModel(sequelize);
     const LiquidationsModel = setupLiquidationsModel(sequelize);
     const LiquidationDetailsModel = setupLiquidationDetailsModel(sequelize);
     const LiquidationNewsModel = setupLiquidationNewsModel(sequelize);
@@ -150,6 +153,11 @@ module.exports = async (config) => {
       sequelize
     );
     const TypeNews = setupTypeNews(TypeNewsModel, config, sequelize);
+    const LiquidationNewsTracking = setupLiquidationNewsTracking(
+      LiquidationNewsTrackingModel,
+      config,
+      sequelize
+    );
     const Liquidations = setupLiquidations(
       LiquidationsModel,
       config,
@@ -174,6 +182,7 @@ module.exports = async (config) => {
       Companies,
       EmployeeNews,
       TypeNews,
+      LiquidationNewsTracking,
       Liquidations,
       LiquidationDetails,
       LiquidationNews,

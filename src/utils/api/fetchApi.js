@@ -9,7 +9,6 @@ const fetchApi = axios.create({
 fetchApi.interceptors.request.use(
   async (config) => {
     const session = await getSession();
-
     if (session && session.accessToken) {
       config.headers.Authorization = `Bearer ${session.accessToken}`;
     }

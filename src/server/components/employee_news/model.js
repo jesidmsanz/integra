@@ -88,6 +88,12 @@ module.exports = function (config) {
         defaultValue: true,
         comment: "Estado activo/inactivo",
       },
+      liquidation_status: {
+        type: Sequelize.ENUM('pending', 'liquidated', 'excluded'),
+        allowNull: false,
+        defaultValue: 'pending',
+        comment: "Estado de liquidación: pending, liquidated, excluded",
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

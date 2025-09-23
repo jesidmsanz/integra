@@ -51,6 +51,67 @@ handler.get(`${apiURL}/pending-by-period`, async function (req, res) {
   }
 });
 
+handler.get(`${apiURL}/by-liquidation-status`, async function (req, res) {
+  try {
+    const { status, companyId, startDate, endDate } = req.query;
+    
+    console.log("🔄 GET /api/employee_news/by-liquidation-status");
+    console.log("📊 Parámetros:", { status, companyId, startDate, endDate });
+    
+    if (!status) {
+      return response.error(req, res, "El parámetro 'status' es requerido", 400);
+    }
+    
+    const result = await controller.getByLiquidationStatus(status, companyId, startDate, endDate);
+    response.success(req, res, result);
+  } catch (error) {
+    console.log("❌ ERROR en GET /api/employee_news/by-liquidation-status:", error);
+    response.error(req, res, "Error on employee_news", 400, error);
+  }
+});
+
+handler.put(`${apiURL}/mark-as-liquidated`, async function (req, res) {
+  try {
+    const { employeeNewsIds, liquidationId } = req.body;
+    
+    console.log("🔄 PUT /api/employee_news/mark-as-liquidated");
+    console.log("📊 Parámetros:", { employeeNewsIds, liquidationId });
+    
+    if (!employeeNewsIds || !Array.isArray(employeeNewsIds) || employeeNewsIds.length === 0) {
+      return response.error(req, res, "employeeNewsIds debe ser un array no vacío", 400);
+    }
+    
+    if (!liquidationId) {
+      return response.error(req, res, "liquidationId es requerido", 400);
+    }
+    
+    const result = await controller.markAsLiquidated(employeeNewsIds, liquidationId);
+    response.success(req, res, result);
+  } catch (error) {
+    console.log("❌ ERROR en PUT /api/employee_news/mark-as-liquidated:", error);
+    response.error(req, res, "Error on employee_news", 400, error);
+  }
+});
+
+handler.put(`${apiURL}/restore-to-pending`, async function (req, res) {
+  try {
+    const { employeeNewsIds } = req.body;
+    
+    console.log("🔄 PUT /api/employee_news/restore-to-pending");
+    console.log("📊 Parámetros:", { employeeNewsIds });
+    
+    if (!employeeNewsIds || !Array.isArray(employeeNewsIds) || employeeNewsIds.length === 0) {
+      return response.error(req, res, "employeeNewsIds debe ser un array no vacío", 400);
+    }
+    
+    const result = await controller.restoreToPending(employeeNewsIds);
+    response.success(req, res, result);
+  } catch (error) {
+    console.log("❌ ERROR en PUT /api/employee_news/restore-to-pending:", error);
+    response.error(req, res, "Error on employee_news", 400, error);
+  }
+});
+
 // GET: api/employee_news/1
 handler.get(`${apiURL}/:id`, async function (req, res) {
   try {

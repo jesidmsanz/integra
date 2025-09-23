@@ -54,6 +54,7 @@ const EmployeeNewsForm = ({
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [existingDocument, setExistingDocument] = useState(null);
+  const [isApproved, setIsApproved] = useState(false);
 
   useEffect(() => {
     
@@ -82,21 +83,62 @@ const EmployeeNewsForm = ({
     loadDataSequentially();
     
     if (isUpdate && dataToUpdate) {
-      console.log("Datos recibidos:", dataToUpdate);
-      const startDateFormatted = dataToUpdate.startDate
-        ? new Date(dataToUpdate.startDate).toLocaleDateString("en-CA")
-        : "";
-      const startTimeFormatted = dataToUpdate.startTime
-        ? dataToUpdate.startTime.substring(0, 5)
-        : "";
-      const endDateFormatted = dataToUpdate.endDate
-        ? new Date(dataToUpdate.endDate).toLocaleDateString("en-CA")
-        : "";
-      const endTimeFormatted = dataToUpdate.endTime
-        ? dataToUpdate.endTime.substring(0, 5)
-        : "";
+      console.log("🔍 Datos recibidos para edición:", dataToUpdate);
+      console.log("📅 Fecha inicio original:", dataToUpdate.startDate);
+      console.log("📅 Fecha fin original:", dataToUpdate.endDate);
+      console.log("🕐 Hora inicio original:", dataToUpdate.startTime);
+      console.log("🕐 Hora fin original:", dataToUpdate.endTime);
+      console.log("✅ Aprobada:", dataToUpdate.approved);
+      
+      // Verificar si la novedad está aprobada
+      const approved = dataToUpdate.approved === true || dataToUpdate.approved === 'true';
+      setIsApproved(approved);
+      console.log("🔒 Novedad aprobada, edición deshabilitada:", approved);
+      
+      // Función para formatear fechas de manera más robusta (sin problemas de zona horaria)
+      const formatDate = (dateString) => {
+        if (!dateString) return "";
+        try {
+          // Si ya está en formato YYYY-MM-DD, devolverlo directamente
+          if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+            return dateString.substring(0, 10);
+          }
+          
+          const date = new Date(dateString);
+          if (isNaN(date.getTime())) return "";
+          
+          // Usar UTC para evitar problemas de zona horaria
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        } catch (error) {
+          console.error("Error formateando fecha:", error);
+          return "";
+        }
+      };
 
-      console.log("Fechas formateadas:", {
+      // Función para formatear horas de manera más robusta
+      const formatTime = (timeString) => {
+        if (!timeString) return "";
+        try {
+          // Si ya está en formato HH:MM, devolverlo
+          if (typeof timeString === 'string' && timeString.includes(':')) {
+            return timeString.substring(0, 5);
+          }
+          return "";
+        } catch (error) {
+          console.error("Error formateando hora:", error);
+          return "";
+        }
+      };
+
+      const startDateFormatted = formatDate(dataToUpdate.startDate);
+      const startTimeFormatted = formatTime(dataToUpdate.startTime);
+      const endDateFormatted = formatDate(dataToUpdate.endDate);
+      const endTimeFormatted = formatTime(dataToUpdate.endTime);
+
+      console.log("✅ Fechas formateadas:", {
         startDateFormatted,
         startTimeFormatted,
         endDateFormatted,
@@ -142,8 +184,21 @@ const EmployeeNewsForm = ({
       });
       setSelectedFile(null);
       setExistingDocument(null);
+      setIsApproved(false);
     }
   }, [isUpdate, dataToUpdate]);
+
+  // useEffect adicional para debuggear cambios en formData
+  useEffect(() => {
+    if (isUpdate && formData.startDate) {
+      console.log("🔄 FormData actualizado:", {
+        startDate: formData.startDate,
+        startTime: formData.startTime,
+        endDate: formData.endDate,
+        endTime: formData.endTime
+      });
+    }
+  }, [formData, isUpdate]);
 
   // useEffect adicional para aplicar filtrado cuando se carguen los tipos de novedad
   useEffect(() => {
@@ -386,8 +441,6 @@ const EmployeeNewsForm = ({
       if (
         !formData[key] &&
         key !== "observations" &&
-        key !== "startTime" &&
-        key !== "endTime" &&
         key !== "document"
       ) {
         newErrors[key] = "Este campo es requerido";
@@ -405,9 +458,9 @@ const EmployeeNewsForm = ({
         const formattedData = {
           ...formData,
           startDate: formData.startDate ? formData.startDate : null,
-          startTime: formData.startTime || null,
+          startTime: formData.startTime,
           endDate: formData.endDate ? formData.endDate : null,
-          endTime: formData.endTime || null,
+          endTime: formData.endTime,
         };
 
         // Siempre crear FormData para mantener consistencia
@@ -492,6 +545,7 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.companyId}
                   required
+                  disabled={isApproved}
                 >
                   <option value="">Seleccione una empresa</option>
                   {companies.map((company) => (
@@ -520,7 +574,7 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.employeeId}
                   required
-                  disabled={!formData.companyId}
+                  disabled={!formData.companyId || isApproved}
                 >
                   <option value="">Seleccione un empleado</option>
                   {filteredEmployees.map((employee) => (
@@ -553,9 +607,8 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.typeNewsId}
                   required
-                  disabled={!formData.employeeId}
+                  disabled={!formData.employeeId || isApproved}
                 >
-                  {console.log("🔒 Campo Tipo de Novedad - disabled:", !formData.employeeId, "employeeId:", formData.employeeId)}
                   <option value="">
                     {!formData.employeeId 
                       ? "Primero seleccione un empleado" 
@@ -604,6 +657,7 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.status}
                   required
+                  disabled={isApproved}
                 >
                   <option value="active">Activo</option>
                   <option value="inactive">Inactivo</option>
@@ -629,6 +683,7 @@ const EmployeeNewsForm = ({
                   onBlur={handleBlur}
                   invalid={!!errors.startDate}
                   required
+                  disabled={isApproved}
                 />
                 {errors.startDate && (
                   <FormFeedback>{errors.startDate}</FormFeedback>
@@ -641,7 +696,7 @@ const EmployeeNewsForm = ({
             </Col>
             <Col md="6">
               <FormGroup>
-                <Label for="startTime">Hora Inicio</Label>
+                <Label for="startTime">Hora Inicio *</Label>
                 <Input
                   type="time"
                   name="startTime"
@@ -650,10 +705,13 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   invalid={!!errors.startTime}
+                  required
+                  disabled={isApproved}
                 />
+                <FormFeedback>{errors.startTime}</FormFeedback>
                 <small className="text-muted">
                   <i className="fas fa-info-circle me-1"></i>
-                  Hora de inicio (opcional).
+                  Hora de inicio de la novedad.
                 </small>
               </FormGroup>
             </Col>
@@ -671,6 +729,7 @@ const EmployeeNewsForm = ({
                   onBlur={handleBlur}
                   invalid={!!errors.endDate}
                   required
+                  disabled={isApproved}
                 />
                 {errors.endDate && (
                   <FormFeedback>{errors.endDate}</FormFeedback>
@@ -683,7 +742,7 @@ const EmployeeNewsForm = ({
             </Col>
             <Col md="6">
               <FormGroup>
-                <Label for="endTime">Hora Fin</Label>
+                <Label for="endTime">Hora Fin *</Label>
                 <Input
                   type="time"
                   name="endTime"
@@ -692,10 +751,13 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   invalid={!!errors.endTime}
+                  required
+                  disabled={isApproved}
                 />
+                <FormFeedback>{errors.endTime}</FormFeedback>
                 <small className="text-muted">
                   <i className="fas fa-info-circle me-1"></i>
-                  Hora de fin (opcional).
+                  Hora de fin de la novedad.
                 </small>
               </FormGroup>
             </Col>
@@ -712,6 +774,7 @@ const EmployeeNewsForm = ({
                   onChange={handleChange}
                   invalid={!!errors.approvedBy}
                   required
+                  disabled={isApproved}
                 >
                   <option value="">Seleccione un aprobador</option>
                   {users.map((user) => (
@@ -738,6 +801,7 @@ const EmployeeNewsForm = ({
                   id="document"
                   onChange={handleFileChange}
                   accept=".pdf,.jpg,.jpeg,.png"
+                  disabled={isApproved}
                 />
                 <small className="text-muted">
                   <i className="fas fa-info-circle me-1"></i>
@@ -797,6 +861,7 @@ const EmployeeNewsForm = ({
                   rows="3"
                   placeholder="Ingrese las observaciones"
                   invalid={!!errors.observations}
+                  disabled={isApproved}
                 />
                 {errors.observations && (
                   <FormFeedback>{errors.observations}</FormFeedback>
@@ -838,10 +903,13 @@ const EmployeeNewsForm = ({
               color="primary"
               type="submit"
               className="rounded-pill dark-toggle-btn"
+              disabled={isApproved}
             >
-              {isUpdate
-                ? `${loading ? "Actualizando..." : "Actualizar"} `
-                : `${loading ? "Guardando..." : "Guardar"}`}
+              {isApproved 
+                ? "No se puede editar - Novedad aprobada"
+                : isUpdate
+                  ? `${loading ? "Actualizando..." : "Actualizar"} `
+                  : `${loading ? "Guardando..." : "Guardar"}`}
             </Button>
           </div>
         </Form>

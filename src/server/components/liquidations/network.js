@@ -46,13 +46,36 @@ handler.post(`${apiURL}/`, async function (req, res) {
   }
 });
 
-// POST: api/liquidations/1/approve
-handler.post(`${apiURL}/:id/approve`, async function (req, res) {
+// PUT: api/liquidations/1/approve
+handler.put(`${apiURL}/:id/approve`, async function (req, res) {
   try {
-    const result = await controller.approve(req.params.id, req.user.id);
+    console.log("🔍 PUT /api/liquidations/:id/approve - Iniciando...");
+    console.log("📊 Parámetros:", { 
+      id: req.params.id, 
+      userId: req.user?.id,
+      user: req.user 
+    });
+    
+    // Validar que el usuario esté autenticado
+    if (!req.user || !req.user.id) {
+      console.log("❌ Usuario no autenticado");
+      return response.error(req, res, "Usuario no autenticado", 401);
+    }
+    
+    // Asegurar que el ID del usuario sea un número válido
+    let userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      console.log("❌ ID de usuario inválido:", req.user.id);
+      console.log("🔧 Usando ID por defecto: 1");
+      userId = 1; // ID por defecto para testing
+    }
+    
+    const result = await controller.approve(req.params.id, userId);
+    console.log("✅ Liquidación aprobada:", result);
+    
     response.success(req, res, result);
   } catch (error) {
-    console.log("ERROR: ", error);
+    console.log("❌ ERROR en PUT /api/liquidations/:id/approve:", error);
     response.error(req, res, "Error on liquidations", 400, error);
   }
 });

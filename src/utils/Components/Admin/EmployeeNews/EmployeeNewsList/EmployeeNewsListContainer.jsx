@@ -179,6 +179,23 @@ const EmployeeNewsListContainer = () => {
       sortable: true,
     },
     {
+      name: "Activa",
+      cell: (row) => {
+        // Mostrar si la novedad está activa o inactiva
+        const isActive = row.active === true;
+        const statusText = isActive ? "Activa" : "Inactiva";
+        const statusClass = isActive ? "badge bg-primary" : "badge bg-secondary";
+        
+        return (
+          <span className={statusClass}>
+            {statusText}
+          </span>
+        );
+      },
+      sortable: true,
+      width: "100px",
+    },
+    {
       name: "Documento",
       cell: (row) => (
         <div>

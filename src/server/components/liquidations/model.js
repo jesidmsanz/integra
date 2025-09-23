@@ -30,6 +30,27 @@ module.exports = function setupLiquidationsModel(sequelize) {
         allowNull: false,
         comment: "Formato YYYY-MM",
       },
+      start_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        comment: "Fecha de inicio del período de liquidación",
+      },
+      end_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+        comment: "Fecha de fin del período de liquidación",
+      },
+      payment_frequency: {
+        type: DataTypes.ENUM("Quincenal", "Mensual"),
+        allowNull: false,
+        defaultValue: "Mensual",
+        comment: "Frecuencia de pago: Quincenal o Mensual",
+      },
+      cut_number: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "Número de corte para liquidaciones quincenales (1 o 2)",
+      },
       status: {
         type: DataTypes.ENUM("draft", "approved", "paid", "cancelled"),
         allowNull: false,
@@ -128,8 +149,7 @@ module.exports = function setupLiquidationsModel(sequelize) {
           fields: ["status"],
         },
         {
-          fields: ["company_id", "period"],
-          unique: true,
+          fields: ["company_id"],
         },
       ],
     }

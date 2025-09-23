@@ -32,6 +32,7 @@ import {
   InputGroupText,
 } from "reactstrap";
 import AddNews from "./AddNews";
+import PeriodValidator from "../PeriodValidator";
 import moment from "moment";
 
 const initialState = {
@@ -61,6 +62,7 @@ const LiquidationForm = () => {
   const [saving, setSaving] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [periodValidation, setPeriodValidation] = useState({ isValid: true, conflictingPeriods: [] });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CO", {
@@ -142,9 +144,18 @@ const LiquidationForm = () => {
 
   const conditionalRowStyles = [
     {
-      when: (row) => row.hasNews,
+      when: (row) => row.hasNews && row.hasLiquidatedNews,
       style: {
-        backgroundColor: "rgba(255, 165, 0, 0.1)",
+        backgroundColor: "rgba(255, 0, 0, 0.1)", // Rojo para novedades ya liquidadas
+        "&:hover": {
+          backgroundColor: "rgba(255, 0, 0, 0.2) !important",
+        },
+      },
+    },
+    {
+      when: (row) => row.hasNews && !row.hasLiquidatedNews,
+      style: {
+        backgroundColor: "rgba(255, 165, 0, 0.1)", // Naranja para novedades pendientes
         "&:hover": {
           backgroundColor: "rgba(255, 165, 0, 0.2) !important",
         },
@@ -153,7 +164,7 @@ const LiquidationForm = () => {
     {
       when: (row) => !row.hasNews,
       style: {
-        backgroundColor: "rgba(0, 255, 0, 0.1)",
+        backgroundColor: "rgba(0, 255, 0, 0.1)", // Verde para sin novedades
         "&:hover": {
           backgroundColor: "rgba(0, 255, 0, 0.2) !important",
         },
@@ -207,6 +218,15 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
+      name: "Auxilio de Movilidad",
+      cell: (row) => {
+        const auxilio = Number(row.mobilityassistance) || 0;
+        return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
+      },
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Valor por hora",
       selector: (row) => formatCurrency(row.hourlyrate),
       sortable: true,
@@ -248,6 +268,34 @@ const LiquidationForm = () => {
         return formatCurrency(employeeValues?.total || 0);
       },
       sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Estado Novedades",
+      cell: (row) => {
+        if (!row.hasNews) {
+          return <span className="badge bg-success">Sin novedades</span>;
+        }
+        
+        if (row.hasLiquidatedNews && row.hasPendingNews) {
+          return (
+            <div>
+              <span className="badge bg-warning me-1">{row.pendingNewsCount} pendientes</span>
+              <span className="badge bg-danger">{row.liquidatedNewsCount} liquidadas</span>
+            </div>
+          );
+        }
+        
+        if (row.hasLiquidatedNews) {
+          return <span className="badge bg-danger">Ya liquidadas</span>;
+        }
+        
+        if (row.hasPendingNews) {
+          return <span className="badge bg-warning">{row.pendingNewsCount} pendientes</span>;
+        }
+        
+        return <span className="badge bg-secondary">Sin estado</span>;
+      },
       minWidth: "150px",
     },
     {
@@ -368,22 +416,50 @@ const LiquidationForm = () => {
 
       // Agregar información de novedades a cada empleado
       const employeesWithNews = filteredEmployees.map((emp) => {
-        const hasNews = employeeNews.some((news) => {
+        const employeeNewsList = employeeNews.filter((news) => {
           return (
             news.employeeId === emp.id &&
-            news.status === "active" &&
+            news.active === true &&
             news.approved === true &&
             isInRange(news)
           );
         });
 
+        const hasNews = employeeNewsList.length > 0;
+        const hasLiquidatedNews = employeeNewsList.some((news) => news.liquidation_status === 'liquidated');
+        const hasPendingNews = employeeNewsList.some((news) => news.liquidation_status === 'pending');
+
         return {
           ...emp,
           hasNews,
+          hasLiquidatedNews,
+          hasPendingNews,
+          newsCount: employeeNewsList.length,
+          pendingNewsCount: employeeNewsList.filter(news => news.liquidation_status === 'pending').length,
+          liquidatedNewsCount: employeeNewsList.filter(news => news.liquidation_status === 'liquidated').length,
         };
       });
 
-      setDataTable(employeesWithNews);
+      // Filtrar por estado de novedades
+      let finalEmployees = employeesWithNews;
+      if (form.newsStatus) {
+        finalEmployees = employeesWithNews.filter((emp) => {
+          switch (form.newsStatus) {
+            case 'pending':
+              return emp.hasPendingNews && !emp.hasLiquidatedNews;
+            case 'liquidated':
+              return emp.hasLiquidatedNews && !emp.hasPendingNews;
+            case 'mixed':
+              return emp.hasPendingNews && emp.hasLiquidatedNews;
+            case 'none':
+              return !emp.hasNews;
+            default:
+              return true;
+          }
+        });
+      }
+
+      setDataTable(finalEmployees);
     } else {
       setDataTable([]);
     }
@@ -392,6 +468,7 @@ const LiquidationForm = () => {
     form.startDate,
     form.endDate,
     form.paymentMethod,
+    form.newsStatus,
     form.corte1,
     form.corte2,
     employees,
@@ -530,15 +607,31 @@ const LiquidationForm = () => {
     toast.success("Archivo exportado exitosamente");
   };
 
-  const checkExistingLiquidation = async (companyId, period) => {
+  const checkExistingLiquidation = async (companyId, startDate, endDate) => {
     try {
+      console.log("🔄 Verificando si el período ya está liquidado...");
+      console.log("📊 Parámetros:", { companyId, startDate, endDate });
+      
+      // Verificar si hay liquidaciones en el período seleccionado
       const liquidations = await liquidationsApi.list(1, 100);
       const liquidationsList = liquidations.body || liquidations.data || [];
 
-      return liquidationsList.some(
-        (liquidation) =>
-          liquidation.company_id === companyId && liquidation.period === period
-      );
+      const periodExists = liquidationsList.some((liquidation) => {
+        if (liquidation.company_id !== companyId) return false;
+        
+        // Convertir fechas para comparación
+        const liquidationStart = liquidation.period_start || (liquidation.period + '-01');
+        const liquidationEnd = liquidation.period_end || (liquidation.period + '-31');
+        
+        // Verificar solapamiento de períodos
+        return (
+          (startDate <= liquidationEnd && endDate >= liquidationStart) &&
+          liquidation.status !== 'cancelled'
+        );
+      });
+
+      console.log("📋 Período ya liquidado:", periodExists);
+      return periodExists;
     } catch (error) {
       console.error("Error verificando liquidaciones existentes:", error);
       return false;
@@ -562,10 +655,10 @@ const LiquidationForm = () => {
     }
 
     // Verificar si el período ya está liquidado
-    const period = form.startDate.substring(0, 7); // YYYY-MM
     const isPeriodLiquidated = await checkExistingLiquidation(
       form.companyId,
-      period
+      form.startDate,
+      form.endDate
     );
 
     if (isPeriodLiquidated) {
@@ -582,6 +675,11 @@ const LiquidationForm = () => {
       // Preparar los datos de empleados para la liquidación
       const employees_data = filteredData.map((employee) => {
         const employeeValues = calculatedValues[employee.id] || { total: 0 };
+
+        // Convertir a números para evitar concatenación de strings
+        const basicSalary = Number(employee.basicmonthlysalary) || 0;
+        const basicSalaryForPeriod =
+          form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
 
         // Calcular auxilio de transporte
         const transportationAssistance = calculateTransportationAssistance(
@@ -613,11 +711,69 @@ const LiquidationForm = () => {
           };
         });
 
-        // Calcular totales
-        const totalNovedades = news_data.reduce(
-          (sum, news) => sum + news.amount,
-          0
-        );
+        // Calcular totales de novedades y descuentos proporcionales
+        let totalNovedades = 0;
+        let descuentosProporcionales = 0;
+
+        news_data.forEach((news) => {
+          const tipoNovedad = typeNews.find(type => type.id === news.type_news_id);
+          
+          if (tipoNovedad && tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+            // LÓGICA PARA NOVEDADES QUE NO SE CALCULAN POR HORA
+            let affectsData;
+            try {
+              affectsData = typeof tipoNovedad.affects === "string" 
+                ? JSON.parse(tipoNovedad.affects) 
+                : tipoNovedad.affects || {};
+            } catch (error) {
+              affectsData = {};
+            }
+
+            const diasNovedad = news.days || 1;
+            const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+
+            // SALARIO BASE
+            if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
+              const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
+              const salarioPorDias = salarioDiario * diasNovedad;
+              const porcentaje = parseFloat(tipoNovedad.percentage) || 0;
+
+              if (porcentaje === 100) {
+                // 100% = no se suma ni resta
+              } else if (porcentaje < 100) {
+                // <100% = se descuenta la diferencia
+                const diferencia = salarioPorDias * (100 - porcentaje) / 100;
+                descuentosProporcionales += diferencia;
+              } else if (porcentaje > 100) {
+                // >100% = se suma la diferencia
+                const diferencia = salarioPorDias * (porcentaje - 100) / 100;
+                totalNovedades += diferencia;
+              }
+            }
+
+            // AUXILIO DE TRANSPORTE
+            if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+              const auxilioDiario = Number(employee.transportationassistance) || 0;
+              const descuentoAuxilioTransporte = auxilioDiario * diasNovedad;
+              descuentosProporcionales += descuentoAuxilioTransporte;
+            }
+
+            // AUXILIO DE MOVILIDAD - Solo si el empleado tiene este auxilio
+            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
+              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+              if (auxilioMovilidad > 0) {
+                descuentosProporcionales += auxilioMovilidad;
+              }
+              // Si no tiene auxilio de movilidad, no se descuenta nada
+            }
+          } else if (tipoNovedad && tipoNovedad.calculateperhour) {
+            // NOVEDADES POR HORAS
+            totalNovedades += news.amount;
+          } else {
+            // NOVEDADES SIN AFFECTS
+            totalNovedades += news.amount;
+          }
+        });
 
         // Calcular descuentos por ausentismo
         const absenceDiscounts = calculateAbsenceDiscounts(
@@ -625,12 +781,7 @@ const LiquidationForm = () => {
           form.startDate,
           form.endDate
         );
-        const totalDiscounts = absenceDiscounts;
-
-        // Convertir a números para evitar concatenación de strings
-        const basicSalary = Number(employee.basicmonthlysalary) || 0;
-        const basicSalaryForPeriod =
-          form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+        const totalDiscounts = absenceDiscounts + descuentosProporcionales;
 
         const netAmount =
           basicSalaryForPeriod +
@@ -653,8 +804,8 @@ const LiquidationForm = () => {
       // Crear la liquidación
       const liquidationData = {
         company_id: form.companyId,
-        period_start: form.startDate,
-        period_end: form.endDate,
+        startDate: form.startDate,
+        endDate: form.endDate,
         payment_frequency: form.paymentMethod || "Mensual",
         cut_number: form.corte1 ? 1 : form.corte2 ? 2 : null,
         employees_data: employees_data,
@@ -793,16 +944,12 @@ const LiquidationForm = () => {
     generateFilteredNews();
   }, [form, employeeNews]);
 
-  // useEffect adicional para asegurar que los cálculos se ejecuten solo cuando todos los datos estén disponibles
+  // useEffect simplificado para cálculos
   useEffect(() => {
-    if (
-      typeNews.length > 0 &&
-      employees.length > 0 &&
-      filteredEmployeeNews.length >= 0
-    ) {
+    if (typeNews.length > 0 && employees.length > 0) {
       calculateAllValues();
     }
-  }, [typeNews, employees, filteredEmployeeNews]);
+  }, [typeNews, employees, filteredEmployeeNews, form.companyId, form.startDate, form.endDate, form.paymentMethod]);
 
   // Función para calcular el valor de una novedad
   const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
@@ -816,6 +963,27 @@ const LiquidationForm = () => {
 
     const fechaInicio = moment.utc(novedad.startDate);
     const fechaFin = moment.utc(novedad.endDate);
+
+    // LÓGICA SIMPLIFICADA: Si la novedad tiene "affects" y NO se calcula por hora
+    if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+      let affectsData;
+      try {
+        affectsData = typeof tipoNovedad.affects === "string" 
+          ? JSON.parse(tipoNovedad.affects) 
+          : tipoNovedad.affects || {};
+      } catch (error) {
+        affectsData = {};
+      }
+
+      // Si afecta al salario base y el porcentaje es 100%, retornar 0 para display
+      const percentage = parseFloat(tipoNovedad.percentage);
+      if (
+        (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") &&
+        percentage === 100
+      ) {
+        return { valorNovedad: 0, totalHoras: 0 };
+      }
+    }
 
     if (tipoNovedad.calculateperhour) {
       // Si la novedad es del mismo día
@@ -913,7 +1081,7 @@ const LiquidationForm = () => {
     return totalDiscountAmount;
   };
 
-  // Función para calcular todos los valores
+  // Función optimizada para calcular todos los valores
   const calculateAllValues = () => {
     const newCalculatedValues = {};
 
@@ -948,98 +1116,81 @@ const LiquidationForm = () => {
         newCalculatedValues[employee.id].total += auxilioTransporte;
       }
 
-      typeNews.forEach((type) => {
-        // Obtener todas las novedades del mismo tipo para el empleado
-        const novedadesDelTipo = filteredEmployeeNews.filter(
-          (news) =>
-            news.employeeId === employee.id && news.typeNewsId === type.id
-        );
+      // Procesar novedades del empleado
+      const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === employee.id);
+      
+      
+      if (employeeNews.length > 0) {
+        employeeNews.forEach(news => {
+          const type = typeNews.find(t => t.id === news.typeNewsId);
+          if (!type) return;
 
-        if (novedadesDelTipo.length > 0) {
-          let valorTotal = 0;
-          let horasTotal = 0;
-
-          // Sumar todas las novedades del mismo tipo
-          novedadesDelTipo.forEach((novedad) => {
-            const { valorNovedad, totalHoras } = calculateNovedadValue(
-              novedad,
-              employee,
-              type
-            );
-            valorTotal += valorNovedad;
-            horasTotal += totalHoras;
-          });
-
-          newCalculatedValues[employee.id].novedades[type.id] = {
-            valor: valorTotal,
-            horas: horasTotal,
-            novedades: novedadesDelTipo,
-          };
-
-          // LÓGICA DE DESCUENTOS: Si la novedad afecta a ciertos campos, se descuentan del total
-          if (type.affects) {
-            let affectsData;
-            try {
-              // Parsear el campo affects que es un JSON string
-              affectsData =
-                typeof type.affects === "string" && type.affects
-                  ? JSON.parse(type.affects)
-                  : type.affects || {};
-            } catch (error) {
-              console.error(
-                "Error al parsear affects para tipo de novedad:",
-                type.id,
-                error
-              );
-              affectsData = {};
-            }
-
-            // Si afecta al salario base, descontar el salario base
-            if (
-              affectsData.basicmonthlysalary === true ||
-              affectsData.basicmonthlysalary === "true"
-            ) {
-              newCalculatedValues[employee.id].total -= salarioBaseCalculado;
-            }
-
-            // Si afecta al auxilio de transporte, descontar el auxilio de transporte
-            if (
-              affectsData.transportationassistance === true ||
-              affectsData.transportationassistance === "true"
-            ) {
-              newCalculatedValues[employee.id].total -= auxilioTransporte;
-            }
-
-            // Si afecta a otros campos, también descontarlos
-            if (
-              affectsData.hourlyrate === true ||
-              affectsData.hourlyrate === "true"
-            ) {
-              const valorHora = Number(employee.hourlyrate) || 0;
-              newCalculatedValues[employee.id].total -= valorHora;
-            }
-
-            if (
-              affectsData.mobilityassistance === true ||
-              affectsData.mobilityassistance === "true"
-            ) {
-              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
-              newCalculatedValues[employee.id].total -= auxilioMovilidad;
-            }
-
-            if (
-              affectsData.discountvalue === true ||
-              affectsData.discountvalue === "true"
-            ) {
-              const valorDescuento = Number(employee.discountvalue) || 0;
-              newCalculatedValues[employee.id].total -= valorDescuento;
-            }
+          const { valorNovedad, totalHoras } = calculateNovedadValue(news, employee, type);
+          
+          // Guardar en novedades por tipo
+          if (!newCalculatedValues[employee.id].novedades[type.id]) {
+            newCalculatedValues[employee.id].novedades[type.id] = {
+              valor: 0,
+              horas: 0,
+              novedades: []
+            };
           }
+          
+          newCalculatedValues[employee.id].novedades[type.id].valor += valorNovedad;
+          newCalculatedValues[employee.id].novedades[type.id].horas += totalHoras;
+          newCalculatedValues[employee.id].novedades[type.id].novedades.push(news);
 
-          // Agregar el valor de la novedad al total
-          newCalculatedValues[employee.id].total += valorTotal;
-        }
-      });
+          // LÓGICA SIMPLIFICADA PARA NOVEDADES CON AFFECTS
+          if (type.affects && !type.calculateperhour) {
+            const affectsData = typeof type.affects === "string" 
+              ? JSON.parse(type.affects) 
+              : type.affects || {};
+
+            const diasNovedad = moment.utc(news.endDate).diff(moment.utc(news.startDate), "days") + 1;
+            const porcentaje = parseFloat(type.percentage) || 0;
+
+            // SALARIO BASE
+            if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
+              const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+              const salarioPorDias = salarioDiario * diasNovedad;
+
+              if (porcentaje === 100) {
+                // 100% = no se suma ni resta
+              } else if (porcentaje < 100) {
+                // <100% = se descuenta la diferencia
+                const diferencia = salarioPorDias * (100 - porcentaje) / 100;
+                newCalculatedValues[employee.id].total -= diferencia;
+              } else if (porcentaje > 100) {
+                // >100% = se suma la diferencia
+                const diferencia = salarioPorDias * (porcentaje - 100) / 100;
+                newCalculatedValues[employee.id].total += diferencia;
+              }
+            }
+
+            // AUXILIO DE TRANSPORTE
+            if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+              const auxilioDiario = Number(employee.transportationassistance) || 0;
+              const descuentoAuxilioTransporte = auxilioDiario * diasNovedad;
+              newCalculatedValues[employee.id].total -= descuentoAuxilioTransporte;
+            }
+
+            // AUXILIO DE MOVILIDAD - Solo si el empleado tiene este auxilio
+            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
+              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+              if (auxilioMovilidad > 0) {
+                newCalculatedValues[employee.id].total -= auxilioMovilidad;
+              }
+              // Si no tiene auxilio de movilidad, no se descuenta nada
+            }
+          } else if (type.calculateperhour) {
+            // NOVEDADES POR HORAS
+            newCalculatedValues[employee.id].total += valorNovedad;
+          } else {
+            // NOVEDADES SIN AFFECTS
+            newCalculatedValues[employee.id].total += valorNovedad;
+          }
+        });
+      }
 
       // CALCULAR DESCUENTOS POR AUSENTISMO (días de descanso)
       const absenceDiscounts = calculateAbsenceDiscounts(
@@ -1052,7 +1203,9 @@ const LiquidationForm = () => {
         newCalculatedValues[employee.id].total -= absenceDiscounts;
         newCalculatedValues[employee.id].total_discounts = absenceDiscounts;
       }
+      
     });
+    
     setCalculatedValues(newCalculatedValues);
   };
 
@@ -1082,7 +1235,7 @@ const LiquidationForm = () => {
         <Card>
           <CardBody>
             <Row className="mb-3">
-              <Col md="4">
+              <Col md="3">
                 <FormGroup>
                   <Label for="companyId">Empresa:</Label>
                   <Input
@@ -1103,7 +1256,7 @@ const LiquidationForm = () => {
                   </Input>
                 </FormGroup>
               </Col>
-              <Col md="4">
+              <Col md="2">
                 <FormGroup>
                   <Label for="startDate">Fecha Inicio:</Label>
                   <Input
@@ -1115,7 +1268,7 @@ const LiquidationForm = () => {
                   />
                 </FormGroup>
               </Col>
-              <Col md="4">
+              <Col md="2">
                 <FormGroup>
                   <Label for="endDate">Fecha Fin:</Label>
                   <Input
@@ -1127,11 +1280,9 @@ const LiquidationForm = () => {
                   />
                 </FormGroup>
               </Col>
-            </Row>
-            <Row className="mb-3">
-              <Col md="4">
+              <Col md="2">
                 <FormGroup>
-                  <Label for="paymentMethod">Frecuencia de Pago:</Label>
+                  <Label for="paymentMethod">Frecuencia:</Label>
                   <Input
                     type="select"
                     name="paymentMethod"
@@ -1145,10 +1296,28 @@ const LiquidationForm = () => {
                   </Input>
                 </FormGroup>
               </Col>
+              <Col md="2">
+                <FormGroup>
+                  <Label for="newsStatus">Estado Novedades:</Label>
+                  <Input
+                    type="select"
+                    name="newsStatus"
+                    id="newsStatus"
+                    onChange={handleChange}
+                    value={form.newsStatus}
+                  >
+                    <option value="">Todos</option>
+                    <option value="pending">Solo Pendientes</option>
+                    <option value="liquidated">Solo Liquidadas</option>
+                    <option value="mixed">Mixtas</option>
+                    <option value="none">Sin Novedades</option>
+                  </Input>
+                </FormGroup>
+              </Col>
               {form.paymentMethod === "Quincenal" && (
-                <Col md="4">
+                <Col md="1">
                   <FormGroup>
-                    <Label>Corte:</Label>
+                    <Label style={{ fontSize: "0.9rem" }}>Corte:</Label>
                     <div>
                       <Input
                         type="checkbox"
@@ -1157,8 +1326,8 @@ const LiquidationForm = () => {
                         onChange={handleChange}
                         checked={form.corte1}
                       />
-                      <Label for="corte1" className="ms-2">
-                        Corte 1 (01-15)
+                      <Label for="corte1" style={{ fontSize: "0.8rem" }}>
+                        1-15
                       </Label>
                     </div>
                     <div>
@@ -1169,8 +1338,8 @@ const LiquidationForm = () => {
                         onChange={handleChange}
                         checked={form.corte2}
                       />
-                      <Label for="corte2" className="ms-2">
-                        Corte 2 (16-30)
+                      <Label for="corte2" style={{ fontSize: "0.8rem" }}>
+                        16-30
                       </Label>
                     </div>
                   </FormGroup>
@@ -1178,62 +1347,76 @@ const LiquidationForm = () => {
               )}
             </Row>
 
+            {/* Validador de períodos */}
+            {form.companyId && form.startDate && form.endDate && (
+              <Row className="mb-2">
+                <Col md="12">
+                  <PeriodValidator
+                    companyId={form.companyId}
+                    startDate={form.startDate}
+                    endDate={form.endDate}
+                    onValidationChange={(isValid, conflictingPeriods) => {
+                      setPeriodValidation({ isValid, conflictingPeriods });
+                    }}
+                  />
+                </Col>
+              </Row>
+            )}
+
             <Row className="mb-3">
-              <Col md="4">
-                <div className="mb-3">
-                  <InputGroup>
-                    <InputGroupText>
-                      <i className="fas fa-search"></i>
-                    </InputGroupText>
-                    <Input
-                      type="text"
-                      placeholder="Buscar por documento, nombre, cargo o estado..."
-                      value={searchTerm}
-                      onChange={handleSearch}
-                    />
-                  </InputGroup>
+              <Col md="6">
+                <InputGroup>
+                  <InputGroupText>
+                    <i className="fas fa-search"></i>
+                  </InputGroupText>
+                  <Input
+                    type="text"
+                    placeholder="Buscar por documento, nombre, cargo o estado..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </InputGroup>
+              </Col>
+              <Col md="6">
+                <div className="d-flex gap-2 justify-content-end">
+                  <Button
+                    color="success"
+                    onClick={exportToExcel}
+                    disabled={!filteredData.length}
+                    size="sm"
+                  >
+                    <i className="fa fa-file-excel-o me-1"></i>
+                    Exportar Excel
+                  </Button>
+                  <Button
+                    color="primary"
+                    onClick={saveLiquidation}
+                    disabled={!filteredData.length || saving || !periodValidation.isValid}
+                    size="sm"
+                  >
+                    {saving ? (
+                      <>
+                        <i className="fa fa-spinner fa-spin me-1"></i>
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa fa-save me-1"></i>
+                        Guardar
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    color="info"
+                    onClick={() =>
+                      (window.location.href = "/admin/liquidaciones_guardadas")
+                    }
+                    size="sm"
+                  >
+                    <i className="fa fa-list me-1"></i>
+                    Ver Guardadas
+                  </Button>
                 </div>
-              </Col>
-              <Col md="3">
-                <Button
-                  color="success"
-                  onClick={exportToExcel}
-                  disabled={!filteredData.length}
-                >
-                  <i className="fa fa-file-excel-o me-2"></i>
-                  Exportar a Excel
-                </Button>
-              </Col>
-              <Col md="3">
-                <Button
-                  color="primary"
-                  onClick={saveLiquidation}
-                  disabled={!filteredData.length || saving}
-                >
-                  {saving ? (
-                    <>
-                      <i className="fa fa-spinner fa-spin me-2"></i>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fa fa-save me-2"></i>
-                      Guardar Liquidación
-                    </>
-                  )}
-                </Button>
-              </Col>
-              <Col md="3">
-                <Button
-                  color="info"
-                  onClick={() =>
-                    (window.location.href = "/admin/liquidaciones_guardadas")
-                  }
-                  className="ms-2"
-                >
-                  <i className="fa fa-list me-2"></i>
-                  Ver Liquidaciones Guardadas
-                </Button>
               </Col>
             </Row>
             <div className="list-product">

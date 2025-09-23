@@ -296,13 +296,14 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
 
   // Obtener liquidaciones por período
   function findByPeriod(startDate, endDate, options = {}) {
+    // Convertir fechas a formato YYYY-MM para comparar con la columna period
+    const startPeriod = startDate.substring(0, 7);
+    const endPeriod = endDate.substring(0, 7);
+    
     return Model.findAll({
       where: {
-        period_start: {
-          [Op.gte]: startDate,
-        },
-        period_end: {
-          [Op.lte]: endDate,
+        period: {
+          [Op.between]: [startPeriod, endPeriod],
         },
       },
       ...options,
