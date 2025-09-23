@@ -96,6 +96,23 @@ const employeeNewsApi = {
       throw error;
     }
   },
+
+  getPendingByPeriod: async (startDate, endDate, companyId) => {
+    try {
+      console.log("🔄 Obteniendo novedades pendientes por período...");
+      console.log("📅 Parámetros:", { startDate, endDate, companyId });
+      
+      const response = await fetchApi.get(
+        `${mainRoute}/pending-by-period?startDate=${startDate}&endDate=${endDate}&companyId=${companyId}`
+      );
+      
+      console.log("📊 Respuesta de novedades pendientes:", response.data);
+      return response.data.body || response.data || [];
+    } catch (error) {
+      console.error("Error al obtener novedades pendientes por período", error);
+      throw error;
+    }
+  },
 };
 
 export default employeeNewsApi;

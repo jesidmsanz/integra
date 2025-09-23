@@ -59,6 +59,8 @@ const LiquidationForm = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [calculatedValues, setCalculatedValues] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CO", {
@@ -234,11 +236,6 @@ const LiquidationForm = () => {
           return sum + valorNovedad;
         }, 0);
 
-        if (row.id === 6) {
-          console.log("novedadesDelEmpleado", novedadesDelEmpleado);
-          console.log("totalTipo", totalTipo);
-        }
-
         return totalTipo ? formatCurrency(totalTipo) : "";
       },
       sortable: true,
@@ -270,46 +267,45 @@ const LiquidationForm = () => {
 
   const loadEmployees = async () => {
     try {
-      console.log("🔄 loadEmployees ejecutándose para liquidación...");
       const response = await employeesApi.list();
       if (response.length) {
-        console.log(
-          `✅ ${response.length} empleados cargados para liquidación`
-        );
         setEmployees(response);
       }
     } catch (error) {
-      console.error(
-        "❌ Error al cargar los empleados para liquidación:",
-        error
-      );
+      console.error("Error al cargar los empleados para liquidación:", error);
       toast.error("Error al cargar la lista de empleados");
     }
   };
 
   const loadCompanies = async () => {
     try {
-      console.log("🏢 loadCompanies ejecutándose para liquidación...");
       const response = await companiesApi.list();
       if (response.length) {
-        console.log(`✅ ${response.length} empresas cargadas para liquidación`);
         setCompanies(response);
       }
     } catch (error) {
-      console.error("❌ Error al cargar las empresas para liquidación:", error);
+      console.error("Error al cargar las empresas para liquidación:", error);
       toast.error("Error al cargar la lista de empresas");
     }
   };
 
   const loadEmployeeNews = async () => {
     try {
-      console.log("📰 loadEmployeeNews ejecutándose para liquidación...");
-      const response = await employeeNewsApi.list();
-      if (response.length) {
-        console.log(
-          `✅ ${response.length} novedades de empleados cargadas para liquidación`
+      // Solo cargar novedades pendientes de liquidación para el período seleccionado
+      if (form.startDate && form.endDate && form.companyId) {
+        const response = await employeeNewsApi.getPendingByPeriod(
+          form.startDate,
+          form.endDate,
+          form.companyId
         );
-        setEmployeeNews(response);
+
+        if (response && response.length) {
+          setEmployeeNews(response);
+        } else {
+          setEmployeeNews([]);
+        }
+      } else {
+        setEmployeeNews([]);
       }
     } catch (error) {
       console.error(
@@ -317,33 +313,18 @@ const LiquidationForm = () => {
         error
       );
       toast.error("Error al cargar la lista de novedades");
+      setEmployeeNews([]);
     }
   };
 
   const loadTypeNews = async () => {
     try {
-      console.log("🔄 loadTypeNews ejecutándose para liquidación...");
       const response = await typeNewsApi.list();
-      console.log(
-        "📊 Respuesta de tipos de novedad para liquidación:",
-        response
-      );
 
-      if (response && response.data && response.data.length) {
-        console.log(
-          `✅ ${response.data.length} tipos de novedad cargados para liquidación`
-        );
-        setTypeNews(response.data);
-      } else if (response && Array.isArray(response)) {
-        console.log(
-          `✅ ${response.length} tipos de novedad cargados para liquidación (array directo)`
-        );
+      if (response && Array.isArray(response) && response.length > 0) {
         setTypeNews(response);
       } else {
-        console.log(
-          "⚠️ Respuesta inesperada de tipos de novedad para liquidación:",
-          response
-        );
+        console.log("⚠️ No se encontraron tipos de novedades");
         setTypeNews([]);
       }
     } catch (error) {
@@ -357,32 +338,15 @@ const LiquidationForm = () => {
   };
 
   useEffect(() => {
-    console.log(
-      "🚀 useEffect ejecutándose - Cargando datos iniciales para liquidación"
-    );
-
     // Cargar datos en secuencia para evitar problemas de sincronización
     const loadDataSequentially = async () => {
       try {
-        // 1. Primero cargar empresas
-        console.log("🏢 Cargando empresas...");
         await loadCompanies();
-
-        // 2. Luego cargar tipos de novedad
-        console.log("📋 Cargando tipos de novedad...");
         await loadTypeNews();
-
-        // 3. Luego cargar empleados
-        console.log("👤 Cargando empleados...");
         await loadEmployees();
-
-        // 4. Finalmente cargar novedades de empleados
-        console.log("📰 Cargando novedades de empleados...");
-        await loadEmployeeNews();
-
-        console.log("✅ Carga secuencial completada para liquidación");
+        // No cargar novedades aquí - se cargarán cuando se seleccione una empresa
       } catch (error) {
-        console.error("❌ Error en carga secuencial de liquidación:", error);
+        console.error("Error en carga secuencial de liquidación:", error);
       }
     };
 
@@ -470,6 +434,13 @@ const LiquidationForm = () => {
   useEffect(() => {
     setFilteredData(dataTable);
   }, [dataTable]);
+
+  // Recargar novedades cuando cambien las fechas o la empresa
+  useEffect(() => {
+    if (form.startDate && form.endDate && form.companyId) {
+      loadEmployeeNews();
+    }
+  }, [form.startDate, form.endDate, form.companyId]);
 
   const LiquidationListTableAction = ({ row }) => {
     return (
@@ -559,6 +530,21 @@ const LiquidationForm = () => {
     toast.success("Archivo exportado exitosamente");
   };
 
+  const checkExistingLiquidation = async (companyId, period) => {
+    try {
+      const liquidations = await liquidationsApi.list(1, 100);
+      const liquidationsList = liquidations.body || liquidations.data || [];
+
+      return liquidationsList.some(
+        (liquidation) =>
+          liquidation.company_id === companyId && liquidation.period === period
+      );
+    } catch (error) {
+      console.error("Error verificando liquidaciones existentes:", error);
+      return false;
+    }
+  };
+
   const saveLiquidation = async () => {
     if (!filteredData.length) {
       toast.warning("No hay datos para guardar");
@@ -572,6 +558,21 @@ const LiquidationForm = () => {
 
     if (!form.startDate || !form.endDate) {
       toast.error("Debe seleccionar las fechas del período");
+      return;
+    }
+
+    // Verificar si el período ya está liquidado
+    const period = form.startDate.substring(0, 7); // YYYY-MM
+    const isPeriodLiquidated = await checkExistingLiquidation(
+      form.companyId,
+      period
+    );
+
+    if (isPeriodLiquidated) {
+      setErrorMessage(
+        "El período seleccionado ya ha sido liquidado para esta empresa. Por favor, seleccione un período diferente."
+      );
+      setShowErrorModal(true);
       return;
     }
 
@@ -617,7 +618,7 @@ const LiquidationForm = () => {
           (sum, news) => sum + news.amount,
           0
         );
-        
+
         // Calcular descuentos por ausentismo
         const absenceDiscounts = calculateAbsenceDiscounts(
           employee,
@@ -665,14 +666,29 @@ const LiquidationForm = () => {
 
       // Redirigir al dashboard de liquidaciones guardadas
       setTimeout(() => {
-        window.location.href = '/admin/liquidaciones_guardadas';
+        window.location.href = "/admin/liquidaciones_guardadas";
       }, 1500);
     } catch (error) {
       console.error("Error al guardar liquidación:", error);
-      toast.error(
-        "Error al guardar la liquidación: " +
-          (error.message || "Error desconocido")
-      );
+
+      // Obtener el mensaje de error del response
+      const errorMessage = error.message || error.toString();
+
+      // Verificar si es error de período duplicado
+      if (
+        errorMessage.includes(
+          "llave duplicada viola restricción de unicidad"
+        ) ||
+        errorMessage.includes("liquidations_company_id_period")
+      ) {
+        setErrorMessage(
+          "El período seleccionado ya ha sido liquidado para esta empresa. Por favor, seleccione un período diferente."
+        );
+        setShowErrorModal(true);
+      } else {
+        setErrorMessage("Error al guardar la liquidación: " + errorMessage);
+        setShowErrorModal(true);
+      }
     } finally {
       setSaving(false);
     }
@@ -731,14 +747,6 @@ const LiquidationForm = () => {
 
   // Función para generar datos de novedades filtrados
   const generateFilteredNews = () => {
-    console.log("🔄 generateFilteredNews ejecutándose...");
-    console.log("📰 Novedades totales disponibles:", employeeNews.length);
-    console.log("📅 Filtros de fecha:", {
-      startDate: form.startDate,
-      endDate: form.endDate,
-    });
-    console.log("💳 Método de pago:", form.paymentMethod);
-
     const filtered = employeeNews.filter((news) => {
       // Verificar si la novedad está activa y aprobada
       if (news.status !== "active") return false;
@@ -777,18 +785,6 @@ const LiquidationForm = () => {
 
       return true;
     });
-
-    console.log("✅ Novedades filtradas:", filtered.length);
-    console.log(
-      "📊 Novedades filtradas:",
-      filtered.map((n) => ({
-        id: n.id,
-        employeeId: n.employeeId,
-        typeNewsId: n.typeNewsId,
-        status: n.status,
-        approved: n.approved,
-      }))
-    );
     setFilteredEmployeeNews(filtered);
   };
 
@@ -804,34 +800,14 @@ const LiquidationForm = () => {
       employees.length > 0 &&
       filteredEmployeeNews.length >= 0
     ) {
-      console.log("🔄 Todos los datos disponibles, ejecutando cálculos...");
       calculateAllValues();
-    } else {
-      console.log("⏳ Esperando que todos los datos estén disponibles...", {
-        typeNews: typeNews.length,
-        employees: employees.length,
-        filteredEmployeeNews: filteredEmployeeNews.length,
-      });
     }
   }, [typeNews, employees, filteredEmployeeNews]);
 
   // Función para calcular el valor de una novedad
   const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
-    console.log("🔍 calculateNovedadValue ejecutándose con:", {
-      novedadId: novedad.id,
-      employeeId: employee.id,
-      tipoNovedadId: tipoNovedad?.id,
-      tipoNovedadName: tipoNovedad?.name,
-    });
-
     // Verificar que tipoNovedad esté definido
     if (!tipoNovedad) {
-      console.error("❌ tipoNovedad es undefined para novedad:", novedad.id);
-      console.error("📊 typeNews disponibles:", typeNews.length);
-      console.error(
-        "📊 typeNews:",
-        typeNews.map((t) => ({ id: t.id, name: t.name }))
-      );
       return { valorNovedad: 0, totalHoras: 0 };
     }
 
@@ -842,7 +818,6 @@ const LiquidationForm = () => {
     const fechaFin = moment.utc(novedad.endDate);
 
     if (tipoNovedad.calculateperhour) {
-      console.log(`⏰ Calculando por hora para tipo: ${tipoNovedad.name}`);
       // Si la novedad es del mismo día
       if (fechaInicio.format("YYYY-MM-DD") === fechaFin.format("YYYY-MM-DD")) {
         const [startHour, startMinute] = novedad?.startTime
@@ -887,15 +862,10 @@ const LiquidationForm = () => {
         Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
       valorNovedad = totalHoras * valorHoraExtra;
     } else {
-      console.log(`📅 Calculando por día para tipo: ${tipoNovedad.name}`);
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
       const valorDia = Number(employee.basicmonthlysalary) / 30;
       valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
     }
-
-    console.log(
-      `💰 Resultado cálculo: valorNovedad = ${valorNovedad}, totalHoras = ${totalHoras}`
-    );
     return { valorNovedad, totalHoras };
   };
 
@@ -906,7 +876,7 @@ const LiquidationForm = () => {
       (news) =>
         news.employeeId === employee.id &&
         news.typeNewsId === 26 && // ID del tipo de novedad Ausentismo
-        moment(news.startDate).isBetween(periodStart, periodEnd, null, '[]')
+        moment(news.startDate).isBetween(periodStart, periodEnd, null, "[]")
     );
 
     if (ausentismoNews.length === 0) {
@@ -919,26 +889,23 @@ const LiquidationForm = () => {
     ausentismoNews.forEach((absence) => {
       const absenceDate = moment(absence.startDate);
       const endDate = absence.endDate ? moment(absence.endDate) : absenceDate;
-      
+
       // Calcular días de ausencia
-      const absenceDays = endDate.diff(absenceDate, 'days') + 1;
-      
+      const absenceDays = endDate.diff(absenceDate, "days") + 1;
+
       // Para cada día de ausencia, calcular el descuento de días de descanso
       for (let i = 0; i < absenceDays; i++) {
-        const currentAbsenceDate = absenceDate.clone().add(i, 'days');
-        
+        const currentAbsenceDate = absenceDate.clone().add(i, "days");
+
         // Lógica semanal: si falta un día, descuenta el siguiente domingo
         const nextSunday = currentAbsenceDate.clone().day(0); // Domingo = 0
         if (nextSunday.isSameOrBefore(currentAbsenceDate)) {
-          nextSunday.add(1, 'week');
+          nextSunday.add(1, "week");
         }
-        
+
         // Verificar si el domingo a descontar está dentro del período de liquidación
-        if (nextSunday.isBetween(periodStart, periodEnd, null, '[]')) {
+        if (nextSunday.isBetween(periodStart, periodEnd, null, "[]")) {
           totalDiscountAmount += dailySalary;
-          console.log(
-            `📅 Ausentismo ${currentAbsenceDate.format('YYYY-MM-DD')} → Descuenta domingo ${nextSunday.format('YYYY-MM-DD')}: $${dailySalary}`
-          );
         }
       }
     });
@@ -948,14 +915,6 @@ const LiquidationForm = () => {
 
   // Función para calcular todos los valores
   const calculateAllValues = () => {
-    console.log("🔢 calculateAllValues ejecutándose...");
-    console.log("👥 Empleados disponibles:", employees.length);
-    console.log("📋 Tipos de novedad disponibles:", typeNews.length);
-    console.log(
-      "📰 Novedades filtradas disponibles:",
-      filteredEmployeeNews.length
-    );
-
     const newCalculatedValues = {};
 
     employees.forEach((employee) => {
@@ -979,9 +938,6 @@ const LiquidationForm = () => {
       }
 
       newCalculatedValues[employee.id].total += salarioBaseCalculado;
-      console.log(
-        `💰 Salario base agregado para ${employee.fullname}: $${salarioBaseCalculado}`
-      );
 
       // Agregar el auxilio de transporte según el método de pago
       const auxilioTransporte = calculateTransportationAssistance(
@@ -990,16 +946,9 @@ const LiquidationForm = () => {
       );
       if (auxilioTransporte > 0) {
         newCalculatedValues[employee.id].total += auxilioTransporte;
-        console.log(
-          `🚌 Auxilio de transporte agregado para ${employee.fullname}: $${auxilioTransporte}`
-        );
       }
 
       typeNews.forEach((type) => {
-        console.log(
-          `🔍 Procesando tipo de novedad: ${type.name} (ID: ${type.id}) para empleado: ${employee.fullname}`
-        );
-
         // Obtener todas las novedades del mismo tipo para el empleado
         const novedadesDelTipo = filteredEmployeeNews.filter(
           (news) =>
@@ -1007,9 +956,6 @@ const LiquidationForm = () => {
         );
 
         if (novedadesDelTipo.length > 0) {
-          console.log(
-            `📊 ${novedadesDelTipo.length} novedades encontradas del tipo ${type.name} para ${employee.fullname}`
-          );
           let valorTotal = 0;
           let horasTotal = 0;
 
@@ -1041,17 +987,12 @@ const LiquidationForm = () => {
                   : type.affects || {};
             } catch (error) {
               console.error(
-                "❌ Error al parsear affects para tipo de novedad:",
+                "Error al parsear affects para tipo de novedad:",
                 type.id,
                 error
               );
               affectsData = {};
             }
-
-            console.log(
-              `🔍 Tipo de novedad ${type.name} afecta a:`,
-              affectsData
-            );
 
             // Si afecta al salario base, descontar el salario base
             if (
@@ -1059,9 +1000,6 @@ const LiquidationForm = () => {
               affectsData.basicmonthlysalary === "true"
             ) {
               newCalculatedValues[employee.id].total -= salarioBaseCalculado;
-              console.log(
-                `💸 Descontando salario base para ${employee.fullname}: -$${salarioBaseCalculado}`
-              );
             }
 
             // Si afecta al auxilio de transporte, descontar el auxilio de transporte
@@ -1070,9 +1008,6 @@ const LiquidationForm = () => {
               affectsData.transportationassistance === "true"
             ) {
               newCalculatedValues[employee.id].total -= auxilioTransporte;
-              console.log(
-                `💸 Descontando auxilio de transporte para ${employee.fullname}: -$${auxilioTransporte}`
-              );
             }
 
             // Si afecta a otros campos, también descontarlos
@@ -1082,9 +1017,6 @@ const LiquidationForm = () => {
             ) {
               const valorHora = Number(employee.hourlyrate) || 0;
               newCalculatedValues[employee.id].total -= valorHora;
-              console.log(
-                `💸 Descontando valor por hora para ${employee.fullname}: -$${valorHora}`
-              );
             }
 
             if (
@@ -1093,9 +1025,6 @@ const LiquidationForm = () => {
             ) {
               const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
               newCalculatedValues[employee.id].total -= auxilioMovilidad;
-              console.log(
-                `💸 Descontando auxilio de movilidad para ${employee.fullname}: -$${auxilioMovilidad}`
-              );
             }
 
             if (
@@ -1104,22 +1033,11 @@ const LiquidationForm = () => {
             ) {
               const valorDescuento = Number(employee.discountvalue) || 0;
               newCalculatedValues[employee.id].total -= valorDescuento;
-              console.log(
-                `💸 Descontando valor de descuento para ${employee.fullname}: -$${valorDescuento}`
-              );
             }
           }
 
           // Agregar el valor de la novedad al total
           newCalculatedValues[employee.id].total += valorTotal;
-
-          console.log(
-            `💰 Total para tipo ${type.name}: $${valorTotal}, horas: ${horasTotal}`
-          );
-        } else {
-          console.log(
-            `📭 No hay novedades del tipo ${type.name} para ${employee.fullname}`
-          );
         }
       });
 
@@ -1129,17 +1047,12 @@ const LiquidationForm = () => {
         form.startDate,
         form.endDate
       );
-      
+
       if (absenceDiscounts > 0) {
         newCalculatedValues[employee.id].total -= absenceDiscounts;
         newCalculatedValues[employee.id].total_discounts = absenceDiscounts;
-        console.log(
-          `📅 Descuentos por ausentismo para ${employee.fullname}: -$${absenceDiscounts}`
-        );
       }
     });
-
-    console.log("✅ calculateAllValues completado:", newCalculatedValues);
     setCalculatedValues(newCalculatedValues);
   };
 
@@ -1313,7 +1226,9 @@ const LiquidationForm = () => {
               <Col md="3">
                 <Button
                   color="info"
-                  onClick={() => window.location.href = '/admin/liquidaciones_guardadas'}
+                  onClick={() =>
+                    (window.location.href = "/admin/liquidaciones_guardadas")
+                  }
                   className="ms-2"
                 >
                   <i className="fa fa-list me-2"></i>
@@ -1517,6 +1432,34 @@ const LiquidationForm = () => {
           </ModalBody>
         </Modal>
       )}
+
+      {/* Modal de Error */}
+      <Modal
+        isOpen={showErrorModal}
+        toggle={() => setShowErrorModal(false)}
+        centered
+      >
+        <ModalHeader toggle={() => setShowErrorModal(false)}>
+          <div className="d-flex align-items-center">
+            <i className="fa fa-exclamation-triangle text-danger me-2"></i>
+            Error de Liquidación
+          </div>
+        </ModalHeader>
+        <ModalBody>
+          <div className="text-center">
+            <i
+              className="fa fa-times-circle text-danger"
+              style={{ fontSize: "3rem" }}
+            ></i>
+            <p className="mt-3 mb-0">{errorMessage}</p>
+          </div>
+          <div className="text-center mt-3">
+            <Button color="primary" onClick={() => setShowErrorModal(false)}>
+              Entendido
+            </Button>
+          </div>
+        </ModalBody>
+      </Modal>
     </>
   );
 };

@@ -31,6 +31,26 @@ handler.get(`${apiURL}/active`, async function (req, res) {
   }
 });
 
+// GET: api/employee_news/pending-by-period
+handler.get(`${apiURL}/pending-by-period`, async function (req, res) {
+  try {
+    const { startDate, endDate, companyId } = req.query;
+    
+    console.log("🔄 GET /api/employee_news/pending-by-period");
+    console.log("📅 Parámetros:", { startDate, endDate, companyId });
+    
+    if (!startDate || !endDate || !companyId) {
+      return response.error(req, res, "Faltan parámetros requeridos: startDate, endDate, companyId", 400);
+    }
+    
+    const result = await controller.getPendingByPeriod(startDate, endDate, companyId);
+    response.success(req, res, result);
+  } catch (error) {
+    console.log("❌ ERROR en GET /api/employee_news/pending-by-period:", error);
+    response.error(req, res, "Error on employee_news", 400, error);
+  }
+});
+
 // GET: api/employee_news/1
 handler.get(`${apiURL}/:id`, async function (req, res) {
   try {

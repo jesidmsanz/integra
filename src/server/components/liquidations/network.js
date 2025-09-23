@@ -41,7 +41,8 @@ handler.post(`${apiURL}/`, async function (req, res) {
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
-    response.error(req, res, "Error on liquidations", 400, error);
+    const errorMessage = error.message || "Error interno del servidor";
+    response.error(req, res, errorMessage, 400, error);
   }
 });
 

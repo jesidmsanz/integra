@@ -51,7 +51,27 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
               'mobility_assistance', ld.mobility_assistance,
               'total_earnings', ld.total_novedades,
               'total_deductions', ld.total_discounts,
-              'net_amount', ld.net_amount
+              'net_amount', ld.net_amount,
+              'novedades', COALESCE(
+                (
+                  SELECT json_agg(
+                    json_build_object(
+                      'id', ln.id,
+                      'type_news_id', ln.type_news_id,
+                      'hours', ln.hours,
+                      'days', ln.days,
+                      'amount', ln.amount,
+                      'total_amount', ln.amount,
+                      'type_name', tn.name,
+                      'type_code', tn.code
+                    )
+                  )
+                  FROM liquidation_news ln
+                  LEFT JOIN type_news tn ON ln.type_news_id = tn.id
+                  WHERE ln.liquidation_detail_id = ld.id
+                ),
+                '[]'::json
+              )
             )
           ) FILTER (WHERE ld.id IS NOT NULL), 
           '[]'::json

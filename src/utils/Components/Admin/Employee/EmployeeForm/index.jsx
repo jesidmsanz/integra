@@ -359,6 +359,7 @@ const EmployeeForm = ({
   useEffect(() => {
     loadCompanies();
     if (isUpdate && dataToUpdate) {
+      console.log("🔍 dataToUpdate:", dataToUpdate);
       const formattedData = {
         ...dataToUpdate,
         basicmonthlysalary: formatCurrency(dataToUpdate.basicmonthlysalary),
@@ -373,12 +374,16 @@ const EmployeeForm = ({
         // Normalizar los valores de los selects
         ...Object.keys(selectOptions).reduce((acc, key) => {
           if (dataToUpdate[key]) {
-            const normalizedValue = dataToUpdate[key].toLowerCase().trim();
-            const matchingOption = selectOptions[key].find(
-              (option) => option.toLowerCase().trim() === normalizedValue
-            );
-            if (matchingOption) {
-              acc[key] = matchingOption;
+            const value = dataToUpdate[key];
+            // Solo procesar si es string
+            if (typeof value === 'string') {
+              const normalizedValue = value.toLowerCase().trim();
+              const matchingOption = selectOptions[key].find(
+                (option) => option.toLowerCase().trim() === normalizedValue
+              );
+              if (matchingOption) {
+                acc[key] = matchingOption;
+              }
             }
           }
           return acc;

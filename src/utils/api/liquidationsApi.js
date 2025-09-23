@@ -16,6 +16,7 @@ const liquidationsApi = {
 
   getById: async (id) => {
     try {
+      console.log("🔍 Obteniendo liquidación por ID:", id);
       const response = await fetchApi.get(`/${mainRoute}/${id}`);
       return response.data;
     } catch (error) {

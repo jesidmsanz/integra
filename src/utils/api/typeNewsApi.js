@@ -5,10 +5,24 @@ const mainRoute = "type_news";
 const typeNewsApi = {
   list: async (page = 1, limit = 30) => {
     try {
-      const { data } = await fetchApi.get(
+      const response = await fetchApi.get(
         `${mainRoute}?page=${page}&limit=${limit}`
       );
-      return data.body?.data || data.body || [];
+      
+      // Manejar diferentes estructuras de respuesta
+      if (response.data && response.data.body) {
+        // Si tiene body, usar la estructura del body
+        return response.data.body.data || response.data.body || [];
+      } else if (response.data && response.data.data) {
+        // Si tiene data directamente
+        return response.data.data;
+      } else if (Array.isArray(response.data)) {
+        // Si es un array directo
+        return response.data;
+      } else {
+        // Fallback
+        return [];
+      }
     } catch (error) {
       console.error("Error al obtener la lista de tipos de novedades", error);
       throw error;

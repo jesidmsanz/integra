@@ -94,6 +94,42 @@ ORDER BY en.id DESC;
     });
   }
 
+  function getPendingByPeriod(startDate, endDate, companyId) {
+    return sequelize.query(
+      `
+      SELECT 
+        en.*,
+        e.fullname AS employee_name,
+        e.documentnumber AS employee_document,
+        e.position AS employee_position,
+        tn.name AS type_news_name,
+        tn.code AS type_news_code,
+        tn.percentage,
+        tn.calculateperhour,
+        tn.affects,
+        c.companyname
+      FROM employee_news en
+      INNER JOIN employees e ON en."employeeId" = e.id
+      INNER JOIN type_news tn ON en."typeNewsId" = tn.id
+      INNER JOIN companies c ON en."companyId" = c.id
+      WHERE en.status = 'active'
+        AND en.approved = true
+        AND en."companyId" = :companyId
+        AND DATE(en."startDate") >= :startDate
+        AND DATE(en."endDate") <= :endDate
+      ORDER BY en.id ASC
+      `,
+      {
+        replacements: { 
+          companyId: companyId,
+          startDate: startDate,
+          endDate: endDate
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
+  }
+
   return {
     findAll,
     findAllActive,
@@ -101,5 +137,6 @@ ORDER BY en.id DESC;
     create,
     update,
     deleteById,
+    getPendingByPeriod,
   };
 };

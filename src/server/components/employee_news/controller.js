@@ -94,6 +94,26 @@ function deleteById(id) {
   });
 }
 
+function getPendingByPeriod(startDate, endDate, companyId) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log("🔄 Obteniendo novedades pendientes por período...");
+      console.log("📅 Fecha inicio:", startDate);
+      console.log("📅 Fecha fin:", endDate);
+      console.log("🏢 Empresa ID:", companyId);
+      
+      const { EmployeeNews } = await db();
+      const result = await EmployeeNews.getPendingByPeriod(startDate, endDate, companyId);
+      
+      console.log("📋 Novedades encontradas:", result.length);
+      resolve(result);
+    } catch (error) {
+      console.error("❌ Error en getPendingByPeriod controller:", error);
+      reject(error);
+    }
+  });
+}
+
 module.exports = {
   findAll,
   findAllActive,
@@ -101,4 +121,5 @@ module.exports = {
   create,
   update,
   deleteById,
+  getPendingByPeriod,
 };

@@ -178,6 +178,7 @@ module.exports = async (config) => {
       LiquidationDetails,
       LiquidationNews,
       Normativas,
+      sequelize,
     };
   } catch (error) {
     console.error("No se pudo conectar a la base de datos:", error);

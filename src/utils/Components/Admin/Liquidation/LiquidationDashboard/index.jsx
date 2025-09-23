@@ -55,7 +55,7 @@ const LiquidationsDashboard = () => {
       setLoading(true);
       // Cargar liquidaciones
       const liquidationsData = await liquidationsApi.list(1, 100);
-      setLiquidations(liquidationsData.data || []);
+      setLiquidations(liquidationsData.body || liquidationsData.data || []);
 
       // Cargar empresas (igual que en liquidación)
       const companiesResponse = await companiesApi.list();
@@ -135,13 +135,8 @@ const LiquidationsDashboard = () => {
   const handleViewDetails = async (liquidation) => {
     try {
       setActionLoading(true);
-      console.log(
-        "🔍 Solicitando detalles para liquidación ID:",
-        liquidation.id
-      );
       const details = await liquidationsApi.getById(liquidation.id);
-      console.log("🔍 Respuesta recibida:", details);
-      setSelectedLiquidation(details.data);
+      setSelectedLiquidation(details.body || details.data);
       setModalOpen(true);
     } catch (error) {
       console.error("Error al cargar detalles:", error);
@@ -208,12 +203,12 @@ const LiquidationsDashboard = () => {
   const handleGenerateExcel = async (liquidation) => {
     try {
       setActionLoading(true);
-      console.log("🔍 Generando Excel CORPORATIVO PREMIUM para liquidación:", liquidation.id);
 
       // Obtener detalles de la liquidación
       const details = await liquidationsApi.getById(liquidation.id);
+      const liquidationData = details.body || details.data;
       
-      if (details.data && details.data.liquidation_details) {
+      if (liquidationData && liquidationData.liquidation_details) {
         // Crear libro de trabajo con ExcelJS
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Liquidación');
@@ -244,14 +239,8 @@ const LiquidationsDashboard = () => {
 
         worksheet.columns = finalColumns;
         
-        console.log("🔍 Columnas definidas:", finalColumns.length);
-        console.log("🔍 Detalles de columnas:", finalColumns.map(col => ({ key: col.key, width: col.width })));
-
-        // === DISEÑO CORPORATIVO PREMIUM ===
-
-        // 1. ENCABEZADO CORPORATIVO COMPACTO
+        
         const totalColumns = 8 + typeNews.length + 1; // base + novedades + final
-        console.log("🔍 Total de columnas para merge:", totalColumns);
         
         // Función para obtener letra de columna
         const getColumnLetter = (num) => {
@@ -265,7 +254,6 @@ const LiquidationsDashboard = () => {
         };
         
         const lastColumn = getColumnLetter(totalColumns);
-        console.log("🔍 Rango de merge:", `A1:${lastColumn}1`);
         
         // COMBINAR CELDAS PRIMERO
         worksheet.mergeCells(`A1:${lastColumn}1`);
@@ -396,14 +384,10 @@ const LiquidationsDashboard = () => {
           ...typeNews.map(type => type.code || type.name),
           'TOTAL'
         ];
-        console.log("🔍 Títulos de columnas generados:", columnTitles);
-        console.log("🔍 Total de columnas:", columnTitles.length);
-        console.log("🔍 Últimas 3 columnas:", columnTitles.slice(-3));
         
         columnTitles.forEach((title, index) => {
           const cell = headerRow.getCell(index + 1);
           cell.value = title;
-          console.log(`🔍 Columna ${index + 1}: "${title}"`);
           cell.font = {
             name: 'Arial',
             size: 9,
@@ -428,7 +412,7 @@ const LiquidationsDashboard = () => {
         });
 
         // Datos de empleados COMPACTOS - COINCIDIR CON LIQUIDACIÓN
-        details.data.liquidation_details.forEach((detail, index) => {
+        liquidationData.liquidation_details.forEach((detail, index) => {
           const row = worksheet.getRow(dataStartRow + 1 + index);
           row.height = 22;
           
@@ -903,7 +887,7 @@ const LiquidationsDashboard = () => {
                               Transporte
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
-                              Novedades
+                              Total Novedades
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
                               Descuentos
@@ -991,6 +975,73 @@ const LiquidationsDashboard = () => {
                         </tbody>
                       </Table>
                     </div>
+                  </div>
+                )}
+
+              {/* Sección de Novedades Detalladas */}
+              {selectedLiquidation.liquidation_details &&
+                selectedLiquidation.liquidation_details.length > 0 && (
+                  <div className="mt-4">
+                    <h5>Novedades Detalladas por Empleado</h5>
+                    {selectedLiquidation.liquidation_details.map((detail) => (
+                      <div key={detail.id} className="mb-4">
+                        <div className="d-flex align-items-center mb-2">
+                          <h6 className="mb-0 me-3">
+                            {detail.employee_name} ({detail.employee_document})
+                          </h6>
+                          <Badge color="info">
+                            {detail.novedades && detail.novedades.length > 0
+                              ? `${detail.novedades.length} novedades`
+                              : "Sin novedades"}
+                          </Badge>
+                        </div>
+                        
+                        {detail.novedades && detail.novedades.length > 0 ? (
+                          <div className="table-responsive">
+                            <Table size="sm" className="mb-0">
+                              <thead>
+                                <tr>
+                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                    Tipo de Novedad
+                                  </th>
+                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                    Horas
+                                  </th>
+                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                    Días
+                                  </th>
+                                  <th style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                    Valor
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {detail.novedades.map((novedad) => (
+                                  <tr key={novedad.id}>
+                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                      {novedad.type_name || `Tipo ${novedad.type_news_id}`}
+                                    </td>
+                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                      {novedad.hours || 0}
+                                    </td>
+                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                      {novedad.days || 0}
+                                    </td>
+                                    <td style={{ fontSize: "0.9rem", padding: "0.4rem" }}>
+                                      {formatCurrency(novedad.total_amount || novedad.amount || 0)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          </div>
+                        ) : (
+                          <div className="text-muted">
+                            <small>No se encontraron novedades para este empleado.</small>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
             </div>

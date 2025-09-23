@@ -3,13 +3,16 @@ const db = require("../../db/index.js");
 function findAll(page = 1, limit = 30) {
   return new Promise(async (resolve, reject) => {
     try {
+      console.log("🔄 Obteniendo tipos de novedades...");
       const { TypeNews } = await db();
+      console.log("✅ Conexión a TypeNews establecida");
       
       // Calcular offset para la paginación
       const offset = (page - 1) * limit;
       
       // Obtener el total de registros
       const total = await TypeNews.count();
+      console.log("📊 Total de tipos de novedades:", total);
       
       // Obtener los datos paginados
       const result = await TypeNews.findAll({
@@ -17,6 +20,8 @@ function findAll(page = 1, limit = 30) {
         offset: parseInt(offset),
         order: [['id', 'ASC']]
       });
+      
+      console.log("📋 Tipos de novedades obtenidos:", result.length);
       
       // Devolver objeto con datos y metadata de paginación
       const response = {
