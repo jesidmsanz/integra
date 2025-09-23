@@ -63,7 +63,7 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) 
 
       if (overlappingPeriods.length > 0) {
         setIsValid(false);
-        setErrorMessage(`El período seleccionado se solapa con ${overlappingPeriods.length} liquidación(es) existente(s).`);
+        setErrorMessage(`El período seleccionado se cruza con ${overlappingPeriods.length} liquidación(es) existente(s).`);
         onValidationChange && onValidationChange(false, overlappingPeriods);
       } else {
         setIsValid(true);
