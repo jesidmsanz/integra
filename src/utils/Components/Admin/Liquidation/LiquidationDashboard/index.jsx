@@ -674,13 +674,13 @@ const LiquidationsDashboard = () => {
                     >
                       Nueva Liquidación
                     </Button>
-                    <Button
+                    {/* <Button
                       color="info"
                       onClick={() => router.push("/admin/reporte_novedades")}
                     >
                       <i className="fa fa-chart-bar me-2"></i>
                       Reporte Novedades
-                    </Button>
+                    </Button> */}
                   </div>
                 </div>
               </Col>

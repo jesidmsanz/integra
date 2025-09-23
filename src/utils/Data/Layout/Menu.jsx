@@ -36,6 +36,11 @@ export const MenuList = [
             title: "Volantes de Pago",
             type: "link",
           },
+          // {
+          //   path: "/admin/reporte_novedades",
+          //   title: "Reporte Novedades",
+          //   type: "link",
+          // },
         ],
       },
       // {
