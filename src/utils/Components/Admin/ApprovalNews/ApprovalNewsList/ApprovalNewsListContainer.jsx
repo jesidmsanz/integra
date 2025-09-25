@@ -74,15 +74,31 @@ const ApprovalNewsListContainer = () => {
   const handleApprove = async () => {
     if (window.confirm("¿Estás seguro de que deseas aprobar esta novedad?")) {
       try {
-        await employeeNewsApi.update(selectedNews.id, { approved: true });
+        console.log("=== INICIANDO APROBACIÓN ===");
+        console.log("ID de la novedad:", selectedNews.id);
+        console.log("Datos a enviar:", { approved: true });
+        
+        const result = await employeeNewsApi.update(selectedNews.id, { approved: true });
+        console.log("Resultado de la API:", result);
+        
         toast.success("Novedad aprobada correctamente");
+        
+        // Actualizar el estado local inmediatamente
         setData((prev) =>
           prev.map((item) => (item.id === selectedNews.id ? { ...item, approved: true } : item))
         );
-        await fetchData(page);
+        
+        // Cerrar el modal
         closeModal();
+        
+        // Recargar los datos después de un pequeño delay
+        setTimeout(async () => {
+          await fetchData(page);
+        }, 500);
+        
       } catch (error) {
-        toast.error("Error al aprobar la novedad");
+        console.error("Error al aprobar la novedad:", error);
+        toast.error("Error al aprobar la novedad: " + (error.message || "Error desconocido"));
       }
     }
   };
