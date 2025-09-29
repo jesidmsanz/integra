@@ -23,7 +23,7 @@ module.exports = function (config) {
       },
       payment: {
         type: Sequelize.STRING(),
-        allowNull: false,
+        allowNull: true,
         comment: "Información de pago",
       },
       affects: {
@@ -43,7 +43,7 @@ module.exports = function (config) {
       },
       category: {
         type: Sequelize.STRING(),
-        allowNull: false,
+        allowNull: true,
         comment: "Categoría de la novedad",
       },
       active: {

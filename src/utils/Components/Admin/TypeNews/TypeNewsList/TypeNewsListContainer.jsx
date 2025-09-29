@@ -180,12 +180,6 @@ const TypeNewsListContainer = () => {
       sortable: true,
     },
     {
-      name: "Pago",
-      selector: (row) => row.payment,
-      sortable: true,
-    },
-
-    {
       name: "Acciones",
       cell: (row) => <TypeNewsListTableAction row={row} />,
       width: "100px",

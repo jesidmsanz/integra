@@ -37,11 +37,9 @@ const initialState = {
   name: "",
   code: "",
   duration: "",
-  payment: "",
   affects: {}, // Ahora será un objeto con los campos seleccionados
   applies_to: {}, // Ahora será un objeto con las opciones de género seleccionadas
   percentage: "",
-  category: "",
   active: true,
   notes: "",
   calculateperhour: false,
@@ -57,19 +55,21 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
   useEffect(() => {
     if (isUpdate && data) {
       // Si es actualización, convertir el string affects a objeto si es necesario
-      const affectsData = typeof data.affects === 'string' && data.affects 
-        ? JSON.parse(data.affects) 
-        : data.affects || {};
-      
+      const affectsData =
+        typeof data.affects === "string" && data.affects
+          ? JSON.parse(data.affects)
+          : data.affects || {};
+
       // Si es actualización, convertir el string applies_to a objeto si es necesario
-      const appliesToData = typeof data.applies_to === 'string' && data.applies_to 
-        ? JSON.parse(data.applies_to) 
-        : data.applies_to || {};
-      
+      const appliesToData =
+        typeof data.applies_to === "string" && data.applies_to
+          ? JSON.parse(data.applies_to)
+          : data.applies_to || {};
+
       setForm({
         ...data,
         affects: affectsData,
-        applies_to: appliesToData
+        applies_to: appliesToData,
       });
     } else {
       setForm(initialState);
@@ -102,10 +102,10 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
       ...form,
       affects: {
         ...form.affects,
-        [fieldKey]: checked
-      }
+        [fieldKey]: checked,
+      },
     });
-    
+
     if (errors.affects) {
       setErrors({
         ...errors,
@@ -120,10 +120,10 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
       ...form,
       applies_to: {
         ...form.applies_to,
-        [genderKey]: checked
-      }
+        [genderKey]: checked,
+      },
     });
-    
+
     if (errors.applies_to) {
       setErrors({
         ...errors,
@@ -134,30 +134,32 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    Object.keys(form).forEach((key) => {
-      if (
-        !form[key] &&
-        key !== "active" &&
-        key !== "notes" &&
-        key !== "createdAt" &&
-        key !== "updatedAt" &&
-        key !== "calculateperhour"
-      ) {
-        if (key === "affects") {
-          // Validar que al menos un campo de dinero esté seleccionado
-          if (Object.keys(form.affects).length === 0 || Object.values(form.affects).every(val => !val)) {
-            newErrors[key] = "Debe seleccionar al menos un campo de dinero";
-          }
-        } else if (key === "applies_to") {
-          // Validar que al menos una opción de género esté seleccionada
-          if (Object.keys(form.applies_to).length === 0 || Object.values(form.applies_to).every(val => !val)) {
-            newErrors[key] = "Debe seleccionar al menos una opción de género";
-          }
-        } else {
-          newErrors[key] = "Este campo es requerido";
-        }
+
+    // Validar campos requeridos específicos
+    const requiredFields = ["name", "code", "percentage"];
+
+    requiredFields.forEach((field) => {
+      if (!form[field] || form[field].toString().trim() === "") {
+        newErrors[field] = "Este campo es requerido";
       }
     });
+
+    // Validar que al menos un campo de dinero esté seleccionado en "affects"
+    if (
+      Object.keys(form.affects).length === 0 ||
+      Object.values(form.affects).every((val) => !val)
+    ) {
+      newErrors.affects = "Debe seleccionar al menos un campo de dinero";
+    }
+
+    // Validar que al menos una opción de género esté seleccionada en "applies_to"
+    if (
+      Object.keys(form.applies_to).length === 0 ||
+      Object.values(form.applies_to).every((val) => !val)
+    ) {
+      newErrors.applies_to = "Debe seleccionar al menos una opción de género";
+    }
+
     return newErrors;
   };
 
@@ -172,9 +174,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
         const formDataToSend = {
           ...form,
           affects: JSON.stringify(form.affects),
-          applies_to: JSON.stringify(form.applies_to)
+          applies_to: JSON.stringify(form.applies_to),
         };
-        
+
         console.log("form", formDataToSend);
         const save = isUpdate
           ? await typeNewsApi.update(data.id, formDataToSend)
@@ -251,7 +253,7 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="6">
+            <Col md="12">
               <FormGroup>
                 <Label for="duration">Duración:</Label>
                 <Input
@@ -262,28 +264,10 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                   onChange={handleChange}
                   value={form.duration}
                   invalid={!!errors.duration}
-                  required
+                  required={false}
                 />
                 {errors.duration && (
                   <FormFeedback>{errors.duration}</FormFeedback>
-                )}
-              </FormGroup>
-            </Col>
-            <Col md="6">
-              <FormGroup>
-                <Label for="payment">Pago:</Label>
-                <Input
-                  type="text"
-                  name="payment"
-                  id="payment"
-                  placeholder="Pago de la novedad"
-                  onChange={handleChange}
-                  value={form.payment}
-                  invalid={!!errors.payment}
-                  required
-                />
-                {errors.payment && (
-                  <FormFeedback>{errors.payment}</FormFeedback>
                 )}
               </FormGroup>
             </Col>
@@ -300,7 +284,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                           type="checkbox"
                           id={`affects_${field.key}`}
                           checked={form.affects[field.key] || false}
-                          onChange={(e) => handleMoneyFieldChange(field.key, e.target.checked)}
+                          onChange={(e) =>
+                            handleMoneyFieldChange(field.key, e.target.checked)
+                          }
                         />
                         <Label check for={`affects_${field.key}`}>
                           {field.label}
@@ -329,7 +315,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                           type="checkbox"
                           id={`applies_to_${option.key}`}
                           checked={form.applies_to[option.key] || false}
-                          onChange={(e) => handleGenderChange(option.key, e.target.checked)}
+                          onChange={(e) =>
+                            handleGenderChange(option.key, e.target.checked)
+                          }
                         />
                         <Label check for={`applies_to_${option.key}`}>
                           {option.label}
@@ -347,7 +335,7 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="6">
+            <Col md="12">
               <FormGroup>
                 <Label for="percentage">Porcentaje:</Label>
                 <Input
@@ -362,24 +350,6 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                 />
                 {errors.percentage && (
                   <FormFeedback>{errors.percentage}</FormFeedback>
-                )}
-              </FormGroup>
-            </Col>
-            <Col md="6">
-              <FormGroup>
-                <Label for="category">Categoría:</Label>
-                <Input
-                  type="text"
-                  name="category"
-                  id="category"
-                  placeholder="Categoría"
-                  onChange={handleChange}
-                  value={form.category}
-                  invalid={!!errors.category}
-                  required
-                />
-                {errors.category && (
-                  <FormFeedback>{errors.category}</FormFeedback>
                 )}
               </FormGroup>
             </Col>
