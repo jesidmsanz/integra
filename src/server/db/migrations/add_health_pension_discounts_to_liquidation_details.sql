@@ -5,3 +5,4 @@ ADD COLUMN pension_discount DECIMAL(15,2) NOT NULL DEFAULT 0 COMMENT 'Descuento 
 ADD COLUMN social_security_discounts DECIMAL(15,2) NOT NULL DEFAULT 0 COMMENT 'Total descuentos de seguridad social (salud + pensión)',
 ADD COLUMN absence_discounts DECIMAL(15,2) NOT NULL DEFAULT 0 COMMENT 'Descuentos por ausentismo',
 ADD COLUMN proportional_discounts DECIMAL(15,2) NOT NULL DEFAULT 0 COMMENT 'Descuentos proporcionales por novedades';
+

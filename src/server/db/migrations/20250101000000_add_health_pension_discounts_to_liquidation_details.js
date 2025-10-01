@@ -46,3 +46,4 @@ module.exports = {
     await queryInterface.removeColumn('liquidation_details', 'proportional_discounts');
   }
 };
+

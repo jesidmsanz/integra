@@ -266,9 +266,7 @@ const LiquidationsDashboard = () => {
           { key: 'salario_base', width: 18 },
           { key: 'auxilio_transporte', width: 18 },
           { key: 'valor_hora', width: 18 },
-          { key: 'frecuencia_pago', width: 18 },
-          { key: 'salud', width: 15 },
-          { key: 'pension', width: 15 }
+          { key: 'frecuencia_pago', width: 18 }
         ];
 
         // Agregar columnas de novedades
@@ -286,7 +284,7 @@ const LiquidationsDashboard = () => {
         worksheet.columns = finalColumns;
         
         
-        const totalColumns = 10 + typeNews.length + 1; // base + salud + pension + novedades + final
+        const totalColumns = 8 + typeNews.length + 1; // base + novedades + final
         
         // Función para obtener letra de columna
         const getColumnLetter = (num) => {
@@ -378,13 +376,9 @@ const LiquidationsDashboard = () => {
         };
 
         // Datos de la empresa COMPACTOS
-        const periodText = liquidationData.start_date && liquidationData.end_date 
-          ? `${moment(liquidationData.start_date).format('DD/MM/YYYY')} - ${moment(liquidationData.end_date).format('DD/MM/YYYY')}`
-          : liquidationData.period;
-        
         const companyData = [
           `Empresa: ${liquidationData.companyname || `Empresa ${liquidationData.company_id}`}`,
-          `Período: ${periodText} | Fecha: ${moment().format('DD/MM/YYYY HH:mm')} | Empleados: ${liquidationData.total_employees} | Total: ${formatCurrency(liquidationData.total_net_amount)}`
+          `Período: ${liquidationData.period} | Fecha: ${moment().format('DD/MM/YYYY HH:mm')} | Empleados: ${liquidationData.total_employees} | Total: ${formatCurrency(liquidationData.total_net_amount)}`
         ];
 
         companyData.forEach((data, index) => {
@@ -431,8 +425,6 @@ const LiquidationsDashboard = () => {
           'AUXILIO DE TRANSPORTE',
           'VALOR POR HORA',
           'FRECUENCIA DE PAGO',
-          'SALUD (4%)',
-          'PENSIÓN (4%)',
           ...typeNews.map(type => type.code || type.name),
           'TOTAL'
         ];
@@ -479,11 +471,9 @@ const LiquidationsDashboard = () => {
           row.getCell(6).value = detail.transportation_assistance; // AUXILIO DE TRANSPORTE
           row.getCell(7).value = detail.hourly_rate || 0; // VALOR POR HORA
           row.getCell(8).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
-          row.getCell(9).value = detail.health_discount || 0; // SALUD (4%)
-          row.getCell(10).value = detail.pension_discount || 0; // PENSIÓN (4%)
 
           // Agregar datos de novedades - LLENAR CON 0 SI NO HAY
-          let currentCol = 11;
+          let currentCol = 9;
           typeNews.forEach((type) => {
             const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
             const amount = novedad ? novedad.total_amount : 0;
@@ -492,11 +482,11 @@ const LiquidationsDashboard = () => {
           });
 
           // Columna final - TOTAL
-          const totalCol = 10 + typeNews.length + 1;
+          const totalCol = 8 + typeNews.length + 1;
           row.getCell(totalCol).value = detail.net_amount;
 
           // Aplicar estilos a toda la fila COMPACTOS
-          const totalCols = 10 + typeNews.length + 1; // base + salud + pension + novedades + final
+          const totalCols = 8 + typeNews.length + 1; // base + novedades + final
           for (let col = 1; col <= totalCols; col++) {
             const cell = row.getCell(col);
             cell.font = {
@@ -523,11 +513,9 @@ const LiquidationsDashboard = () => {
             // Formato de moneda para columnas numéricas
             if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
               cell.numFmt = '"$"#,##0';
-            } else if (col >= 9 && col <= 10) { // SALUD y PENSIÓN
+            } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
               cell.numFmt = '"$"#,##0';
-            } else if (col >= 11 && col <= 10 + typeNews.length) { // NOVEDADES
-              cell.numFmt = '"$"#,##0';
-            } else if (col === 10 + typeNews.length + 1) { // TOTAL
+            } else if (col === 8 + typeNews.length + 1) { // TOTAL
               cell.numFmt = '"$"#,##0';
             }
           }
@@ -543,26 +531,20 @@ const LiquidationsDashboard = () => {
         // Calcular totales manualmente (SIN FÓRMULAS)
         let totalSalario = 0;
         let totalTransporte = 0;
-        let totalSalud = 0;
-        let totalPension = 0;
         let totalNeto = 0;
         
         liquidationData.liquidation_details.forEach(detail => {
           totalSalario += detail.basic_salary || 0;
           totalTransporte += detail.transportation_assistance || 0;
-          totalSalud += detail.health_discount || 0;
-          totalPension += detail.pension_discount || 0;
           totalNeto += detail.net_amount || 0;
         });
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
         totalRowObj.getCell(6).value = totalTransporte; // AUXILIO DE TRANSPORTE
         // Columnas 7 y 8 (VALOR POR HORA y FRECUENCIA DE PAGO) no tienen totales
-        totalRowObj.getCell(9).value = totalSalud; // SALUD (4%)
-        totalRowObj.getCell(10).value = totalPension; // PENSIÓN (4%)
         
         // Totales de novedades (SIN FÓRMULAS)
-        let currentCol = 11;
+        let currentCol = 9;
         typeNews.forEach((type) => {
           let totalNovedad = 0;
           liquidationData.liquidation_details.forEach(detail => {
@@ -574,11 +556,11 @@ const LiquidationsDashboard = () => {
         });
         
         // Total final (SIN FÓRMULAS)
-        const totalCol = 10 + typeNews.length + 1;
+        const totalCol = 8 + typeNews.length + 1;
         totalRowObj.getCell(totalCol).value = totalNeto;
 
         // Estilo de la fila de totales COMPACTA
-        const totalCols = 10 + typeNews.length + 1; // base + salud + pension + novedades + final
+        const totalCols = 8 + typeNews.length + 1; // base + novedades + final
         for (let col = 1; col <= totalCols; col++) {
           const cell = totalRowObj.getCell(col);
           cell.font = {
@@ -606,11 +588,9 @@ const LiquidationsDashboard = () => {
           // Formato de moneda para columnas numéricas en totales
           if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
             cell.numFmt = '"$"#,##0';
-          } else if (col >= 9 && col <= 10) { // SALUD y PENSIÓN
+          } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
             cell.numFmt = '"$"#,##0';
-          } else if (col >= 11 && col <= 10 + typeNews.length) { // NOVEDADES
-            cell.numFmt = '"$"#,##0';
-          } else if (col === 10 + typeNews.length + 1) { // TOTAL
+          } else if (col === 8 + typeNews.length + 1) { // TOTAL
             cell.numFmt = '"$"#,##0';
           }
         }
