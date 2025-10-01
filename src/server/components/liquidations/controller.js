@@ -149,6 +149,11 @@ function create(liquidationData) {
           mobility_assistance: toDecimal(employee.mobility_assistance),
           total_novedades: toDecimal(employee.total_novedades),
           total_discounts: toDecimal(employee.total_discounts),
+          health_discount: toDecimal(employee.health_discount),
+          pension_discount: toDecimal(employee.pension_discount),
+          social_security_discounts: toDecimal(employee.social_security_discounts),
+          absence_discounts: toDecimal(employee.absence_discounts),
+          proportional_discounts: toDecimal(employee.proportional_discounts),
           net_amount: toDecimal(employee.net_amount),
         });
 

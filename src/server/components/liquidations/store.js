@@ -51,6 +51,11 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
               'mobility_assistance', ld.mobility_assistance,
               'total_earnings', ld.total_novedades,
               'total_deductions', ld.total_discounts,
+              'health_discount', ld.health_discount,
+              'pension_discount', ld.pension_discount,
+              'social_security_discounts', ld.social_security_discounts,
+              'absence_discounts', ld.absence_discounts,
+              'proportional_discounts', ld.proportional_discounts,
               'net_amount', ld.net_amount,
               'novedades', COALESCE(
                 (

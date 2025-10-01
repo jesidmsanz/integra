@@ -54,6 +54,36 @@ module.exports = function (config) {
         defaultValue: 0,
         comment: "Total de descuentos",
       },
+      health_discount: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Descuento de salud (4%)",
+      },
+      pension_discount: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Descuento de pensión (4%)",
+      },
+      social_security_discounts: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Total descuentos de seguridad social (salud + pensión)",
+      },
+      absence_discounts: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Descuentos por ausentismo",
+      },
+      proportional_discounts: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Descuentos proporcionales por novedades",
+      },
       net_amount: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,

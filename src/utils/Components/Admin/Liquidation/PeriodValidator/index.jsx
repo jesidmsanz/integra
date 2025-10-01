@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import moment from "moment";
 import liquidationsApi from "@/utils/api/liquidationsApi";
 
-const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) => {
+const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, corte1, corte2 }) => {
   const [isValid, setIsValid] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,13 +28,13 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) 
     if (companyId && startDate && endDate) {
       validatePeriod();
     }
-  }, [companyId, startDate, endDate]);
+  }, [companyId, startDate, endDate, corte1, corte2]);
 
   const validatePeriod = async () => {
     try {
       setLoading(true);
       console.log("🔄 Validando período...");
-      console.log("📊 Parámetros:", { companyId, startDate, endDate });
+      console.log("📊 Parámetros:", { companyId, startDate, endDate, corte1, corte2 });
 
       // Obtener todas las liquidaciones
       const liquidations = await liquidationsApi.list(1, 100);
@@ -48,13 +48,36 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) 
       // Verificar solapamientos
       const overlappingPeriods = companyLiquidations.filter((liquidation) => {
         const liquidationStart = liquidation.period_start || (liquidation.period + '-01');
-        const liquidationEnd = liquidation.period_end || (liquidation.period + '-31');
+        const liquidationEnd = liquidation.period_end || (() => {
+          if (liquidation.period) {
+            const [year, month] = liquidation.period.split('-');
+            const lastDay = new Date(year, month, 0).getDate();
+            return liquidation.period + '-' + String(lastDay).padStart(2, '0');
+          }
+          return liquidation.period + '-30';
+        })();
         
         // Verificar solapamiento de períodos
         const hasOverlap = (
           (startDate <= liquidationEnd && endDate >= liquidationStart) &&
           liquidation.status !== 'cancelled'
         );
+
+        // Si hay cortes seleccionados, verificar también el número de corte
+        if (hasOverlap && (corte1 || corte2)) {
+          const liquidationCut = liquidation.cut_number;
+          const currentCut = corte1 ? 1 : corte2 ? 2 : null;
+          
+          // Si el corte coincide, es un conflicto directo
+          if (liquidationCut === currentCut) {
+            return true;
+          }
+          
+          // Si no hay corte específico en la liquidación existente, también es conflicto
+          if (!liquidationCut) {
+            return true;
+          }
+        }
 
         return hasOverlap;
       });
@@ -63,7 +86,8 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) 
 
       if (overlappingPeriods.length > 0) {
         setIsValid(false);
-        setErrorMessage(`El período seleccionado se cruza con ${overlappingPeriods.length} liquidación(es) existente(s).`);
+        const cutInfo = corte1 ? " (Corte 1-15)" : corte2 ? " (Corte 16-30)" : "";
+        setErrorMessage(`El período seleccionado${cutInfo} se cruza con ${overlappingPeriods.length} liquidación(es) existente(s).`);
         onValidationChange && onValidationChange(false, overlappingPeriods);
       } else {
         setIsValid(true);
@@ -138,6 +162,8 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange }) 
                 <i className="fa fa-check-circle text-success me-2"></i>
                 <span className="text-success">
                   <strong>Período válido:</strong> Sin conflictos
+                  {corte1 && !corte2 && " (Corte 1-15)"}
+                  {corte2 && !corte1 && " (Corte 16-30)"}
                 </span>
                 <span className="text-muted ms-2">
                   ({moment(startDate).format('DD/MM/YYYY')} - {moment(endDate).format('DD/MM/YYYY')})

@@ -37,10 +37,22 @@ import moment from "moment";
 
 const initialState = {
   companyId: null,
-  startDate: new Date(new Date().setMonth(new Date().getMonth() - 1))
-    .toISOString()
-    .split("T")[0],
-  endDate: new Date().toISOString().split("T")[0],
+  startDate: (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    return `${year}-${String(month).padStart(2, '0')}-01`;
+  })(),
+  endDate: (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  })(),
+  paymentMethod: "Mensual", // Mensual por defecto
+  corte1: true, // Corte 1 seleccionado por defecto
+  corte2: false,
 };
 
 const LiquidationForm = () => {
@@ -73,6 +85,132 @@ const LiquidationForm = () => {
     }).format(amount);
   };
 
+  // Función para validar y ajustar fechas según el corte seleccionado
+  const validateAndAdjustDates = (startDate, endDate, corte1, corte2) => {
+    if (!startDate || !endDate) return { startDate, endDate };
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startMonth = start.getMonth();
+    const startYear = start.getFullYear();
+    const endMonth = end.getMonth();
+    const endYear = end.getFullYear();
+    
+    // Si es corte 1 (1-15), ajustar fechas si es necesario
+    if (corte1 && !corte2) {
+      if (startDay > 15) {
+        // Si la fecha de inicio está después del día 15, ajustar al día 1
+        start.setDate(1);
+      }
+      if (endDay > 15) {
+        // Si la fecha de fin está después del día 15, ajustar al día 15
+        end.setDate(15);
+      }
+    }
+    
+    // Si es corte 2 (16-30), ajustar fechas si es necesario
+    if (corte2 && !corte1) {
+      // Asegurar que ambas fechas estén en el mismo mes
+      if (startMonth !== endMonth || startYear !== endYear) {
+        // Si las fechas están en meses diferentes, usar el mes de la fecha de inicio
+        end.setFullYear(startYear);
+        end.setMonth(startMonth);
+      }
+      
+      if (startDay < 16) {
+        // Si la fecha de inicio está antes del día 16, ajustar al día 16
+        start.setDate(16);
+      }
+      if (endDay < 16) {
+        // Si la fecha de fin está antes del día 16, ajustar al día 16
+        end.setDate(16);
+      }
+      
+      // Asegurar que no exceda el último día del mes
+      const lastDayOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+      if (endDay > lastDayOfMonth) {
+        end.setDate(lastDayOfMonth);
+      }
+      
+      // Asegurar que la fecha de fin no sea anterior a la fecha de inicio
+      if (end < start) {
+        end.setTime(start.getTime());
+      }
+    }
+    
+    return {
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0]
+    };
+  };
+
+  // Función para obtener el rango de fechas válido según el corte
+  const getValidDateRange = (corte1, corte2, year, month) => {
+    if (corte1 && !corte2) {
+      return {
+        min: `${year}-${String(month).padStart(2, '0')}-01`,
+        max: `${year}-${String(month).padStart(2, '0')}-15`
+      };
+    } else if (corte2 && !corte1) {
+      const lastDayOfMonth = new Date(year, month, 0).getDate();
+      return {
+        min: `${year}-${String(month).padStart(2, '0')}-16`,
+        max: `${year}-${String(month).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`
+      };
+    }
+    return null;
+  };
+
+  // Función para validar fechas antes de guardar
+  const validateDates = (startDate, endDate, paymentMethod, corte1, corte2) => {
+    if (!startDate || !endDate) return { isValid: false, message: "Debe seleccionar fecha de inicio y fin" };
+    
+    // Usar UTC para evitar problemas de zona horaria
+    const start = new Date(startDate + 'T00:00:00.000Z');
+    const end = new Date(endDate + 'T00:00:00.000Z');
+    const startYear = start.getUTCFullYear();
+    const startMonth = start.getUTCMonth();
+    const startDay = start.getUTCDate();
+    const endYear = end.getUTCFullYear();
+    const endMonth = end.getUTCMonth();
+    const endDay = end.getUTCDate();
+    
+    // Verificar que estén en el mismo mes
+    if (startYear !== endYear || startMonth !== endMonth) {
+      return { isValid: false, message: "Seleccione el período correcto - las fechas deben estar en el mismo mes" };
+    }
+    
+    if (paymentMethod === "Mensual") {
+      // Mensual: debe ser del 1 al último día del mes
+      const lastDayOfMonth = new Date(startYear, startMonth + 1, 0).getUTCDate();
+      if (startDay < 1 || startDay > lastDayOfMonth || endDay < 1 || endDay > lastDayOfMonth) {
+        return { isValid: false, message: "Período de liquidación: 1 al " + lastDayOfMonth + " del mismo mes" };
+      }
+    } else if (paymentMethod === "Quincenal") {
+      if (corte1 && !corte2) {
+        // Corte 1: del 1 al 15
+        if (startDay < 1 || startDay > 15 || endDay < 1 || endDay > 15) {
+          return { isValid: false, message: "Período de liquidación: 1 al 15 del mismo mes" };
+        }
+      } else if (corte2 && !corte1) {
+        // Corte 2: del 16 al 30 (o último día si es menor a 30)
+        const lastDayOfMonth = new Date(startYear, startMonth + 1, 0).getUTCDate();
+        const maxDay = Math.min(30, lastDayOfMonth);
+        console.log("🔍 Debug Corte 2:", { startDay, endDay, maxDay, lastDayOfMonth, startDate, endDate });
+        if (startDay < 16 || startDay > maxDay || endDay < 16 || endDay > maxDay) {
+          console.log("❌ Validación falló:", { startDay, endDay, maxDay });
+          return { isValid: false, message: "Período de liquidación: 16 al " + maxDay + " del mismo mes" };
+        }
+      } else {
+        return { isValid: false, message: "Debe seleccionar un corte (1-15 o 16-30)" };
+      }
+    }
+    
+    return { isValid: true, message: "" };
+  };
+
   // Función para calcular el auxilio de transporte según el método de pago
   const calculateTransportationAssistance = (employee, paymentMethod) => {
     const auxilioBase = Number(employee.transportationassistance) || 0;
@@ -87,6 +225,21 @@ const LiquidationForm = () => {
     } else {
       return auxilioBase * 30; // 30 días (mensual o por defecto)
     }
+  };
+
+  // Función para determinar si se deben aplicar descuentos de salud y pensión
+  const shouldApplyHealthPensionDiscounts = (paymentMethod, isSecondCut) => {
+    // Para períodos mensuales: siempre aplicar descuentos
+    if (paymentMethod === "Mensual" || !paymentMethod) {
+      return true;
+    }
+    
+    // Para períodos quincenales: solo aplicar en el segundo corte (16-30)
+    if (paymentMethod === "Quincenal") {
+      return isSecondCut; // Solo en el segundo corte
+    }
+    
+    return true; // Por defecto aplicar descuentos
   };
 
   let formRef = createRef();
@@ -227,6 +380,42 @@ const LiquidationForm = () => {
       minWidth: "150px",
     },
     {
+      name: "Salud (4%)",
+      cell: (row) => {
+        const salarioBase = Number(row.basicmonthlysalary) || 0;
+        const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        
+        // Determinar si es el segundo corte para quincenales
+        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+        
+        // Aplicar lógica de descuentos
+        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+        const descuentoSalud = shouldApply ? salarioCalculado * 0.04 : 0;
+        
+        return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
+      },
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
+      name: "Pensión (4%)",
+      cell: (row) => {
+        const salarioBase = Number(row.basicmonthlysalary) || 0;
+        const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        
+        // Determinar si es el segundo corte para quincenales
+        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+        
+        // Aplicar lógica de descuentos
+        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+        const descuentoPension = shouldApply ? salarioCalculado * 0.04 : 0;
+        
+        return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
+      },
+      sortable: true,
+      minWidth: "150px",
+    },
+    {
       name: "Valor por hora",
       selector: (row) => formatCurrency(row.hourlyrate),
       sortable: true,
@@ -307,10 +496,22 @@ const LiquidationForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prevForm) => ({
-      ...prevForm,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    
+    setForm((prevForm) => {
+      const newForm = {
+        ...prevForm,
+        [name]: type === "checkbox" ? checked : value,
+      };
+      
+      // Si se está cambiando un corte, limpiar el otro
+      if (name === "corte1" && checked) {
+        newForm.corte2 = false;
+      } else if (name === "corte2" && checked) {
+        newForm.corte1 = false;
+      }
+      
+      return newForm;
+    });
   };
 
   const loadEmployees = async () => {
@@ -565,6 +766,26 @@ const LiquidationForm = () => {
             ? formatCurrency(auxilioCalculado)
             : "No aplica";
         })(),
+        "Auxilio de Movilidad": (() => {
+          const auxilio = Number(employee.mobilityassistance) || 0;
+          return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
+        })(),
+        "Descuento Salud (4%)": (() => {
+          const salarioBase = Number(employee.basicmonthlysalary) || 0;
+          const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+          const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+          const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+          const descuentoSalud = shouldApply ? salarioCalculado * 0.04 : 0;
+          return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
+        })(),
+        "Descuento Pensión (4%)": (() => {
+          const salarioBase = Number(employee.basicmonthlysalary) || 0;
+          const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+          const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+          const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+          const descuentoPension = shouldApply ? salarioCalculado * 0.04 : 0;
+          return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
+        })(),
         "Valor por hora": formatCurrency(employee.hourlyrate),
         "Frecuencia de pago": employee.paymentmethod || "No disponible",
       };
@@ -651,6 +872,13 @@ const LiquidationForm = () => {
 
     if (!form.startDate || !form.endDate) {
       toast.error("Debe seleccionar las fechas del período");
+      return;
+    }
+
+    // Validar fechas según la frecuencia
+    const validation = validateDates(form.startDate, form.endDate, form.paymentMethod, form.corte1, form.corte2);
+    if (!validation.isValid) {
+      toast.error(validation.message);
       return;
     }
 
@@ -781,7 +1009,29 @@ const LiquidationForm = () => {
           form.startDate,
           form.endDate
         );
-        const totalDiscounts = absenceDiscounts + descuentosProporcionales;
+
+        // Calcular descuentos de salud y pensión (4% cada uno del salario base)
+        // Determinar si es el segundo corte para quincenales
+        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+        
+        // Aplicar lógica de descuentos
+        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+        const healthDiscount = shouldApply ? basicSalaryForPeriod * 0.04 : 0;
+        const pensionDiscount = shouldApply ? basicSalaryForPeriod * 0.04 : 0;
+        const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+        
+        console.log("🔍 Debug descuentos:", {
+          paymentMethod: form.paymentMethod,
+          corte1: form.corte1,
+          corte2: form.corte2,
+          isSecondCut,
+          shouldApply,
+          basicSalaryForPeriod,
+          healthDiscount,
+          pensionDiscount
+        });
+
+        const totalDiscounts = absenceDiscounts + descuentosProporcionales + socialSecurityDiscounts;
 
         const netAmount =
           basicSalaryForPeriod +
@@ -796,6 +1046,11 @@ const LiquidationForm = () => {
           mobility_assistance: 0, // Por ahora no hay auxilio de movilidad
           total_novedades: totalNovedades,
           total_discounts: totalDiscounts,
+          health_discount: healthDiscount,
+          pension_discount: pensionDiscount,
+          social_security_discounts: socialSecurityDiscounts,
+          absence_discounts: absenceDiscounts,
+          proportional_discounts: descuentosProporcionales,
           net_amount: netAmount,
           news_data: news_data,
         };
@@ -1199,10 +1454,25 @@ const LiquidationForm = () => {
         form.endDate
       );
 
-      if (absenceDiscounts > 0) {
-        newCalculatedValues[employee.id].total -= absenceDiscounts;
-        newCalculatedValues[employee.id].total_discounts = absenceDiscounts;
-      }
+      // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno)
+      // Determinar si es el segundo corte para quincenales
+      const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+      
+      // Aplicar lógica de descuentos
+      const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+      const healthDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
+      const pensionDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
+      const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+
+      // Aplicar todos los descuentos
+      newCalculatedValues[employee.id].total -= (absenceDiscounts + socialSecurityDiscounts);
+      
+      // Guardar descuentos por separado para mostrar en la interfaz
+      newCalculatedValues[employee.id].health_discount = healthDiscount;
+      newCalculatedValues[employee.id].pension_discount = pensionDiscount;
+      newCalculatedValues[employee.id].social_security_discounts = socialSecurityDiscounts;
+      newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
+      newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
       
     });
     
@@ -1258,30 +1528,6 @@ const LiquidationForm = () => {
               </Col>
               <Col md="2">
                 <FormGroup>
-                  <Label for="startDate">Fecha Inicio:</Label>
-                  <Input
-                    type="date"
-                    name="startDate"
-                    id="startDate"
-                    onChange={handleChange}
-                    value={form.startDate}
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="2">
-                <FormGroup>
-                  <Label for="endDate">Fecha Fin:</Label>
-                  <Input
-                    type="date"
-                    name="endDate"
-                    id="endDate"
-                    onChange={handleChange}
-                    value={form.endDate}
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="2">
-                <FormGroup>
                   <Label for="paymentMethod">Frecuencia:</Label>
                   <Input
                     type="select"
@@ -1298,6 +1544,63 @@ const LiquidationForm = () => {
               </Col>
               <Col md="2">
                 <FormGroup>
+                  <Label for="startDate">Fecha Inicio:</Label>
+                  <Input
+                    type="date"
+                    name="startDate"
+                    id="startDate"
+                    onChange={handleChange}
+                    value={form.startDate}
+                  />
+                  {form.paymentMethod === "Mensual" && (
+                    <small className="text-muted">Período: 1 al 30 del mismo mes</small>
+                  )}
+                  {form.paymentMethod === "Quincenal" && form.corte1 && !form.corte2 && (
+                    <small className="text-muted">Período: 1 al 15 del mismo mes</small>
+                  )}
+                  {form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1 && (() => {
+                    const baseDate = form.startDate || form.endDate || new Date();
+                    const year = new Date(baseDate).getFullYear();
+                    const month = new Date(baseDate).getMonth() + 1;
+                    const lastDayOfMonth = new Date(year, month, 0).getDate();
+                    const maxDay = Math.min(30, lastDayOfMonth);
+                    return (
+                      <small className="text-muted">Período: 16 al {maxDay} del mismo mes</small>
+                    );
+                  })()}
+                </FormGroup>
+              </Col>
+              <Col md="2">
+                <FormGroup>
+                  <Label for="endDate">Fecha Fin:</Label>
+                  <Input
+                    type="date"
+                    name="endDate"
+                    id="endDate"
+                    onChange={handleChange}
+                    value={form.endDate}
+                  />
+                  {form.paymentMethod === "Mensual" && (
+                    <small className="text-muted">Período: 1 al 30 del mismo mes</small>
+                  )}
+                  {form.paymentMethod === "Quincenal" && form.corte1 && !form.corte2 && (
+                    <small className="text-muted">Período: 1 al 15 del mismo mes</small>
+                  )}
+                  {form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1 && (() => {
+                    const baseDate = form.startDate || form.endDate || new Date();
+                    const year = new Date(baseDate).getFullYear();
+                    const month = new Date(baseDate).getMonth() + 1;
+                    const lastDayOfMonth = new Date(year, month, 0).getDate();
+                    const maxDay = Math.min(30, lastDayOfMonth);
+                    return (
+                      <small className="text-muted">Período: 16 al {maxDay} del mismo mes</small>
+                    );
+                  })()}
+                </FormGroup>
+              </Col>
+       
+              {/* <Col md="2">
+                <FormGroup>
                   <Label for="newsStatus">Estado Novedades:</Label>
                   <Input
                     type="select"
@@ -1313,7 +1616,7 @@ const LiquidationForm = () => {
                     <option value="none">Sin Novedades</option>
                   </Input>
                 </FormGroup>
-              </Col>
+              </Col> */}
               {form.paymentMethod === "Quincenal" && (
                 <Col md="1">
                   <FormGroup>
@@ -1355,6 +1658,8 @@ const LiquidationForm = () => {
                     companyId={form.companyId}
                     startDate={form.startDate}
                     endDate={form.endDate}
+                    corte1={form.corte1}
+                    corte2={form.corte2}
                     onValidationChange={(isValid, conflictingPeriods) => {
                       setPeriodValidation({ isValid, conflictingPeriods });
                     }}
@@ -1513,6 +1818,33 @@ const LiquidationForm = () => {
                     return auxilioCalculado > 0
                       ? formatCurrency(auxilioCalculado)
                       : "No aplica";
+                  })()}
+                </div>
+                <div className="mb-3">
+                  <strong>Descuento Salud (4%):</strong>{" "}
+                  {(() => {
+                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
+                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+                    const descuentoSalud = salarioCalculado * 0.04;
+                    return formatCurrency(descuentoSalud);
+                  })()}
+                </div>
+                <div className="mb-3">
+                  <strong>Descuento Pensión (4%):</strong>{" "}
+                  {(() => {
+                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
+                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+                    const descuentoPension = salarioCalculado * 0.04;
+                    return formatCurrency(descuentoPension);
+                  })()}
+                </div>
+                <div className="mb-3">
+                  <strong>Total Descuentos Seguridad Social:</strong>{" "}
+                  {(() => {
+                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
+                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+                    const totalDescuentos = (salarioCalculado * 0.04) + (salarioCalculado * 0.04);
+                    return formatCurrency(totalDescuentos);
                   })()}
                 </div>
                 <div className="mb-3">
