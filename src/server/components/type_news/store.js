@@ -7,8 +7,8 @@ module.exports = function setupTypeNews(Model, db, sequelize) {
     
     const queryOptions = {
       order,
-      ...(limit && { limit: parseInt(limit) }),
-      ...(offset && { offset: parseInt(offset) })
+      ...(limit !== undefined && { limit: parseInt(limit) }),
+      ...(offset !== undefined && { offset: parseInt(offset) })
     };
     
     const result = Model.findAll(queryOptions);

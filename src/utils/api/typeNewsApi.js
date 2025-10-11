@@ -3,25 +3,56 @@ import fetchApi, { getAxiosError } from "./fetchApi";
 const mainRoute = "type_news";
 
 const typeNewsApi = {
-  list: async (page = 1, limit = 30) => {
+  list: async (page, limit) => {
     try {
       const response = await fetchApi.get(
         `${mainRoute}?page=${page}&limit=${limit}`
       );
-      
+
+      console.log("🔍 Respuesta completa de fetchApi:", response);
+
       // Manejar diferentes estructuras de respuesta
       if (response.data && response.data.body) {
         // Si tiene body, usar la estructura del body
-        return response.data.body.data || response.data.body || [];
+        const body = response.data.body;
+        return {
+          data: body.data || [],
+          total: body.total,
+          page: body.page,
+          limit: body.limit,
+          totalPages: body.totalPages,
+          pagination: body.pagination
+        };
       } else if (response.data && response.data.data) {
         // Si tiene data directamente
-        return response.data.data;
+        return {
+          data: response.data.data || [],
+          total: response.data.total,
+          page: response.data.page,
+          limit: response.data.limit,
+          totalPages: response.data.totalPages,
+          pagination: response.data.pagination
+        };
       } else if (Array.isArray(response.data)) {
-        // Si es un array directo
-        return response.data;
+        // Si es un array directo (fallback para compatibilidad)
+        return {
+          data: response.data,
+          total: response.data.length,
+          page: 1,
+          limit: response.data.length,
+          totalPages: 1,
+          pagination: {}
+        };
       } else {
         // Fallback
-        return [];
+        return {
+          data: [],
+          total: 0,
+          page: 1,
+          limit: limit,
+          totalPages: 0,
+          pagination: {}
+        };
       }
     } catch (error) {
       console.error("Error al obtener la lista de tipos de novedades", error);
@@ -29,9 +60,9 @@ const typeNewsApi = {
     }
   },
 
-  create: async (data) => {
+  create: async (formData) => {
     try {
-      const { data } = await fetchApi.post(mainRoute, data);
+      const { data } = await fetchApi.post(mainRoute, formData);
       return data.body;
     } catch (error) {
       console.error("Error al crear el tipo de novedad", error);

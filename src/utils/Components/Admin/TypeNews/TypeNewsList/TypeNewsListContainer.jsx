@@ -46,19 +46,19 @@ const TypeNewsListContainer = () => {
       if (response && response.data && Array.isArray(response.data)) {
         setData(response.data);
         setTotalRows(response.total || 0);
-        console.log(`Página ${page}: ${response.data.length} registros de ${response.total} total`);
+        console.log(`✅ Página ${page}: ${response.data.length} registros de ${response.total} total`);
       } else if (Array.isArray(response)) {
         // Fallback para respuestas sin paginación
         setData(response);
         setTotalRows(response.length);
-        console.log(`Respuesta sin paginación: ${response.length} registros`);
+        console.log(`⚠️ Respuesta sin paginación: ${response.length} registros`);
       } else {
-        console.warn("Respuesta inesperada de la API:", response);
+        console.warn("❌ Respuesta inesperada de la API:", response);
         setData([]);
         setTotalRows(0);
       }
     } catch (error) {
-      console.error("Error al cargar los datos", error);
+      console.error("❌ Error al cargar los datos", error);
       setData([]);
       setTotalRows(0);
     } finally {
@@ -67,7 +67,7 @@ const TypeNewsListContainer = () => {
   };
 
   const handlePageChange = (newPage) => {
-    console.log("Cambiando a página:", newPage);
+    console.log("🔄 Cambiando a página:", newPage, "desde página actual:", page);
     setPage(newPage);
   };
 

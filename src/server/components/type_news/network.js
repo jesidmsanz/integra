@@ -9,8 +9,22 @@ const apiURL = "/api/type_news";
 // GET: api/type_news
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
+    // Evitar cache - sintaxis correcta para Next.js
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     
-    const result = await controller.findAll();
+    const { page = 1, limit = 30 } = req.query;
+    console.log("🔍 Parámetros recibidos:", { page, limit });
+    
+    const result = await controller.findAll(page, limit);
+    console.log("📤 Resultado del controlador:", {
+      dataLength: result.data ? result.data.length : 0,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages
+    });
     
     response.success(req, res, result);
   } catch (error) {
