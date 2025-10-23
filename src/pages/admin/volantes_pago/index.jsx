@@ -186,7 +186,7 @@ const VolantesPago = () => {
       const employee = employees.find(emp => emp.id === selectedEmployee);
       
       // Generar el HTML del volante
-      tempElement.innerHTML = generatePaySlipHTML(selectedLiquidation, employee);
+      tempElement.innerHTML = await generatePaySlipHTML(selectedLiquidation, employee);
       
       // Agregar al DOM temporalmente
       document.body.appendChild(tempElement);
@@ -269,137 +269,211 @@ const VolantesPago = () => {
     }).format(amount);
   };
 
-  const generatePaySlipHTML = (liquidation, employee) => {
-    // Datos de ejemplo para el volante
-    const salary = 4000000;
-    const transportAllowance = 100000;
-    const overtime = 82965;
-    const healthFund = 160000;
-    const pensionFund = 160000;
-    
-    const totalIngresos = salary + transportAllowance + overtime;
-    const totalDeducciones = healthFund + pensionFund;
-    const netoPagar = totalIngresos - totalDeducciones;
+  const generatePaySlipHTML = async (liquidation, employee) => {
+    try {
+      // Obtener datos reales de la liquidación para el empleado
+      const liquidationData = await liquidationsApi.getById(liquidation.id);
+      let liquidationDetails = null;
+      
+      if (liquidationData.data) {
+        liquidationDetails = liquidationData.data;
+      } else if (liquidationData.body) {
+        liquidationDetails = liquidationData.body;
+      } else {
+        liquidationDetails = liquidationData;
+      }
+      
+      // Buscar los detalles del empleado específico
+      const employeeDetail = liquidationDetails?.liquidation_details?.find(
+        detail => detail.employee_id === employee.id
+      );
+      
+      if (!employeeDetail) {
+        console.error('❌ No se encontraron detalles de liquidación para el empleado:', employee.id);
+        return '<div>Error: No se encontraron datos de liquidación para este empleado</div>';
+      }
+      
+      // Usar datos reales de la liquidación
+      const salary = Number(employeeDetail.basic_salary) || 0;
+      const transportAllowance = Number(employeeDetail.transportation_assistance) || 0;
+      const mobilityAssistance = Number(employeeDetail.mobility_assistance) || 0;
+      const healthFund = Number(employeeDetail.health_discount) || 0;
+      const pensionFund = Number(employeeDetail.pension_discount) || 0;
+      const absenceDiscounts = Number(employeeDetail.absence_discounts) || 0;
+      
+      // Calcular total de novedades
+      let totalNovedades = 0;
+      if (employeeDetail.novedades && Array.isArray(employeeDetail.novedades)) {
+        console.log('🔍 Novedades del empleado:', employeeDetail.novedades);
+        totalNovedades = employeeDetail.novedades.reduce((sum, novedad) => {
+          return sum + (Number(novedad.amount) || 0);
+        }, 0);
+      }
+      
+      // Calcular totales
+      const totalIngresos = salary + transportAllowance + mobilityAssistance + totalNovedades;
+      const totalDeducciones = healthFund + pensionFund + absenceDiscounts;
+      const netoPagar = totalIngresos - totalDeducciones;
+      
+      console.log('🔍 Datos reales para PDF:', {
+        employee: employee.fullname,
+        salary,
+        transportAllowance,
+        mobilityAssistance,
+        totalNovedades,
+        healthFund,
+        pensionFund,
+        absenceDiscounts,
+        totalIngresos,
+        totalDeducciones,
+        netoPagar
+      });
 
-    return `
-      <div style="width: 100%; height: 100%; background: white;">
-        <!-- Header -->
-        <div style="background-color: #2c3e50; color: white; padding: 20px; margin-bottom: 0;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <!-- Logo y datos empresa -->
-            <div>
-              <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <div style="width: 35px; height: 35px; background-color: #3498db; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; margin-right: 12px;">S</div>
-                <span style="color: white; font-weight: bold; font-size: 18px;">proaseo</span>
+      // Generar filas de novedades
+      let novedadesRows = '';
+      if (employeeDetail.novedades && Array.isArray(employeeDetail.novedades) && employeeDetail.novedades.length > 0) {
+        employeeDetail.novedades.forEach((novedad, index) => {
+          const isPositive = Number(novedad.amount) >= 0;
+          const bgColor = index % 2 === 0 ? 'white' : '#f8f9fa';
+          const textColor = isPositive ? '#27ae60' : '#e74c3c';
+          const sign = isPositive ? '+' : '';
+          
+          novedadesRows += `
+            <tr style="background-color: ${bgColor};">
+              <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">${novedad.type_name || novedad.type_news_name || 'Novedad'}</td>
+              <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: ${textColor};">${sign}${formatCurrency(Math.abs(Number(novedad.amount)))}</td>
+            </tr>
+          `;
+        });
+      }
+
+      return `
+        <div style="width: 100%; height: 100%; background: white;">
+          <!-- Header -->
+          <div style="background-color: #2c3e50; color: white; padding: 20px; margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <!-- Logo y datos empresa -->
+              <div>
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                  <div style="width: 35px; height: 35px; background-color: #3498db; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; margin-right: 12px;">S</div>
+                  <span style="color: white; font-weight: bold; font-size: 18px;">proaseo</span>
+                </div>
+                <div style="color: #bdc3c7; font-size: 10px; margin-bottom: 6px;">Innovación a tu servicio</div>
+                <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 4px;">${liquidation.companyname || 'PROFESIONALES DE ASEO DE COLOMBIA SAS'}</div>
+                <div style="font-size: 11px; color: #ecf0f1;">Nit ${liquidation.company_nit || '901831125'}</div>
               </div>
-              <div style="color: #bdc3c7; font-size: 10px; margin-bottom: 6px;">Innovación a tu servicio</div>
-              <div style="font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 4px;">${liquidation.companyname || 'PROFESIONALES DE ASEO DE COLOMBIA SAS'}</div>
-              <div style="font-size: 11px; color: #ecf0f1;">Nit ${liquidation.company_nit || '901831125'}</div>
-            </div>
-            <!-- Título y datos comprobante -->
-            <div style="text-align: right;">
-              <h1 style="font-size: 20px; font-weight: bold; margin: 0 0 8px 0; color: white;">COMPROBANTE DE NÓMINA</h1>
-              <div style="margin-bottom: 4px; font-size: 11px;"><strong>Período:</strong> ${liquidation.period}</div>
-              <div style="margin-bottom: 4px; font-size: 11px;"><strong>Comprobante N°:</strong> ${liquidation.id}</div>
-              <div style="font-size: 11px;"><strong>Estado:</strong> ${liquidation.status === 'approved' ? 'Aprobada' : liquidation.status}</div>
+              <!-- Título y datos comprobante -->
+              <div style="text-align: right;">
+                <h1 style="font-size: 20px; font-weight: bold; margin: 0 0 8px 0; color: white;">COMPROBANTE DE NÓMINA</h1>
+                <div style="margin-bottom: 4px; font-size: 11px;"><strong>Período:</strong> ${liquidation.period}</div>
+                <div style="margin-bottom: 4px; font-size: 11px;"><strong>Comprobante N°:</strong> ${liquidation.id}</div>
+                <div style="font-size: 11px;"><strong>Estado:</strong> ${liquidation.status === 'approved' ? 'Aprobada' : liquidation.status}</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Información del empleado -->
-        <div style="padding: 20px; background-color: #f8f9fa; border-left: 4px solid #3498db;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <div style="margin-bottom: 6px; font-size: 12px; font-weight: bold; color: #2c3e50;"><strong>Nombre:</strong> ${employee.fullname}</div>
-              <div style="margin-bottom: 6px; font-size: 12px; color: #34495e;"><strong>Identificación:</strong> ${employee.documentnumber}</div>
+          <!-- Información del empleado -->
+          <div style="padding: 20px; background-color: #f8f9fa; border-left: 4px solid #3498db;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <div style="margin-bottom: 6px; font-size: 12px; font-weight: bold; color: #2c3e50;"><strong>Nombre:</strong> ${employee.fullname}</div>
+                <div style="margin-bottom: 6px; font-size: 12px; color: #34495e;"><strong>Identificación:</strong> ${employee.documentnumber}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="margin-bottom: 6px; font-size: 12px; color: #34495e;"><strong>Cargo:</strong> ${employee.position || 'GERENTE OPERATIVO'}</div>
+                <div style="font-size: 12px; font-weight: bold; color: #27ae60;"><strong>Salario básico:</strong> ${formatCurrency(salary)}</div>
+              </div>
             </div>
-            <div style="text-align: right;">
-              <div style="margin-bottom: 6px; font-size: 12px; color: #34495e;"><strong>Cargo:</strong> ${employee.position || 'GERENTE OPERATIVO'}</div>
-              <div style="font-size: 12px; font-weight: bold; color: #27ae60;"><strong>Salario básico:</strong> ${formatCurrency(salary)}</div>
+          </div>
+
+          <!-- Tablas de Ingresos y Deducciones -->
+          <div style="display: flex; gap: 15px; padding: 20px; margin-bottom: 0;">
+            <!-- Ingresos -->
+            <div style="flex: 1;">
+              <div style="background-color: #34495e; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0;">INGRESOS</div>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #bdc3c7; border-radius: 0 0 4px 4px; overflow: hidden;">
+                <thead>
+                  <tr style="background-color: #ecf0f1;">
+                    <th style="padding: 10px 8px; text-align: left; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Concepto</th>
+                    <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="background-color: white;">
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Sueldo</td>
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(salary)}</td>
+                  </tr>
+                  ${transportAllowance > 0 ? `
+                    <tr style="background-color: #f8f9fa;">
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Aux. de transporte</td>
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(transportAllowance)}</td>
+                    </tr>
+                  ` : ''}
+                  ${mobilityAssistance > 0 ? `
+                    <tr style="background-color: white;">
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Aux. de movilidad</td>
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(mobilityAssistance)}</td>
+                    </tr>
+                  ` : ''}
+                  ${novedadesRows}
+                  <tr style="background-color: #34495e; font-weight: bold;">
+                    <td style="padding: 12px 8px; border: 1px solid #bdc3c7; background-color: #34495e; color: white; font-size: 12px;">Total Ingresos</td>
+                    <td style="padding: 12px 8px; border: 1px solid #bdc3c7; text-align: right; background-color: #34495e; color: white; font-size: 12px; font-weight: bold;">${formatCurrency(totalIngresos)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Deducciones -->
+            <div style="flex: 1;">
+              <div style="background-color: #34495e; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0;">DEDUCCIONES</div>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #bdc3c7; border-radius: 0 0 4px 4px; overflow: hidden;">
+                <thead>
+                  <tr style="background-color: #ecf0f1;">
+                    <th style="padding: 10px 8px; text-align: left; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Concepto</th>
+                    <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="background-color: white;">
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Fondo de salud</td>
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c;">${formatCurrency(healthFund)}</td>
+                  </tr>
+                  <tr style="background-color: #f8f9fa;">
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Fondo de pensión</td>
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c;">${formatCurrency(pensionFund)}</td>
+                  </tr>
+                  ${absenceDiscounts > 0 ? `
+                    <tr style="background-color: white;">
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Descuentos por ausentismo</td>
+                      <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c;">${formatCurrency(absenceDiscounts)}</td>
+                    </tr>
+                  ` : ''}
+                  <tr style="background-color: #34495e; font-weight: bold;">
+                    <td style="padding: 12px 8px; border: 1px solid #bdc3c7; background-color: #34495e; color: white; font-size: 12px;">Total Deducciones</td>
+                    <td style="padding: 12px 8px; border: 1px solid #bdc3c7; text-align: right; background-color: #34495e; color: white; font-size: 12px; font-weight: bold;">${formatCurrency(totalDeducciones)}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
 
-        <!-- Tablas de Ingresos y Deducciones -->
-        <div style="display: flex; gap: 15px; padding: 20px; margin-bottom: 0;">
-          <!-- Ingresos -->
-          <div style="flex: 1;">
-            <div style="background-color: #34495e; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0;">INGRESOS</div>
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #bdc3c7; border-radius: 0 0 4px 4px; overflow: hidden;">
-              <thead>
-                <tr style="background-color: #ecf0f1;">
-                  <th style="padding: 10px 8px; text-align: left; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Concepto</th>
-                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Cantidad</th>
-                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="background-color: white;">
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Sueldo</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; color: #2c3e50;">15.00</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(salary)}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Aux. de transporte</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; color: #2c3e50;">15.00</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(transportAllowance)}</td>
-                </tr>
-                <tr style="background-color: white;">
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Hora extra</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; color: #2c3e50;">7.66</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(overtime)}</td>
-                </tr>
-                <tr style="background-color: #34495e; font-weight: bold;">
-                  <td colspan="2" style="padding: 12px 8px; border: 1px solid #bdc3c7; background-color: #34495e; color: white; font-size: 12px;">Total Ingresos</td>
-                  <td style="padding: 12px 8px; border: 1px solid #bdc3c7; text-align: right; background-color: #34495e; color: white; font-size: 12px; font-weight: bold;">${formatCurrency(totalIngresos)}</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Neto a Pagar -->
+          <div style="background-color: #2c3e50; color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 0;">
+            <span>NETO A PAGAR</span>
+            <span style="font-size: 18px; color: #27ae60;">${formatCurrency(netoPagar)}</span>
           </div>
 
-          <!-- Deducciones -->
-          <div style="flex: 1;">
-            <div style="background-color: #34495e; color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0;">DEDUCCIONES</div>
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #bdc3c7; border-radius: 0 0 4px 4px; overflow: hidden;">
-              <thead>
-                <tr style="background-color: #ecf0f1;">
-                  <th style="padding: 10px 8px; text-align: left; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Concepto</th>
-                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Cantidad</th>
-                  <th style="padding: 10px 8px; text-align: right; border: 1px solid #bdc3c7; font-weight: bold; font-size: 11px; color: #2c3e50;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="background-color: white;">
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Fondo de salud</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; color: #2c3e50;">0</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c;">${formatCurrency(healthFund)}</td>
-                </tr>
-                <tr style="background-color: #f8f9fa;">
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Fondo de pensión</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; color: #2c3e50;">0</td>
-                  <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c;">${formatCurrency(pensionFund)}</td>
-                </tr>
-                <tr style="background-color: #34495e; font-weight: bold;">
-                  <td colspan="2" style="padding: 12px 8px; border: 1px solid #bdc3c7; background-color: #34495e; color: white; font-size: 12px;">Total Deducciones</td>
-                  <td style="padding: 12px 8px; border: 1px solid #bdc3c7; text-align: right; background-color: #34495e; color: white; font-size: 12px; font-weight: bold;">${formatCurrency(totalDeducciones)}</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Pie de página -->
+          <div style="padding: 15px 20px; font-size: 9px; color: #7f8c8d; text-align: center; background-color: #ecf0f1;">
+            Este comprobante de nómina fue elaborado y enviado a través de Integra. Si desea esta funcionalidad contáctenos.
           </div>
         </div>
-
-        <!-- Neto a Pagar -->
-        <div style="background-color: #2c3e50; color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 16px; display: flex; justify-content: space-between; align-items: center; margin-top: 0;">
-          <span>NETO A PAGAR</span>
-          <span style="font-size: 18px; color: #27ae60;">${formatCurrency(netoPagar)}</span>
-        </div>
-
-        <!-- Pie de página -->
-        <div style="padding: 15px 20px; font-size: 9px; color: #7f8c8d; text-align: center; background-color: #ecf0f1;">
-          Este comprobante de nómina fue elaborado y enviado a través de Integra. Si desea esta funcionalidad contáctenos.
-        </div>
-      </div>
-    `;
+      `;
+    } catch (error) {
+      console.error('❌ Error generando HTML del volante:', error);
+      return '<div>Error: No se pudieron cargar los datos de liquidación</div>';
+    }
   };
 
   const handleSendEmail = async () => {

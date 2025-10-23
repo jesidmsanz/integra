@@ -253,13 +253,16 @@ const EmployeeNewsForm = ({
 
   const loadTypeNews = async () => {
     try {
-      const response = await typeNewsApi.list();
+      // Cargar TODOS los tipos de novedades sin paginación
+      const response = await typeNewsApi.list(1, 1000); // Usar un límite alto para obtener todos
+      
+      console.log(`📊 loadTypeNews - Total tipos cargados: ${response?.data?.length || 0}`);
       
       if (response && response.data && response.data.length) {
         setTypeNews(response.data);
         // No resetear filteredTypeNews aquí, se filtrará cuando se seleccione empleado
-      } else if (response && Array.isArray(response)) {
-        setTypeNews(response);
+      } else if (response && response.data && Array.isArray(response.data)) {
+        setTypeNews(response.data);
         // No resetear filteredTypeNews aquí, se filtrará cuando se seleccione empleado
       } else {
         setTypeNews([]);
@@ -297,7 +300,10 @@ const EmployeeNewsForm = ({
 
 
     const employeeGender = selectedEmployee.sex?.toLowerCase();
+    
+    // Si el empleado no tiene género asignado, mostrar todos los tipos de novedades
     if (!employeeGender) {
+      console.log("⚠️ Empleado sin género asignado, mostrando todos los tipos de novedades");
       setFilteredTypeNews(typeNews);
       return;
     }
@@ -319,6 +325,11 @@ const EmployeeNewsForm = ({
           ambos: appliesTo.ambos === true || appliesTo.ambos === 'true'
         };
         
+        // Si no hay configuración de género en el tipo de novedad, mostrarlo (compatibilidad hacia atrás)
+        if (!normalizedAppliesTo.masculino && !normalizedAppliesTo.femenino && !normalizedAppliesTo.ambos) {
+          console.log(`⚠️ Tipo de novedad ${type.name} sin configuración de género, mostrándolo`);
+          return true;
+        }
         
         // Si el empleado es femenino, mostrar novedades que apliquen a femenino o ambos
         if (employeeGender === 'femenino') {
@@ -340,9 +351,9 @@ const EmployeeNewsForm = ({
       }
     });
 
+    console.log(`🔍 Filtro de género aplicado: ${filtered.length} tipos de novedades disponibles para empleado ${employeeGender}`);
+    console.log(`📋 Tipos disponibles:`, filtered.map(t => t.name));
     setFilteredTypeNews(filtered);
-    
-    // Log para debugging
     
     // Si el tipo de novedad seleccionado no está en los filtrados, resetearlo
     if (formData.typeNewsId && !filtered.find(t => t.id === parseInt(formData.typeNewsId))) {

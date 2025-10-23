@@ -8,8 +8,12 @@ function findAll(page, limit) {
       const { TypeNews } = await db();
       console.log("✅ Conexión a TypeNews establecida");
 
+      // Normalizar page y limit (tolerar undefined/valores inválidos)
+      const safePage = Number.isFinite(parseInt(page)) && parseInt(page) > 0 ? parseInt(page) : 1;
+      const safeLimit = Number.isFinite(parseInt(limit)) && parseInt(limit) > 0 ? parseInt(limit) : 30;
+
       // Calcular offset para la paginación
-      const offset = (page - 1) * limit;
+      const offset = (safePage - 1) * safeLimit;
 
       // Obtener el total de registros
       const total = await TypeNews.count();
@@ -17,7 +21,7 @@ function findAll(page, limit) {
 
       // Obtener los datos paginados
       const result = await TypeNews.findAll({
-        limit: parseInt(limit),
+        limit: parseInt(safeLimit),
         offset: parseInt(offset),
         order: [["id", "ASC"]],
       });
@@ -28,9 +32,9 @@ function findAll(page, limit) {
       const response = {
         data: result,
         total: total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / limit),
+        page: parseInt(safePage),
+        limit: parseInt(safeLimit),
+        totalPages: Math.ceil(total / safeLimit),
       };
 
       resolve(response);

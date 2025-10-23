@@ -63,6 +63,12 @@ module.exports = function (config) {
         defaultValue: false,
         comment: "Calcular por hora",
       },
+      isDiscount: {
+        type: Sequelize.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: "Si es true, la novedad descuenta; si es false, suma",
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

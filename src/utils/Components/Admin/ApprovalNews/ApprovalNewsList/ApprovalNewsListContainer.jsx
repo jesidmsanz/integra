@@ -38,8 +38,8 @@ const ApprovalNewsListContainer = () => {
 
   const fetchTypeNews = async () => {
     try {
-      const response = await typeNewsApi.list();
-      if (Array.isArray(response)) setTypeNewsList(response);
+      const response = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
+      if (response && response.data && Array.isArray(response.data)) setTypeNewsList(response.data);
     } catch (e) {
       console.error("Error cargando tipos de novedad", e);
     }
@@ -121,7 +121,7 @@ const ApprovalNewsListContainer = () => {
     // Primer clic: mostrar el formulario obligatorio
     if (!showRejectForm) {
       try {
-        const [users, types] = await Promise.all([usersApi.list(), typeNewsApi.list()]);
+        const [users, types] = await Promise.all([usersApi.list(), typeNewsApi.list(1, 1000)]); // Cargar todos los tipos
         setUsersList(Array.isArray(users) ? users : []);
         setTypeNewsList(Array.isArray(types) ? types : []);
       } catch (e) {

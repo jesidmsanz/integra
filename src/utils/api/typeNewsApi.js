@@ -3,11 +3,17 @@ import fetchApi, { getAxiosError } from "./fetchApi";
 const mainRoute = "type_news";
 
 const typeNewsApi = {
-  list: async (page, limit) => {
+  list: async (page = 1, limit = 30) => {
     try {
-      const response = await fetchApi.get(
-        `${mainRoute}?page=${page}&limit=${limit}`
-      );
+      // Construir query params solo si son válidos para evitar enviar "undefined"
+      const params = new URLSearchParams();
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      if (!Number.isNaN(pageNum) && pageNum > 0) params.set("page", pageNum.toString());
+      if (!Number.isNaN(limitNum) && limitNum > 0) params.set("limit", limitNum.toString());
+
+      const url = params.toString() ? `${mainRoute}?${params.toString()}` : mainRoute;
+      const response = await fetchApi.get(url);
 
       console.log("🔍 Respuesta completa de fetchApi:", response);
 

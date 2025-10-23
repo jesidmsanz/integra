@@ -28,7 +28,7 @@ export default function AddNews({ show }) {
 
   const loadNews = async () => {
     try {
-      const response = await typeNewsApi.list();
+      const response = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
       if (response.length) setNews(response);
     } catch (error) {
       console.error("Error al cargar los tipos de novedades", error);

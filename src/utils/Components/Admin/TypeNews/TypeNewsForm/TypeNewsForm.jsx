@@ -43,6 +43,7 @@ const initialState = {
   active: true,
   notes: "",
   calculateperhour: false,
+  isDiscount: false, // Nuevo campo: true = descuenta, false = suma
 };
 
 const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
@@ -381,6 +382,18 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                       />
                       <Label check for="calculateperhour">
                         Calcular por hora
+                      </Label>
+                    </FormGroup>
+                    <FormGroup check className="me-3">
+                      <Input
+                        type="checkbox"
+                        name="isDiscount"
+                        id="isDiscount"
+                        checked={form.isDiscount}
+                        onChange={handleChange}
+                      />
+                      <Label check for="isDiscount">
+                        Es descuento (si está activo, resta; si no, suma)
                       </Label>
                     </FormGroup>
                   </div>

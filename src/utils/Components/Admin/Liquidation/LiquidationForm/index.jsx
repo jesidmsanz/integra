@@ -568,10 +568,10 @@ const LiquidationForm = () => {
 
   const loadTypeNews = async () => {
     try {
-      const response = await typeNewsApi.list();
+      const response = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
 
-      if (response && Array.isArray(response) && response.length > 0) {
-        setTypeNews(response);
+      if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+        setTypeNews(response.data);
       } else {
         console.log("⚠️ No se encontraron tipos de novedades");
         setTypeNews([]);
@@ -743,6 +743,9 @@ const LiquidationForm = () => {
       return;
     }
 
+    // Asegurar que los valores estén calculados antes de exportar
+    calculateAllValues();
+
     // Crear un libro de Excel
     const wb = XLSX.utils.book_new();
 
@@ -810,8 +813,43 @@ const LiquidationForm = () => {
         baseData[type.code] = totalTipo ? formatCurrency(totalTipo) : "";
       });
 
-      // Agregar el total
-      baseData["Total"] = formatCurrency(employeeValues.total || 0);
+      // CALCULAR EL TOTAL DIRECTAMENTE USANDO LA MISMA LÓGICA
+      const salarioBase = Number(employee.basicmonthlysalary) || 0;
+      const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+      
+      const auxilioTransporte = calculateTransportationAssistance(employee, form.paymentMethod);
+      
+      // Calcular total de novedades
+      let totalNovedades = 0;
+      typeNews.forEach((type) => {
+        const novedadesDelEmpleado = filteredEmployeeNews.filter((novedad) => {
+          const esDelEmpleado = novedad.employeeId === employee.id;
+          const esDelTipoNovedad = novedad.typeNewsId === type.id;
+          return esDelEmpleado && esDelTipoNovedad;
+        });
+
+        const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
+          const { valorNovedad } = calculateNovedadValue(novedad, employee, type);
+          return sum + valorNovedad;
+        }, 0);
+        
+        totalNovedades += totalTipo;
+      });
+      
+      // Calcular descuentos de seguridad social
+      const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+      const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
+      const healthDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
+      const pensionDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
+      const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+      
+      // Calcular descuentos por ausentismo
+      const absenceDiscounts = calculateAbsenceDiscounts(employee, form.startDate, form.endDate);
+      
+      // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
+      const totalFinal = salarioBaseCalculado + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+      
+      baseData["Total"] = formatCurrency(totalFinal);
 
       return baseData;
     });
@@ -946,60 +984,68 @@ const LiquidationForm = () => {
         news_data.forEach((news) => {
           const tipoNovedad = typeNews.find(type => type.id === news.type_news_id);
           
-          if (tipoNovedad && tipoNovedad.affects && !tipoNovedad.calculateperhour) {
-            // LÓGICA PARA NOVEDADES QUE NO SE CALCULAN POR HORA
-            let affectsData;
-            try {
-              affectsData = typeof tipoNovedad.affects === "string" 
-                ? JSON.parse(tipoNovedad.affects) 
-                : tipoNovedad.affects || {};
-            } catch (error) {
-              affectsData = {};
-            }
+          if (tipoNovedad) {
+            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+            
+            // Si tiene affects configurado, usar lógica específica
+            if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+              let affectsData;
+              try {
+                affectsData = typeof tipoNovedad.affects === "string" 
+                  ? JSON.parse(tipoNovedad.affects) 
+                  : tipoNovedad.affects || {};
+              } catch (error) {
+                affectsData = {};
+              }
 
-            const diasNovedad = news.days || 1;
-            const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+              const diasNovedad = news.days || 1;
+              const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
 
-            // SALARIO BASE
-            if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
-              const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
-              const salarioPorDias = salarioDiario * diasNovedad;
-              const porcentaje = parseFloat(tipoNovedad.percentage) || 0;
+              // AUXILIO DE TRANSPORTE
+              if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+                const auxilioDiario = Number(employee.transportationassistance) || 0;
+                const valorAuxilio = auxilioDiario * diasNovedad;
+                
+                if (esDescuento) {
+                  descuentosProporcionales += valorAuxilio;
+                } else {
+                  totalNovedades += valorAuxilio;
+                }
+              }
 
-              if (porcentaje === 100) {
-                // 100% = no se suma ni resta
-              } else if (porcentaje < 100) {
-                // <100% = se descuenta la diferencia
-                const diferencia = salarioPorDias * (100 - porcentaje) / 100;
-                descuentosProporcionales += diferencia;
-              } else if (porcentaje > 100) {
-                // >100% = se suma la diferencia
-                const diferencia = salarioPorDias * (porcentaje - 100) / 100;
-                totalNovedades += diferencia;
+              // AUXILIO DE MOVILIDAD
+              if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
+                const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+                if (auxilioMovilidad > 0) {
+                  if (esDescuento) {
+                    descuentosProporcionales += auxilioMovilidad;
+                  } else {
+                    totalNovedades += auxilioMovilidad;
+                  }
+                }
+              }
+
+              // SALARIO BASE
+              if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
+                const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
+                const salarioPorDias = salarioDiario * diasNovedad;
+                const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                const valorSalario = salarioPorDias * (porcentaje / 100);
+                
+                if (esDescuento) {
+                  descuentosProporcionales += valorSalario;
+                } else {
+                  totalNovedades += valorSalario;
+                }
+              }
+            } else {
+              // Si no tiene affects, usar lógica simple
+              if (esDescuento) {
+                descuentosProporcionales += news.amount;
+              } else {
+                totalNovedades += news.amount;
               }
             }
-
-            // AUXILIO DE TRANSPORTE
-            if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-              const auxilioDiario = Number(employee.transportationassistance) || 0;
-              const descuentoAuxilioTransporte = auxilioDiario * diasNovedad;
-              descuentosProporcionales += descuentoAuxilioTransporte;
-            }
-
-            // AUXILIO DE MOVILIDAD - Solo si el empleado tiene este auxilio
-            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
-              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
-              if (auxilioMovilidad > 0) {
-                descuentosProporcionales += auxilioMovilidad;
-              }
-              // Si no tiene auxilio de movilidad, no se descuenta nada
-            }
-          } else if (tipoNovedad && tipoNovedad.calculateperhour) {
-            // NOVEDADES POR HORAS
-            totalNovedades += news.amount;
-          } else {
-            // NOVEDADES SIN AFFECTS
-            totalNovedades += news.amount;
           }
         });
 
@@ -1240,6 +1286,9 @@ const LiquidationForm = () => {
       }
     }
 
+    // NUEVA LÓGICA: Usar el campo isDiscount para determinar si suma o resta
+    const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+
     if (tipoNovedad.calculateperhour) {
       // Si la novedad es del mismo día
       if (fechaInicio.format("YYYY-MM-DD") === fechaFin.format("YYYY-MM-DD")) {
@@ -1284,10 +1333,22 @@ const LiquidationForm = () => {
       const valorHoraExtra =
         Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
       valorNovedad = totalHoras * valorHoraExtra;
+      
+      // Aplicar lógica de descuento: si es descuento, el valor será negativo
+      if (esDescuento) {
+        valorNovedad = -Math.abs(valorNovedad);
+      }
+      // Si NO es descuento, mantener el valor positivo (suma)
     } else {
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
       const valorDia = Number(employee.basicmonthlysalary) / 30;
       valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
+      
+      // Aplicar lógica de descuento: si es descuento, el valor será negativo
+      if (esDescuento) {
+        valorNovedad = -Math.abs(valorNovedad);
+      }
+      // Si NO es descuento, mantener el valor positivo (suma)
     }
     return { valorNovedad, totalHoras };
   };
@@ -1395,53 +1456,55 @@ const LiquidationForm = () => {
           newCalculatedValues[employee.id].novedades[type.id].horas += totalHoras;
           newCalculatedValues[employee.id].novedades[type.id].novedades.push(news);
 
-          // LÓGICA SIMPLIFICADA PARA NOVEDADES CON AFFECTS
+          // LÓGICA HÍBRIDA: Usar isDiscount + affects para casos específicos
           if (type.affects && !type.calculateperhour) {
+            // Si tiene affects configurado, aplicar lógica específica
             const affectsData = typeof type.affects === "string" 
               ? JSON.parse(type.affects) 
               : type.affects || {};
 
             const diasNovedad = moment.utc(news.endDate).diff(moment.utc(news.startDate), "days") + 1;
-            const porcentaje = parseFloat(type.percentage) || 0;
+            const esDescuento = type.isDiscount === true || type.isDiscount === "true";
+
+            // AUXILIO DE TRANSPORTE
+            if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+              const auxilioDiario = Number(employee.transportationassistance) || 0;
+              const valorAuxilio = auxilioDiario * diasNovedad;
+              
+              if (esDescuento) {
+                newCalculatedValues[employee.id].total -= valorAuxilio;
+              } else {
+                newCalculatedValues[employee.id].total += valorAuxilio;
+              }
+            }
+
+            // AUXILIO DE MOVILIDAD
+            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
+              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+              if (auxilioMovilidad > 0) {
+                if (esDescuento) {
+                  newCalculatedValues[employee.id].total -= auxilioMovilidad;
+                } else {
+                  newCalculatedValues[employee.id].total += auxilioMovilidad;
+                }
+              }
+            }
 
             // SALARIO BASE
             if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
               const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
               const salarioPorDias = salarioDiario * diasNovedad;
-
-              if (porcentaje === 100) {
-                // 100% = no se suma ni resta
-              } else if (porcentaje < 100) {
-                // <100% = se descuenta la diferencia
-                const diferencia = salarioPorDias * (100 - porcentaje) / 100;
-                newCalculatedValues[employee.id].total -= diferencia;
-              } else if (porcentaje > 100) {
-                // >100% = se suma la diferencia
-                const diferencia = salarioPorDias * (porcentaje - 100) / 100;
-                newCalculatedValues[employee.id].total += diferencia;
+              const porcentaje = parseFloat(type.percentage) || 100;
+              const valorSalario = salarioPorDias * (porcentaje / 100);
+              
+              if (esDescuento) {
+                newCalculatedValues[employee.id].total -= valorSalario;
+              } else {
+                newCalculatedValues[employee.id].total += valorSalario;
               }
             }
-
-            // AUXILIO DE TRANSPORTE
-            if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-              const auxilioDiario = Number(employee.transportationassistance) || 0;
-              const descuentoAuxilioTransporte = auxilioDiario * diasNovedad;
-              newCalculatedValues[employee.id].total -= descuentoAuxilioTransporte;
-            }
-
-            // AUXILIO DE MOVILIDAD - Solo si el empleado tiene este auxilio
-            if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
-              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
-              if (auxilioMovilidad > 0) {
-                newCalculatedValues[employee.id].total -= auxilioMovilidad;
-              }
-              // Si no tiene auxilio de movilidad, no se descuenta nada
-            }
-          } else if (type.calculateperhour) {
-            // NOVEDADES POR HORAS
-            newCalculatedValues[employee.id].total += valorNovedad;
           } else {
-            // NOVEDADES SIN AFFECTS
+            // Si no tiene affects, usar lógica simple con isDiscount
             newCalculatedValues[employee.id].total += valorNovedad;
           }
         });
@@ -1818,6 +1881,13 @@ const LiquidationForm = () => {
                     return auxilioCalculado > 0
                       ? formatCurrency(auxilioCalculado)
                       : "No aplica";
+                  })()}
+                </div>
+                <div className="mb-3">
+                  <strong>Auxilio de Movilidad:</strong>{" "}
+                  {(() => {
+                    const auxilio = Number(selectedEmployee.mobilityassistance) || 0;
+                    return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
                   })()}
                 </div>
                 <div className="mb-3">

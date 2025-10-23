@@ -264,47 +264,32 @@ const EmployeeForm = ({
       return "";
     }
     
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
+    // Formatear manualmente para evitar problemas con el símbolo de moneda
+    return `$${number.toLocaleString('es-CO', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(number);
+    })}`;
   };
 
   const unformatCurrency = (value) => {
     if (!value) return "";
-    return value.replace(/[^0-9]/g, "");
+    // Remover todos los caracteres que no sean números, incluyendo puntos y comas
+    const cleaned = value.toString().replace(/[^0-9]/g, "");
+    return cleaned || "0";
   };
 
   const handleCurrencyChange = (e) => {
     const { name, value } = e.target;
     console.log(`💸 handleCurrencyChange - Campo: ${name}, Valor: ${value}`);
     
-    // Si el valor está vacío, limpiar el campo
-    if (!value || value.trim() === '') {
-      setForm(prev => ({
-        ...prev,
-        [name]: "",
-      }));
-      if (errors[name]) {
-        setErrors(prev => ({
-          ...prev,
-          [name]: "",
-        }));
-      }
-      return;
-    }
+    // Limpiar el valor (solo números)
+    const cleanValue = value.replace(/[^0-9]/g, '');
     
-    const unformattedValue = unformatCurrency(value);
-    
-    // Solo actualizar si el valor es válido
-    if (unformattedValue !== '') {
-      setForm(prev => ({
-        ...prev,
-        [name]: unformattedValue,
-      }));
-    }
+    // Actualizar el estado con el valor limpio
+    setForm(prev => ({
+      ...prev,
+      [name]: cleanValue,
+    }));
     
     if (errors[name]) {
       setErrors(prev => ({
@@ -314,18 +299,6 @@ const EmployeeForm = ({
     }
   };
 
-  const handleCurrencyBlur = (e) => {
-    const { name, value } = e.target;
-    const formattedValue = formatCurrency(value);
-    // Actualizar tanto el input como el estado del formulario
-    e.target.value = formattedValue;
-    setForm(prev => {
-      return {
-        ...prev,
-        [name]: formattedValue
-      };
-    });
-  };
 
   const loadCompanies = async () => {
     try {
@@ -362,15 +335,11 @@ const EmployeeForm = ({
       console.log("🔍 dataToUpdate:", dataToUpdate);
       const formattedData = {
         ...dataToUpdate,
-        basicmonthlysalary: formatCurrency(dataToUpdate.basicmonthlysalary),
-        hourlyrate: formatCurrency(dataToUpdate.hourlyrate),
-        transportationassistance: formatCurrency(
-          dataToUpdate.transportationassistance
-        ),
-        mobilityassistance: formatCurrency(dataToUpdate.mobilityassistance),
-        discountvalue: dataToUpdate.discountvalue
-          ? formatCurrency(dataToUpdate.discountvalue)
-          : 0,
+        basicmonthlysalary: dataToUpdate.basicmonthlysalary || "",
+        hourlyrate: dataToUpdate.hourlyrate || "",
+        transportationassistance: dataToUpdate.transportationassistance || "",
+        mobilityassistance: dataToUpdate.mobilityassistance || "",
+        discountvalue: dataToUpdate.discountvalue || 0,
         // Normalizar los valores de los selects
         ...Object.keys(selectOptions).reduce((acc, key) => {
           if (dataToUpdate[key]) {
@@ -417,9 +386,15 @@ const EmployeeForm = ({
         'ethnic_group', 
         'socioeconomic_stratum', 
         'residence_place',
-        'disability_type' // No requerido si has_disability es false
+        'disability_type', // No requerido si has_disability es false
+        'transportationassistance', // Auxilio de Transporte - opcional
+        'hasadditionaldiscount', // Descuento Adicional - opcional
+        'shirtsize', // Talla de Camisa - opcional
+        'pantssize', // Talla de Pantalón - opcional
+        'shoesize', // Talla de Zapatos - opcional
+        'has_disability', // Persona en condición de discapacidad - opcional
+        'discountvalue' // Valor del Descuento - opcional
       ];
-      
       // Si el campo no está en la lista de no requeridos y está vacío, es requerido
       if (!nonRequiredFields.includes(key) && !form[key]) {
         newErrors[key] = "Este campo es requerido";
@@ -430,6 +405,7 @@ const EmployeeForm = ({
         newErrors[key] = "Este campo es requerido";
       }
     });
+    console.log('newErrors', newErrors)
     return newErrors;
   };
 
@@ -441,15 +417,11 @@ const EmployeeForm = ({
       try {
         const dataToSend = {
           ...form,
-          basicmonthlysalary: unformatCurrency(form.basicmonthlysalary),
-          hourlyrate: unformatCurrency(form.hourlyrate),
-          transportationassistance: unformatCurrency(
-            form.transportationassistance
-          ),
-          mobilityassistance: unformatCurrency(form.mobilityassistance),
-          discountvalue: form.discountvalue
-            ? unformatCurrency(form.discountvalue)
-            : 0,
+          basicmonthlysalary: form.basicmonthlysalary || 0,
+          hourlyrate: form.hourlyrate || 0,
+          transportationassistance: form.transportationassistance || 0,
+          mobilityassistance: form.mobilityassistance || 0,
+          discountvalue: form.discountvalue || 0,
         };
 
         const save = isUpdate
@@ -1061,8 +1033,7 @@ const EmployeeForm = ({
                     id="basicmonthlysalary"
                     placeholder="Ingresa el salario base"
                     onChange={handleCurrencyChange}
-                    onBlur={handleCurrencyBlur}
-                    value={form.basicmonthlysalary}
+                    value={form.basicmonthlysalary ? formatCurrency(form.basicmonthlysalary) : ""}
                     invalid={!!errors.basicmonthlysalary}
                     required
                   />
@@ -1080,8 +1051,7 @@ const EmployeeForm = ({
                     id="hourlyrate"
                     placeholder="Ingresa el valor por hora"
                     onChange={handleCurrencyChange}
-                    onBlur={handleCurrencyBlur}
-                    value={form.hourlyrate}
+                    value={form.hourlyrate ? formatCurrency(form.hourlyrate) : ""}
                     invalid={!!errors.hourlyrate}
                     required
                   />
@@ -1101,10 +1071,8 @@ const EmployeeForm = ({
                     id="transportationassistance"
                     placeholder="Ingresa el auxilio de transporte"
                     onChange={handleCurrencyChange}
-                    onBlur={handleCurrencyBlur}
-                    value={form.transportationassistance}
+                    value={form.transportationassistance ? formatCurrency(form.transportationassistance) : ""}
                     invalid={!!errors.transportationassistance}
-                    required
                   />
                   {errors.transportationassistance && (
                     <FormFeedback>
@@ -1119,12 +1087,12 @@ const EmployeeForm = ({
                 <FormGroup>
                   <Label for="mobilityassistance">Auxilio de Movilidad:</Label>
                   <Input
-                    type="number"
+                    type="text"
                     name="mobilityassistance"
                     id="mobilityassistance"
                     placeholder="Ingresa el auxilio de movilidad"
-                    onChange={handleChange}
-                    value={form.mobilityassistance}
+                    onChange={handleCurrencyChange}
+                    value={form.mobilityassistance ? formatCurrency(form.mobilityassistance) : ""}
                     invalid={!!errors.mobilityassistance}
                     required
                   />
@@ -1145,7 +1113,6 @@ const EmployeeForm = ({
                     onChange={handleChange}
                     value={form.hasadditionaldiscount}
                     invalid={!!errors.hasadditionaldiscount}
-                    required
                   >
                     <option value="">Selecciona una opción</option>
                     <option value={true}>Sí</option>
@@ -1161,14 +1128,13 @@ const EmployeeForm = ({
                   <FormGroup>
                     <Label for="discountvalue">Valor del Descuento:</Label>
                     <Input
-                      type="number"
+                      type="text"
                       name="discountvalue"
                       id="discountvalue"
                       placeholder="Ingresa el valor del descuento"
-                      onChange={handleChange}
-                      value={form.discountvalue}
+                      onChange={handleCurrencyChange}
+                      value={form.discountvalue ? formatCurrency(form.discountvalue) : ""}
                       invalid={!!errors.discountvalue}
-                      required
                     />
                     {errors.discountvalue && (
                       <FormFeedback>{errors.discountvalue}</FormFeedback>
@@ -1360,7 +1326,6 @@ const EmployeeForm = ({
                     onChange={handleChange}
                     value={form.shirtsize}
                     invalid={!!errors.shirtsize}
-                    required
                   >
                     <option value="">Selecciona una opción</option>
                     {selectOptions.shirtsize.map((option) => (
@@ -1384,7 +1349,6 @@ const EmployeeForm = ({
                     onChange={handleChange}
                     value={form.pantssize}
                     invalid={!!errors.pantssize}
-                    required
                   >
                     <option value="">Selecciona una opción</option>
                     {selectOptions.pantssize.map((option) => (
@@ -1408,7 +1372,6 @@ const EmployeeForm = ({
                     onChange={handleChange}
                     value={form.shoesize}
                     invalid={!!errors.shoesize}
-                    required
                   >
                     <option value="">Selecciona una opción</option>
                     {selectOptions.shoesize.map((option) => (

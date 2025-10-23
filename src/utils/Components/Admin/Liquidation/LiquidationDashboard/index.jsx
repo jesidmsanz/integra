@@ -69,7 +69,7 @@ const LiquidationsDashboard = () => {
       }
 
       // Cargar tipos de novedades
-      const typeNewsResponse = await typeNewsApi.list();
+      const typeNewsResponse = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
       if (typeNewsResponse && typeNewsResponse.data && typeNewsResponse.data.length) {
         setTypeNews(typeNewsResponse.data);
       } else if (typeNewsResponse && Array.isArray(typeNewsResponse)) {
@@ -476,14 +476,38 @@ const LiquidationsDashboard = () => {
           let currentCol = 9;
           typeNews.forEach((type) => {
             const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
-            const amount = novedad ? novedad.total_amount : 0;
+            const amount = novedad ? novedad.amount : 0;
             row.getCell(currentCol).value = amount;
             currentCol++;
           });
 
           // Columna final - TOTAL
           const totalCol = 8 + typeNews.length + 1;
-          row.getCell(totalCol).value = detail.net_amount;
+          
+          // CALCULAR EL TOTAL EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+          const salarioBase = Number(detail.basic_salary) || 0;
+          const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+          
+          // Calcular total de novedades
+          let totalNovedades = 0;
+          if (detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              totalNovedades += Number(novedad.amount) || 0;
+            });
+          }
+          
+          // Calcular descuentos de seguridad social
+          const healthDiscount = Number(detail.health_discount) || 0;
+          const pensionDiscount = Number(detail.pension_discount) || 0;
+          const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+          
+          // Calcular descuentos por ausentismo
+          const absenceDiscounts = Number(detail.absence_discounts) || 0;
+          
+          // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
+          const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+          
+          row.getCell(totalCol).value = totalFinal;
 
           // Aplicar estilos a toda la fila COMPACTOS
           const totalCols = 8 + typeNews.length + 1; // base + novedades + final
@@ -536,7 +560,31 @@ const LiquidationsDashboard = () => {
         liquidationData.liquidation_details.forEach(detail => {
           totalSalario += detail.basic_salary || 0;
           totalTransporte += detail.transportation_assistance || 0;
-          totalNeto += detail.net_amount || 0;
+          
+          // CALCULAR EL TOTAL EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+          const salarioBase = Number(detail.basic_salary) || 0;
+          const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+          
+          // Calcular total de novedades
+          let totalNovedades = 0;
+          if (detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              totalNovedades += Number(novedad.amount) || 0;
+            });
+          }
+          
+          // Calcular descuentos de seguridad social
+          const healthDiscount = Number(detail.health_discount) || 0;
+          const pensionDiscount = Number(detail.pension_discount) || 0;
+          const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+          
+          // Calcular descuentos por ausentismo
+          const absenceDiscounts = Number(detail.absence_discounts) || 0;
+          
+          // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
+          const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+          
+          totalNeto += totalFinal;
         });
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
@@ -549,7 +597,7 @@ const LiquidationsDashboard = () => {
           let totalNovedad = 0;
           liquidationData.liquidation_details.forEach(detail => {
             const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
-            totalNovedad += novedad ? (novedad.total_amount || 0) : 0;
+            totalNovedad += novedad ? (novedad.amount || 0) : 0;
           });
           totalRowObj.getCell(currentCol).value = totalNovedad;
           currentCol++;
@@ -871,7 +919,7 @@ const LiquidationsDashboard = () => {
       </Container>
 
       {/* Modal de detalles */}
-      <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} size="xl">
+      <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} size="xl" style={{ maxWidth: '95%' }}>
         <ModalHeader toggle={() => setModalOpen(false)}>
           Detalles de Liquidación #{selectedLiquidation?.id}
         </ModalHeader>
@@ -1030,7 +1078,16 @@ const LiquidationsDashboard = () => {
                                     padding: "0.5rem",
                                   }}
                                 >
-                                  {formatCurrency(detail.total_earnings)}
+                                  {(() => {
+                                    // CALCULAR TOTAL NOVEDADES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+                                    let totalNovedades = 0;
+                                    if (detail.novedades) {
+                                      detail.novedades.forEach(novedad => {
+                                        totalNovedades += Number(novedad.amount) || 0;
+                                      });
+                                    }
+                                    return formatCurrency(totalNovedades);
+                                  })()}
                                 </td>
                                 <td
                                   style={{
@@ -1038,7 +1095,14 @@ const LiquidationsDashboard = () => {
                                     padding: "0.5rem",
                                   }}
                                 >
-                                  {formatCurrency(detail.total_deductions)}
+                                  {(() => {
+                                    // CALCULAR DESCUENTOS EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+                                    const healthDiscount = Number(detail.health_discount) || 0;
+                                    const pensionDiscount = Number(detail.pension_discount) || 0;
+                                    const absenceDiscounts = Number(detail.absence_discounts) || 0;
+                                    const totalDescuentos = healthDiscount + pensionDiscount + absenceDiscounts;
+                                    return formatCurrency(totalDescuentos);
+                                  })()}
                                 </td>
                                 <td
                                   style={{
@@ -1047,7 +1111,32 @@ const LiquidationsDashboard = () => {
                                   }}
                                 >
                                   <strong>
-                                    {formatCurrency(detail.net_amount)}
+                                    {(() => {
+                                      // CALCULAR NETO EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+                                      const salarioBase = Number(detail.basic_salary) || 0;
+                                      const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+                                      
+                                      // Calcular total de novedades
+                                      let totalNovedades = 0;
+                                      if (detail.novedades) {
+                                        detail.novedades.forEach(novedad => {
+                                          totalNovedades += Number(novedad.amount) || 0;
+                                        });
+                                      }
+                                      
+                                      // Calcular descuentos de seguridad social
+                                      const healthDiscount = Number(detail.health_discount) || 0;
+                                      const pensionDiscount = Number(detail.pension_discount) || 0;
+                                      const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+                                      
+                                      // Calcular descuentos por ausentismo
+                                      const absenceDiscounts = Number(detail.absence_discounts) || 0;
+                                      
+                                      // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
+                                      const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+                                      
+                                      return formatCurrency(totalFinal);
+                                    })()}
                                   </strong>
                                 </td>
                               </tr>
