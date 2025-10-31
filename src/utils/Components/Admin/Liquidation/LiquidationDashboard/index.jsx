@@ -275,16 +275,26 @@ const LiquidationsDashboard = () => {
           width: 15
         }));
 
+        // Agregar columnas de descuentos
+        const discountColumns = [
+          { key: 'salud', width: 15 },
+          { key: 'pension', width: 15 },
+          { key: 'ausentismo', width: 15 }
+        ];
+
         const finalColumns = [
           ...baseColumns,
           ...newsColumns,
+          ...discountColumns,
+          { key: 'total_devengado', width: 20 },
+          { key: 'total_deducciones', width: 20 },
           { key: 'total', width: 25 }
         ];
 
         worksheet.columns = finalColumns;
         
         
-        const totalColumns = 8 + typeNews.length + 1; // base + novedades + final
+        const totalColumns = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
         
         // Función para obtener letra de columna
         const getColumnLetter = (num) => {
@@ -426,6 +436,11 @@ const LiquidationsDashboard = () => {
           'VALOR POR HORA',
           'FRECUENCIA DE PAGO',
           ...typeNews.map(type => type.code || type.name),
+          'SALUD (4%)',
+          'PENSIÓN (4%)',
+          'AUSENTISMO',
+          'TOTAL DEVENGADO',
+          'TOTAL DEDUCCIONES',
           'TOTAL'
         ];
         
@@ -481,36 +496,56 @@ const LiquidationsDashboard = () => {
             currentCol++;
           });
 
-          // Columna final - TOTAL
-          const totalCol = 8 + typeNews.length + 1;
+          // Agregar datos de descuentos
+          const saludCol = 8 + typeNews.length + 1;
+          const pensionCol = 8 + typeNews.length + 2;
+          const ausentismoCol = 8 + typeNews.length + 3;
           
-          // CALCULAR EL TOTAL EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+          const healthDiscount = Number(detail.health_discount) || 0;
+          const pensionDiscount = Number(detail.pension_discount) || 0;
+          const absenceDiscounts = Number(detail.absence_discounts) || 0;
+          
+          row.getCell(saludCol).value = healthDiscount;
+          row.getCell(pensionCol).value = pensionDiscount;
+          row.getCell(ausentismoCol).value = absenceDiscounts;
+
+          // Columnas para totales
+          const devengadoCol = 8 + typeNews.length + 4;
+          const deduccionesCol = 8 + typeNews.length + 5;
+          const totalCol = 8 + typeNews.length + 6;
+          
+          // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
           const salarioBase = Number(detail.basic_salary) || 0;
           const auxilioTransporte = Number(detail.transportation_assistance) || 0;
           
           // Calcular total de novedades
           let totalNovedades = 0;
+          let totalNovedadesPositivas = 0;
+          let totalNovedadesNegativas = 0;
           if (detail.novedades) {
             detail.novedades.forEach(novedad => {
-              totalNovedades += Number(novedad.amount) || 0;
+              const amount = Number(novedad.amount) || 0;
+              totalNovedades += amount;
+              if (amount >= 0) totalNovedadesPositivas += amount;
+              if (amount < 0) totalNovedadesNegativas += amount;
             });
           }
           
-          // Calcular descuentos de seguridad social
-          const healthDiscount = Number(detail.health_discount) || 0;
-          const pensionDiscount = Number(detail.pension_discount) || 0;
+          // Calcular descuentos de seguridad social (reutilizar variables ya declaradas arriba)
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
-          // Calcular descuentos por ausentismo
-          const absenceDiscounts = Number(detail.absence_discounts) || 0;
+          // Totales: Devengado, Deducciones y Neto
+          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas;
+          const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
+          const totalFinal = totalDevengado - totalDeducciones;
           
-          // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
-          const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
-          
+          // Asignar columnas de totales
+          row.getCell(devengadoCol).value = totalDevengado;
+          row.getCell(deduccionesCol).value = totalDeducciones;
           row.getCell(totalCol).value = totalFinal;
 
           // Aplicar estilos a toda la fila COMPACTOS
-          const totalCols = 8 + typeNews.length + 1; // base + novedades + final
+          const totalCols = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
           for (let col = 1; col <= totalCols; col++) {
             const cell = row.getCell(col);
             cell.font = {
@@ -539,7 +574,13 @@ const LiquidationsDashboard = () => {
               cell.numFmt = '"$"#,##0';
             } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
               cell.numFmt = '"$"#,##0';
-            } else if (col === 8 + typeNews.length + 1) { // TOTAL
+            } else if (col >= 8 + typeNews.length + 1 && col <= 8 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 8 + typeNews.length + 4) { // DEVENGADO
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 8 + typeNews.length + 5) { // DEDUCCIONES
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 8 + typeNews.length + 6) { // TOTAL
               cell.numFmt = '"$"#,##0';
             }
           }
@@ -555,21 +596,36 @@ const LiquidationsDashboard = () => {
         // Calcular totales manualmente (SIN FÓRMULAS)
         let totalSalario = 0;
         let totalTransporte = 0;
+        let totalDevengadoGeneral = 0;
+        let totalDeduccionesGeneral = 0;
         let totalNeto = 0;
+        let totalSalud = 0;
+        let totalPension = 0;
+        let totalAusentismo = 0;
         
         liquidationData.liquidation_details.forEach(detail => {
           totalSalario += detail.basic_salary || 0;
           totalTransporte += detail.transportation_assistance || 0;
           
-          // CALCULAR EL TOTAL EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
+          // Acumular descuentos individuales
+          totalSalud += Number(detail.health_discount) || 0;
+          totalPension += Number(detail.pension_discount) || 0;
+          totalAusentismo += Number(detail.absence_discounts) || 0;
+          
+          // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
           const salarioBase = Number(detail.basic_salary) || 0;
           const auxilioTransporte = Number(detail.transportation_assistance) || 0;
           
           // Calcular total de novedades
           let totalNovedades = 0;
+          let totalNovedadesPositivas = 0;
+          let totalNovedadesNegativas = 0;
           if (detail.novedades) {
             detail.novedades.forEach(novedad => {
-              totalNovedades += Number(novedad.amount) || 0;
+              const amount = Number(novedad.amount) || 0;
+              totalNovedades += amount;
+              if (amount >= 0) totalNovedadesPositivas += amount;
+              if (amount < 0) totalNovedadesNegativas += amount;
             });
           }
           
@@ -581,9 +637,13 @@ const LiquidationsDashboard = () => {
           // Calcular descuentos por ausentismo
           const absenceDiscounts = Number(detail.absence_discounts) || 0;
           
-          // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
-          const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+          // Totales: Devengado, Deducciones y Neto
+          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas;
+          const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
+          const totalFinal = totalDevengado - totalDeducciones;
           
+          totalDevengadoGeneral += totalDevengado;
+          totalDeduccionesGeneral += totalDeducciones;
           totalNeto += totalFinal;
         });
         
@@ -603,12 +663,24 @@ const LiquidationsDashboard = () => {
           currentCol++;
         });
         
-        // Total final (SIN FÓRMULAS)
-        const totalCol = 8 + typeNews.length + 1;
+        // Totales de descuentos (SIN FÓRMULAS)
+        const saludColTotal = 8 + typeNews.length + 1;
+        const pensionColTotal = 8 + typeNews.length + 2;
+        const ausentismoColTotal = 8 + typeNews.length + 3;
+        totalRowObj.getCell(saludColTotal).value = totalSalud;
+        totalRowObj.getCell(pensionColTotal).value = totalPension;
+        totalRowObj.getCell(ausentismoColTotal).value = totalAusentismo;
+        
+        // Totales Devengado, Deducciones y Neto (SIN FÓRMULAS)
+        const devengadoCol = 8 + typeNews.length + 4;
+        const deduccionesCol = 8 + typeNews.length + 5;
+        const totalCol = 8 + typeNews.length + 6;
+        totalRowObj.getCell(devengadoCol).value = totalDevengadoGeneral;
+        totalRowObj.getCell(deduccionesCol).value = totalDeduccionesGeneral;
         totalRowObj.getCell(totalCol).value = totalNeto;
 
         // Estilo de la fila de totales COMPACTA
-        const totalCols = 8 + typeNews.length + 1; // base + novedades + final
+        const totalCols = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
         for (let col = 1; col <= totalCols; col++) {
           const cell = totalRowObj.getCell(col);
           cell.font = {
@@ -638,7 +710,13 @@ const LiquidationsDashboard = () => {
             cell.numFmt = '"$"#,##0';
           } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
             cell.numFmt = '"$"#,##0';
-          } else if (col === 8 + typeNews.length + 1) { // TOTAL
+          } else if (col >= 8 + typeNews.length + 1 && col <= 8 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 8 + typeNews.length + 4) { // DEVENGADO
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 8 + typeNews.length + 5) { // DEDUCCIONES
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 8 + typeNews.length + 6) { // TOTAL
             cell.numFmt = '"$"#,##0';
           }
         }
@@ -1019,6 +1097,9 @@ const LiquidationsDashboard = () => {
                               Total Novedades
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
+                              Total Devengado
+                            </th>
+                            <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
                               Descuentos
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
@@ -1087,6 +1168,27 @@ const LiquidationsDashboard = () => {
                                       });
                                     }
                                     return formatCurrency(totalNovedades);
+                                  })()}
+                                </td>
+                                <td
+                                  style={{
+                                    fontSize: "1rem",
+                                    padding: "0.5rem",
+                                  }}
+                                >
+                                  {(() => {
+                                    // DEVENGADO = SALARIO + TRANSPORTE + NOVEDADES POSITIVAS
+                                    const salarioBase = Number(detail.basic_salary) || 0;
+                                    const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+                                    let novedadesPositivas = 0;
+                                    if (detail.novedades) {
+                                      detail.novedades.forEach(novedad => {
+                                        const amount = Number(novedad.amount) || 0;
+                                        if (amount >= 0) novedadesPositivas += amount;
+                                      });
+                                    }
+                                    const devengado = salarioBase + auxilioTransporte + novedadesPositivas;
+                                    return formatCurrency(devengado);
                                   })()}
                                 </td>
                                 <td
