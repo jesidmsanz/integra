@@ -15,6 +15,7 @@ import {
   Col,
   Row,
   FormFeedback,
+  Alert,
 } from "reactstrap";
 
 // Campos de dinero del empleado que pueden ser afectados por la novedad
@@ -40,6 +41,7 @@ const initialState = {
   affects: {}, // Ahora será un objeto con los campos seleccionados
   applies_to: {}, // Ahora será un objeto con las opciones de género seleccionadas
   percentage: "",
+  amount: "", // Nuevo campo: cantidad fija
   active: true,
   notes: "",
   calculateperhour: false,
@@ -137,13 +139,25 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
     const newErrors = {};
 
     // Validar campos requeridos específicos
-    const requiredFields = ["name", "code", "percentage"];
+    const requiredFields = ["name", "code"];
 
     requiredFields.forEach((field) => {
       if (!form[field] || form[field].toString().trim() === "") {
         newErrors[field] = "Este campo es requerido";
       }
     });
+
+    // Validar que porcentaje o cantidad tengan valor (mutuamente excluyentes)
+    const percentageValue = form.percentage ? form.percentage.toString().trim() : "";
+    const amountValue = form.amount ? form.amount.toString().trim() : "";
+    
+    if (!percentageValue && !amountValue) {
+      newErrors.percentage = "Debe ingresar un porcentaje o una cantidad";
+      newErrors.amount = "Debe ingresar un porcentaje o una cantidad";
+    } else if (percentageValue && amountValue) {
+      newErrors.percentage = "Solo puede ingresar porcentaje O cantidad, no ambos";
+      newErrors.amount = "Solo puede ingresar porcentaje O cantidad, no ambos";
+    }
 
     // Validar que al menos un campo de dinero esté seleccionado en "affects"
     if (
@@ -176,6 +190,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
           ...form,
           affects: JSON.stringify(form.affects),
           applies_to: JSON.stringify(form.applies_to),
+          // Convertir amount vacío a null y percentage vacío a null
+          amount: form.amount && form.amount.toString().trim() !== "" ? parseFloat(form.amount) : null,
+          percentage: form.percentage && form.percentage.toString().trim() !== "" ? form.percentage : null,
         };
 
         console.log("form", formDataToSend);
@@ -336,22 +353,92 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="12">
+            <Col md="6">
               <FormGroup>
                 <Label for="percentage">Porcentaje:</Label>
                 <Input
-                  type="text"
+                  type="number"
                   name="percentage"
                   id="percentage"
-                  placeholder="Porcentaje"
-                  onChange={handleChange}
+                  placeholder="Ej: 50"
+                  onChange={(e) => {
+                    // Si se ingresa porcentaje, limpiar cantidad
+                    const value = e.target.value;
+                    const tieneCantidad = form.amount && form.amount.toString().trim() !== "";
+                    
+                    // Mostrar alerta si ya hay cantidad y se está ingresando porcentaje
+                    if (value && tieneCantidad) {
+                      toast.warning("Se limpiará el campo Cantidad porque solo puede usar Porcentaje O Cantidad", {
+                        position: "top-center",
+                        autoClose: 3000,
+                      });
+                    }
+                    
+                    setForm({
+                      ...form,
+                      percentage: value,
+                      amount: value ? "" : form.amount, // Limpiar cantidad si se ingresa porcentaje
+                    });
+                    if (errors.percentage) {
+                      setErrors({
+                        ...errors,
+                        percentage: "",
+                        amount: "",
+                      });
+                    }
+                  }}
                   value={form.percentage}
                   invalid={!!errors.percentage}
-                  required
                 />
                 {errors.percentage && (
                   <FormFeedback>{errors.percentage}</FormFeedback>
                 )}
+                <small className="text-muted">Ingrese el porcentaje (ej: 50 para 50%)</small>
+              </FormGroup>
+            </Col>
+            <Col md="6">
+              <FormGroup>
+                <Label for="amount">Cantidad:</Label>
+                <Input
+                  type="number"
+                  name="amount"
+                  id="amount"
+                  placeholder="Ej: 100000"
+                  step="1"
+                  min="0"
+                  onChange={(e) => {
+                    // Si se ingresa cantidad, limpiar porcentaje
+                    const value = e.target.value;
+                    const tienePorcentaje = form.percentage && form.percentage.toString().trim() !== "";
+                    
+                    // Mostrar alerta si ya hay porcentaje y se está ingresando cantidad
+                    if (value && tienePorcentaje) {
+                      toast.warning("Se limpiará el campo Porcentaje porque solo puede usar Porcentaje O Cantidad", {
+                        position: "top-center",
+                        autoClose: 3000,
+                      });
+                    }
+                    
+                    setForm({
+                      ...form,
+                      amount: value,
+                      percentage: value ? "" : form.percentage, // Limpiar porcentaje si se ingresa cantidad
+                    });
+                    if (errors.amount) {
+                      setErrors({
+                        ...errors,
+                        percentage: "",
+                        amount: "",
+                      });
+                    }
+                  }}
+                  value={form.amount}
+                  invalid={!!errors.amount}
+                />
+                {errors.amount && (
+                  <FormFeedback>{errors.amount}</FormFeedback>
+                )}
+                <small className="text-muted">Ingrese la cantidad fija (ej: 100000)</small>
               </FormGroup>
             </Col>
           </Row>

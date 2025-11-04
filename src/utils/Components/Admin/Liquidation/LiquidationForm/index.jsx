@@ -1029,8 +1029,21 @@ const LiquidationForm = () => {
               if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
                 const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
                 const salarioPorDias = salarioDiario * diasNovedad;
-                const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
-                const valorSalario = salarioPorDias * (porcentaje / 100);
+                
+                // Determinar si se usa cantidad o porcentaje
+                const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+                
+                let valorSalario = 0;
+                if (tieneCantidad) {
+                  // Usar cantidad fija TOTAL (no multiplicar por días)
+                  const cantidadFija = parseFloat(tipoNovedad.amount);
+                  valorSalario = cantidadFija; // Valor total, no por día
+                } else if (tienePorcentaje) {
+                  // Usar porcentaje
+                  const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                  valorSalario = salarioPorDias * (porcentaje / 100);
+                }
                 
                 if (esDescuento) {
                   descuentosProporcionales += valorSalario;
@@ -1265,6 +1278,10 @@ const LiquidationForm = () => {
     const fechaInicio = moment.utc(novedad.startDate);
     const fechaFin = moment.utc(novedad.endDate);
 
+    // Determinar si se usa cantidad o porcentaje
+    const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+    const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+
     // LÓGICA SIMPLIFICADA: Si la novedad tiene "affects" y NO se calcula por hora
     if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
       let affectsData;
@@ -1277,12 +1294,14 @@ const LiquidationForm = () => {
       }
 
       // Si afecta al salario base y el porcentaje es 100%, retornar 0 para display
-      const percentage = parseFloat(tipoNovedad.percentage);
-      if (
-        (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") &&
-        percentage === 100
-      ) {
-        return { valorNovedad: 0, totalHoras: 0 };
+      if (tienePorcentaje) {
+        const percentage = parseFloat(tipoNovedad.percentage);
+        if (
+          (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") &&
+          percentage === 100
+        ) {
+          return { valorNovedad: 0, totalHoras: 0 };
+        }
       }
     }
 
@@ -1330,9 +1349,15 @@ const LiquidationForm = () => {
         );
       }
 
-      const valorHoraExtra =
-        Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
-      valorNovedad = totalHoras * valorHoraExtra;
+      // Si tiene cantidad, usar cantidad directamente; si no, usar porcentaje
+      if (tieneCantidad) {
+        const cantidadPorHora = parseFloat(tipoNovedad.amount);
+        valorNovedad = totalHoras * cantidadPorHora;
+      } else if (tienePorcentaje) {
+        const valorHoraExtra =
+          Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+        valorNovedad = totalHoras * valorHoraExtra;
+      }
       
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
       if (esDescuento) {
@@ -1341,8 +1366,15 @@ const LiquidationForm = () => {
       // Si NO es descuento, mantener el valor positivo (suma)
     } else {
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
-      const valorDia = Number(employee.basicmonthlysalary) / 30;
-      valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
+      
+      // Si tiene cantidad, usar cantidad directamente (valor total, no por día); si no, usar porcentaje
+      if (tieneCantidad) {
+        const cantidadFija = parseFloat(tipoNovedad.amount);
+        valorNovedad = cantidadFija; // Valor total, no multiplicar por días
+      } else if (tienePorcentaje) {
+        const valorDia = Number(employee.basicmonthlysalary) / 30;
+        valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
+      }
       
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
       if (esDescuento) {
@@ -1494,8 +1526,21 @@ const LiquidationForm = () => {
             if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
               const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
               const salarioPorDias = salarioDiario * diasNovedad;
-              const porcentaje = parseFloat(type.percentage) || 100;
-              const valorSalario = salarioPorDias * (porcentaje / 100);
+              
+              // Determinar si se usa cantidad o porcentaje
+              const tieneCantidad = type.amount && parseFloat(type.amount) > 0;
+              const tienePorcentaje = type.percentage && parseFloat(type.percentage) > 0;
+              
+              let valorSalario = 0;
+              if (tieneCantidad) {
+                // Usar cantidad fija TOTAL (no multiplicar por días)
+                const cantidadFija = parseFloat(type.amount);
+                valorSalario = cantidadFija; // Valor total, no por día
+              } else if (tienePorcentaje) {
+                // Usar porcentaje
+                const porcentaje = parseFloat(type.percentage) || 100;
+                valorSalario = salarioPorDias * (porcentaje / 100);
+              }
               
               if (esDescuento) {
                 newCalculatedValues[employee.id].total -= valorSalario;

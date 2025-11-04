@@ -38,8 +38,13 @@ module.exports = function (config) {
       },
       percentage: {
         type: Sequelize.STRING(),
-        allowNull: false,
+        allowNull: true,
         comment: "Porcentaje de la novedad",
+      },
+      amount: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true,
+        comment: "Cantidad fija de la novedad (alternativa a porcentaje)",
       },
       category: {
         type: Sequelize.STRING(),
