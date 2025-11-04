@@ -49,6 +49,21 @@ module.exports = function setupUser(UserModel, db, sequelize) {
     return UserModel.findAll();
   }
 
+  function findAllActive() {
+    return UserModel.findAll({
+      where: { active: true },
+    });
+  }
+
+  async function update(id, userData) {
+    const user = await UserModel.findByPk(id);
+    if (!user) {
+      throw new Error("Usuario no encontrado");
+    }
+    await user.update(userData);
+    return user.toJSON ? user.toJSON() : user;
+  }
+
   function findByUsername(username) {
     return UserModel.findOne({
       where: {
@@ -122,7 +137,9 @@ module.exports = function setupUser(UserModel, db, sequelize) {
     create,
     findByUuid,
     findAll,
+    findAllActive,
     findByUsername,
+    update,
     updateRefreshToken,
     updateAccessToken,
     changePassword,

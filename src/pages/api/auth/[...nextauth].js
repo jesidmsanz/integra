@@ -4,6 +4,7 @@ const {
   updateRefreshToken,
   updateAccessToken,
 } = require("@/server/components/users/controller");
+const { getUserPermissions } = require("@/server/utils/userPermissions");
 import * as bcrypt from "bcrypt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { generateAccessToken } from "@/utils/auth/generateAccessToken";
@@ -43,12 +44,21 @@ export default NextAuth({
         await updateRefreshToken(user.id, refreshToken);
         await updateAccessToken(user.id, accessToken);
 
+        // Obtener permisos del usuario basados en sus roles
+        let permissions = [];
+        try {
+          permissions = await getUserPermissions(user.id);
+        } catch (error) {
+          console.error("Error obteniendo permisos del usuario:", error);
+        }
+
         user.id = user._id;
         delete user.Password;
         return {
           ...user,
           accessToken,
           refreshToken,
+          permissions, // Incluir permisos en el objeto de usuario
         };
       },
     }),
@@ -62,13 +72,15 @@ export default NextAuth({
         token.id = user.id;
         token.accessToken = user.accessToken;
         token.refreshToken = user.refreshToken;
+        token.permissions = user.permissions || []; // Incluir permisos en el token
+        token.roles = user.roles || []; // Incluir roles en el token
         token.user = {
-          Email: user.Email || "",
+          Email: user.email || user.Email || "",
           Role: user.Role || "",
-          FirstName: user.FirstName || "",
-          LastName: user.LastName || "",
-          Phone: user.Phone || "",
-          Active: user.Active || false,
+          FirstName: user.firstName || user.FirstName || "",
+          LastName: user.lastName || user.LastName || "",
+          Phone: user.phone || user.Phone || "",
+          Active: user.active !== undefined ? user.active : (user.Active || false),
         };
       }
       return token;
@@ -78,6 +90,8 @@ export default NextAuth({
         session.id = token.id;
         session.accessToken = token.accessToken;
         session.refreshToken = token.refreshToken;
+        session.permissions = token.permissions || []; // Incluir permisos en la sesión
+        session.roles = token.roles || []; // Incluir roles en la sesión
         session.user = token.user;
       }
       return session;

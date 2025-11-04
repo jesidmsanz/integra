@@ -13,6 +13,9 @@ const setupLiquidationsModel = require("../../components/liquidations/model");
 const setupLiquidationDetailsModel = require("../../components/liquidations/liquidation_details_model");
 const setupLiquidationNewsModel = require("../../components/liquidations/liquidation_news_model");
 const setupNormativasModel = require("../../components/normativas/model");
+const setupRolesModel = require("../../components/roles/model");
+const setupPermissionsModel = require("../../components/permissions/model");
+const setupRolePermissionsModel = require("../../components/role_permissions/model");
 
 // Stores
 const setupUsers = require("../../components/users/store");
@@ -26,6 +29,9 @@ const setupLiquidations = require("../../components/liquidations/store");
 const setupLiquidationDetails = require("../../components/liquidations/liquidation_details_store");
 const setupLiquidationNews = require("../../components/liquidations/liquidation_news_store");
 const setupNormativas = require("../../components/normativas/store");
+const setupRoles = require("../../components/roles/store");
+const setupPermissions = require("../../components/permissions/store");
+const setupRolePermissions = require("../../components/role_permissions/store");
 
 module.exports = async (config) => {
   const sequelize = setupDatabase(config);
@@ -46,6 +52,9 @@ module.exports = async (config) => {
     const LiquidationDetailsModel = setupLiquidationDetailsModel(sequelize);
     const LiquidationNewsModel = setupLiquidationNewsModel(sequelize);
     const NormativasModel = setupNormativasModel(sequelize);
+    const RolesModel = setupRolesModel(sequelize);
+    const PermissionsModel = setupPermissionsModel(sequelize);
+    const RolePermissionsModel = setupRolePermissionsModel(sequelize);
 
     // Establecer relaciones entre modelos
     // Liquidations -> Companies
@@ -138,6 +147,18 @@ module.exports = async (config) => {
       as: "normativas",
     });
 
+    // RolePermissions -> Roles
+    RolePermissionsModel.belongsTo(RolesModel, {
+      foreignKey: "role_id",
+      as: "role",
+    });
+    RolesModel.hasMany(RolePermissionsModel, {
+      foreignKey: "role_id",
+      as: "permissions",
+    });
+
+    // RolePermissions ahora usa permission_key directamente (sin relación con PermissionsModel)
+
     // Sincroniza los modelos con la base de datos
     await sequelize.sync({ force: false });
     console.log("Conexión a la base de datos establecida con éxito.");
@@ -174,6 +195,9 @@ module.exports = async (config) => {
       sequelize
     );
     const Normativas = setupNormativas(NormativasModel, config, sequelize);
+    const Roles = setupRoles(RolesModel, config, sequelize);
+    const Permissions = setupPermissions(PermissionsModel, config, sequelize);
+    const RolePermissions = setupRolePermissions(RolePermissionsModel, config, sequelize);
 
     return {
       Users,
@@ -187,6 +211,9 @@ module.exports = async (config) => {
       LiquidationDetails,
       LiquidationNews,
       Normativas,
+      Roles,
+      Permissions,
+      RolePermissions,
       sequelize,
     };
   } catch (error) {

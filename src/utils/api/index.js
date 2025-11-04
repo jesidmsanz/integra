@@ -5,6 +5,9 @@ import companiesApi from "./companiesApi";
 import typeNewsApi from "./typeNewsApi";
 import employeeNewsApi from "./employeeNewsApi";
 import liquidationsApi from "./liquidationsApi";
+import rolesApi from "./rolesApi";
+import permissionsApi from "./permissionsApi";
+import rolePermissionsApi from "./rolePermissionsApi";
 
 export {
   usersApi,
@@ -14,4 +17,7 @@ export {
   typeNewsApi,
   employeeNewsApi,
   liquidationsApi,
+  rolesApi,
+  permissionsApi,
+  rolePermissionsApi,
 };

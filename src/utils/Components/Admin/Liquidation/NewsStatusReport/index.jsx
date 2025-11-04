@@ -78,7 +78,7 @@ const NewsStatusReport = () => {
   if (loading) {
     return (
       <Container className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
-        <Spinner size="lg" color="primary" />
+        <Spinner size="sm" color="primary" style={{ width: "3rem", height: "3rem" }} />
       </Container>
     );
   }

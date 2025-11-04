@@ -5,12 +5,14 @@ import { handlePined } from "@/Redux/Reducers/LayoutSlice";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import usePermissions from "@/utils/hooks/usePermissions";
 
 const Menulist = ({ menu, setActiveMenu, activeMenu, level }) => {
   const { pinedMenu } = useAppSelector((state) => state.layout);
   const { sidebarIconType } = useAppSelector((state) => state.themeCustomizer);
   const pathname = usePathname();
   const dispatch = useAppDispatch();
+  const { hasPermission } = usePermissions();
   // const { t } = useTranslation("common");
 
   const ActiveNavLinkUrl = (path, active) => {
@@ -43,9 +45,30 @@ const Menulist = ({ menu, setActiveMenu, activeMenu, level }) => {
     ActiveNavLinkUrl();
   }, []);
 
+  // Filtrar menú según permisos
+  const filterMenuByPermissions = (items) => {
+    if (!items) return [];
+    return items.filter((item) => {
+      // Si tiene hijos, filtrar recursivamente y verificar si quedan hijos visibles
+      if (item.children) {
+        const filteredChildren = filterMenuByPermissions(item.children);
+        // Si no quedan hijos visibles, ocultar el padre también
+        return filteredChildren.length > 0;
+      }
+      // Si no tiene permiso requerido, ocultar el item
+      if (item.permission) {
+        return hasPermission(item.permission);
+      }
+      // Si no tiene permiso definido, mostrarlo (retrocompatibilidad)
+      return true;
+    });
+  };
+
+  const filteredMenu = filterMenuByPermissions(menu);
+
   return (
     <>
-      {menu?.map((item, index) => (
+      {filteredMenu?.map((item, index) => (
         <li
           key={index}
           className={`${level === 0 ? "sidebar-list" : ""} ${
@@ -125,7 +148,7 @@ const Menulist = ({ menu, setActiveMenu, activeMenu, level }) => {
               }}
             >
               <Menulist
-                menu={item.children}
+                menu={filterMenuByPermissions(item.children)}
                 activeMenu={activeMenu}
                 setActiveMenu={setActiveMenu}
                 level={level + 1}

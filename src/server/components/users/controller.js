@@ -26,9 +26,57 @@ function getUser({ username }) {
 
 function findAll() {
   return new Promise(async (resolve, reject) => {
-    const { Users } = await db();
-    const result = await Users.findAll();
-    resolve(result);
+    try {
+      const { Users } = await db();
+      const result = await Users.findAll();
+      resolve(result);
+    } catch (error) {
+      console.log("ERROR in users findAll:", error);
+      reject(error);
+    }
+  });
+}
+
+function findAllActive() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { Users } = await db();
+      const result = await Users.findAllActive();
+      resolve(result);
+    } catch (error) {
+      console.log("ERROR in users findAllActive:", error);
+      reject(error);
+    }
+  });
+}
+
+function findById(id) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { Users } = await db();
+      const user = await Users.findById(id);
+      if (!user) {
+        reject(new Error("Usuario no encontrado"));
+        return;
+      }
+      resolve(user);
+    } catch (error) {
+      console.log("ERROR in users findById:", error);
+      reject(error);
+    }
+  });
+}
+
+function update(id, userData) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { Users } = await db();
+      const user = await Users.update(id, userData);
+      resolve(user);
+    } catch (error) {
+      console.log("ERROR in users update:", error);
+      reject(error);
+    }
   });
 }
 
@@ -84,6 +132,9 @@ module.exports = {
   create,
   getUser,
   findAll,
+  findAllActive,
+  findById,
+  update,
   changePassword,
   updateRefreshToken,
   updateAccessToken,

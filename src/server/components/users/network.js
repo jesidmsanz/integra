@@ -55,6 +55,17 @@ handler.post(`${apiURL}/`, async function (req, res) {
   }
 });
 
+// PUT: api/users/:id
+handler.put(`${apiURL}/:id`, async function (req, res) {
+  try {
+    const user = await controller.update(req.params.id, req.body);
+    response.success(req, res, user);
+  } catch (error) {
+    console.log("ERROR: ", error);
+    response.error(req, res, "Error al actualizar el usuario", 400, error);
+  }
+});
+
 // POST: /api/users/auth/refresh-token
 handler.post(`${apiURL}/auth/refresh-token`, (req, res) => {
   const { refreshToken } = req.body;

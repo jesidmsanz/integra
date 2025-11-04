@@ -8,8 +8,14 @@ import employeesApi from '@/utils/api/employeesApi';
 import PaySlipGenerator from '@/utils/Components/Admin/Liquidation/PaySlipGenerator';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import usePermissions from '@/utils/hooks/usePermissions';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 const VolantesPago = () => {
+  const { hasPermission } = usePermissions();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [liquidations, setLiquidations] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [selectedLiquidation, setSelectedLiquidation] = useState(null);
@@ -25,8 +31,23 @@ const VolantesPago = () => {
   const [showPaySlipModal, setShowPaySlipModal] = useState(false);
 
   useEffect(() => {
-    loadLiquidations();
-  }, []);
+    // Esperar a que la sesión esté completamente cargada
+    if (status === 'loading') return;
+    
+    // Validar permiso antes de cargar datos
+    if (status === 'authenticated' && !hasPermission('payslip.view')) {
+      toast.error('No tienes permiso para acceder a esta sección');
+      setTimeout(() => {
+        router.replace('/admin/liquidaciones_guardadas');
+      }, 100);
+      return;
+    }
+    
+    // Solo cargar datos si está autenticado y tiene permiso
+    if (status === 'authenticated') {
+      loadLiquidations();
+    }
+  }, [status, hasPermission, router]);
 
   const loadLiquidations = async () => {
     try {
