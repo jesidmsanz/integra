@@ -74,6 +74,13 @@ export const MenuList = [
         permission: "employee.view",
       },
       {
+        path: "/admin/contratos",
+        icon: "file",
+        title: "Contratos",
+        type: "link",
+        permission: "employee.view",
+      },
+      {
         path: "/admin/novedades",
         icon: "file",
         title: "Novedades",

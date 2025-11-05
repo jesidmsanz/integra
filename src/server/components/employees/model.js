@@ -125,6 +125,11 @@ module.exports = function (config) {
         allowNull: false,
         comment: "Contract Start Date",
       },
+      contractenddate: {
+        type: Sequelize.DATE,
+        allowNull: true,
+        comment: "Contract End Date",
+      },
       payrolltype: {
         type: Sequelize.STRING,
         allowNull: false,

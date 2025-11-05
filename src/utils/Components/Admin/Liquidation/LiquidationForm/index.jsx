@@ -1894,6 +1894,10 @@ const LiquidationForm = () => {
                   <strong>Fecha de Inicio de Contrato:</strong>{" "}
                   {selectedEmployee.contractstartdate?.split("T")[0]}
                 </div>
+                <div className="mb-3">
+                  <strong>Fecha de Finalización de Contrato:</strong>{" "}
+                  {selectedEmployee.contractenddate?.split("T")[0]}
+                </div>
               </Col>
               <Col md="6">
                 <h4 className="mb-3">Información Laboral</h4>

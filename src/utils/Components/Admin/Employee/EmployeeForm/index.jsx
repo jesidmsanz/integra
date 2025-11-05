@@ -43,6 +43,7 @@ const initialState = {
   sex: "",
   birthdate: "",
   contractstartdate: "",
+  contractenddate: "",
   payrolltype: "",
   costcenter: "",
   basicmonthlysalary: "",
@@ -423,7 +424,6 @@ const EmployeeForm = ({
           mobilityassistance: form.mobilityassistance || 0,
           discountvalue: form.discountvalue || 0,
         };
-
         const save = isUpdate
           ? await employeesApi.update(dataToUpdate.id, dataToSend)
           : await employeesApi.create(dataToSend);
@@ -792,6 +792,25 @@ const EmployeeForm = ({
               </Col>
               <Col md="4">
                 <FormGroup>
+                  <Label for="contractenddate">Fecha de finalización:</Label>
+                  <Input
+                    type="date"
+                    name="contractenddate"
+                    id="contractenddate"
+                    onChange={handleChange}
+                    value={form.contractenddate}
+                    invalid={!!errors.contractenddate}
+                    required
+                  />
+                  {errors.contractenddate && (
+                    <FormFeedback>{errors.contractenddate}</FormFeedback>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+            <Row>
+              <Col md="4">
+                <FormGroup>
                   <Label for="workday">Jornada:</Label>
                   <Input
                     type="text"
@@ -807,8 +826,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="workcity">Ciudad de trabajo:</Label>
@@ -857,6 +874,8 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="paymentmethod">Frecuencia de pago:</Label>
@@ -881,8 +900,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="eps">EPS:</Label>
@@ -927,6 +944,8 @@ const EmployeeForm = ({
                   {errors.arl && <FormFeedback>{errors.arl}</FormFeedback>}
                 </FormGroup>
               </Col>
+            </Row>
+            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="arlrisklevel">Nivel de riesgo ARL:</Label>
@@ -951,8 +970,6 @@ const EmployeeForm = ({
                   )}
                 </FormGroup>
               </Col>
-            </Row>
-            <Row>
               <Col md="4">
                 <FormGroup>
                   <Label for="arlriskpercentage">
