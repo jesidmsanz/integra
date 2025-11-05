@@ -1,53 +1,57 @@
 "use client";
 import Breadcrumbs from "@/CommonComponent/Breadcrumb";
-import {
-  DashboardTitle,
-  DefaultDashboardTitle,
-  DefaultTitle,
-} from "@/Constant/constant";
-// import { directoriesApi } from "@/utils/api";
-import React, { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import React from "react";
 import { Card, CardBody, Col, Container, Row } from "reactstrap";
-import { useAppSelector } from "@/Redux/Hooks";
-import { Error1 } from "@/Data/Pages/PagesSvgIcons.tsx";
 
 const DefaultDashboardContainer = () => {
-  const exampleGet = async () => {
-    try {
-      // const result = await directoriesApi.list(1, 5);
-      // console.log("result :>> ", result);
-    } catch (error) {
-      console.log("error :>> ", error);
-    }
-  };
+  const { data: session } = useSession();
+  const userName = session?.user?.firstName || session?.user?.Email || "Usuario";
 
-  // useEffect(() => {
-  //   exampleGet();
-  // }, []);
   return (
     <>
       <Breadcrumbs
-        pageTitle={DashboardTitle}
-        parent={DashboardTitle}
-        title={DefaultTitle}
+        pageTitle="Dashboard"
+        parent="Dashboard"
+        title="Bienvenido"
       />
-      <div className="page-wrapper compact-wrapper" id="pageWrapper">
-        <div className="error-wrapper">
-          <Container className="default-dashboard" fluid>
-            <div className="svg-wrraper">
-              <Error1 />
-            </div>
-            <Col md="8" className="offset-md-2">
-              <h1>En Construcción</h1>
-              {/* <p className="sub-content">
-                {
-                  "Parece que estás intentando acceder a una página que no está disponible. Esto puede deberse a que no has iniciado sesión o que la página ha sido movida o no existe."
-                }
-              </p> */}
-            </Col>
-          </Container>
-        </div>
-      </div>
+      <Container fluid>
+        <Row>
+          <Col md="12">
+            <Card style={{ 
+              background: '#fff',
+              border: '1px solid #e0e0e0',
+              borderRadius: '10px',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+            }}>
+              <CardBody style={{ padding: '40px' }}>
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="flex-grow-1">
+                    <h1 style={{ color: '#333', fontSize: '2.5rem', marginBottom: '15px', fontWeight: '600' }}>
+                      ¡Bienvenido, {userName}!
+                    </h1>
+                  </div>
+                  <div className="flex-shrink-0 ms-4">
+                    <div style={{
+                      width: '120px',
+                      height: '120px',
+                      background: '#f0f0f0',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '3rem',
+                      color: '#667eea'
+                    }}>
+                      <i className="fa fa-user"></i>
+                    </div>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
     </>
   );
 };
