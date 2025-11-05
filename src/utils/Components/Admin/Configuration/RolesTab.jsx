@@ -76,7 +76,7 @@ const RolesTab = () => {
       }
       setModalOpen(false);
       setSelectedRole(null);
-      loadData();
+      await loadData();
     } catch (error) {
       console.error("Error saving role:", error);
       toast.error("Error al guardar el rol");

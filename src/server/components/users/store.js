@@ -31,10 +31,9 @@ module.exports = function setupUser(UserModel, db, sequelize) {
   }
 
   async function create(user) {
-    const myModel = new UserModel(user);
-    await myModel.save();
-    const result = { ...myModel };
-    return result._doc;
+    // Usar Sequelize directamente
+    const result = await UserModel.create(user);
+    return result.toJSON ? result.toJSON() : result;
   }
 
   function findByUuid(uuid) {

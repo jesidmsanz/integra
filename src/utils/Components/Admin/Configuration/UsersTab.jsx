@@ -25,8 +25,13 @@ const UsersTab = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
+    password: "",
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -55,31 +60,100 @@ const UsersTab = () => {
     }
   };
 
+  const handleCreate = () => {
+    setIsCreating(true);
+    setSelectedUser(null);
+    setFormData({
+      email: "",
+      password: "",
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
+      roles: [],
+      active: true,
+    });
+    setModalOpen(true);
+  };
+
   const handleEdit = (user) => {
+    setIsCreating(false);
     setSelectedUser(user);
     setFormData({
       email: user.email || "",
+      password: "",
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
       firstName: user.firstName || "",
       lastName: user.lastName || "",
       phone: user.phone || "",
       roles: user.roles || [],
       active: user.active !== undefined ? user.active : true,
     });
-    setModalOpen(true);
+    setModalOpen(false);
+    setTimeout(() => setModalOpen(true), 100);
   };
 
   const handleSave = async () => {
     try {
-      if (selectedUser) {
-        await usersApi.update(selectedUser.id, formData);
+      let result;
+      if (isCreating) {
+        result = await usersApi.create(formData);
+        if (result?.error) {
+          toast.error(result.message || "Error al crear el usuario");
+          return;
+        }
+        toast.success("Usuario creado exitosamente");
+      } else {
+        // Validar cambio de contraseña si se proporcionó
+        if (formData.newPassword || formData.currentPassword) {
+          if (!formData.currentPassword) {
+            toast.error("Debe ingresar la contraseña actual");
+            return;
+          }
+          if (!formData.newPassword) {
+            toast.error("Debe ingresar la nueva contraseña");
+            return;
+          }
+          if (formData.newPassword !== formData.confirmPassword) {
+            toast.error("Las contraseñas nuevas no coinciden");
+            return;
+          }
+        }
+        
+        // Preparar datos para actualizar
+        const dataToUpdate = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          roles: formData.roles,
+          active: formData.active,
+        };
+        
+        // Si hay cambio de contraseña, agregar los campos
+        if (formData.newPassword && formData.currentPassword) {
+          dataToUpdate.currentPassword = formData.currentPassword;
+          dataToUpdate.newPassword = formData.newPassword;
+        }
+        
+        result = await usersApi.update(selectedUser.id, dataToUpdate);
+        
+        if (result?.error) {
+          toast.error(result.message || "Error al actualizar el usuario");
+          return;
+        }
         toast.success("Usuario actualizado exitosamente");
       }
       setModalOpen(false);
       setSelectedUser(null);
-      loadData();
+      setIsCreating(false);
+      await loadData();
     } catch (error) {
       console.error("Error saving user:", error);
-      toast.error("Error al guardar el usuario");
+      toast.error(isCreating ? "Error al crear el usuario" : "Error al guardar el usuario");
     }
   };
 
@@ -110,6 +184,12 @@ const UsersTab = () => {
         <Col>
           <h5>Gestión de Usuarios</h5>
           <p className="text-muted">Administra los usuarios del sistema y sus roles asignados</p>
+        </Col>
+        <Col className="text-end">
+          <Button color="primary" onClick={handleCreate}>
+            <i className="fa fa-plus me-1"></i>
+            Crear Usuario
+          </Button>
         </Col>
       </Row>
 
@@ -163,9 +243,17 @@ const UsersTab = () => {
         </tbody>
       </Table>
 
-      <Modal isOpen={modalOpen} toggle={() => setModalOpen(false)} size="lg">
-        <ModalHeader toggle={() => setModalOpen(false)}>
-          Editar Usuario
+      <Modal isOpen={modalOpen} toggle={() => {
+        setModalOpen(false);
+        setIsCreating(false);
+        setSelectedUser(null);
+      }} size="lg">
+        <ModalHeader toggle={() => {
+          setModalOpen(false);
+          setIsCreating(false);
+          setSelectedUser(null);
+        }}>
+          {isCreating ? "Crear Usuario" : "Editar Usuario"}
         </ModalHeader>
         <ModalBody>
           <Form>
@@ -176,25 +264,58 @@ const UsersTab = () => {
                   <Input
                     type="email"
                     value={formData.email}
-                    disabled
-                    readOnly
-                  />
-                </FormGroup>
-              </Col>
-              <Col md="6">
-                <FormGroup>
-                  <Label>Teléfono</Label>
-                  <Input
-                    type="text"
-                    value={formData.phone}
                     onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
+                      setFormData({ ...formData, email: e.target.value })
                     }
+                    disabled={!isCreating}
+                    readOnly={!isCreating}
                   />
                 </FormGroup>
               </Col>
+              {isCreating ? (
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Contraseña</Label>
+                    <Input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                    />
+                  </FormGroup>
+                </Col>
+              ) : null}
             </Row>
             <Row>
+              {isCreating && (
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Teléfono</Label>
+                    <Input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                    />
+                  </FormGroup>
+                </Col>
+              )}
+              {!isCreating && (
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Teléfono</Label>
+                    <Input
+                      type="text"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
+                    />
+                  </FormGroup>
+                </Col>
+              )}
               <Col md="6">
                 <FormGroup>
                   <Label>Nombre</Label>
@@ -220,6 +341,53 @@ const UsersTab = () => {
                 </FormGroup>
               </Col>
             </Row>
+            {!isCreating && (
+              <Row>
+                <Col md="12">
+                  <hr />
+                  <h6 className="mb-3">Cambiar Contraseña</h6>
+                </Col>
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Contraseña Actual</Label>
+                    <Input
+                      type="password"
+                      value={formData.currentPassword}
+                      onChange={(e) =>
+                        setFormData({ ...formData, currentPassword: e.target.value })
+                      }
+                      placeholder="Ingrese la contraseña actual"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Nueva Contraseña</Label>
+                    <Input
+                      type="password"
+                      value={formData.newPassword}
+                      onChange={(e) =>
+                        setFormData({ ...formData, newPassword: e.target.value })
+                      }
+                      placeholder="Ingrese la nueva contraseña"
+                    />
+                  </FormGroup>
+                </Col>
+                <Col md="6">
+                  <FormGroup>
+                    <Label>Confirmar Nueva Contraseña</Label>
+                    <Input
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        setFormData({ ...formData, confirmPassword: e.target.value })
+                      }
+                      placeholder="Confirme la nueva contraseña"
+                    />
+                  </FormGroup>
+                </Col>
+              </Row>
+            )}
             <Row>
               <Col md="12">
                 <FormGroup>
@@ -268,11 +436,15 @@ const UsersTab = () => {
           </Form>
         </ModalBody>
         <ModalFooter>
-          <Button color="secondary" onClick={() => setModalOpen(false)}>
+          <Button color="secondary" onClick={() => {
+            setModalOpen(false);
+            setIsCreating(false);
+            setSelectedUser(null);
+          }}>
             Cancelar
           </Button>
           <Button color="primary" onClick={handleSave}>
-            Guardar Cambios
+            {isCreating ? "Crear Usuario" : "Guardar Cambios"}
           </Button>
         </ModalFooter>
       </Modal>

@@ -1,4 +1,5 @@
 const Sequelize = require("sequelize");
+const bcrypt = require("bcrypt");
 const setupDatabase = require("../../db/lib/postgresql");
 module.exports = function (config) {
   const sequelize = setupDatabase(config);
@@ -72,17 +73,15 @@ module.exports = function (config) {
 
   // Método personalizado para validar la contraseña
   Model.prototype.validPassword = function (password) {
-    return bcrypt.compareSync(password, this.Password);
+    return bcrypt.compareSync(password, this.password);
   };
 
-  // Hook antes de crear un usuario para encriptar la contraseña
-  Model.beforeCreate((user) => {
-    user.Password = bcrypt.hashSync(
-      user.Password,
-      bcrypt.genSaltSync(10),
-      null
-    );
-  });
+  // Hook antes de crear un usuario para encriptar la contraseña (desactivado porque se encripta en el controlador)
+  // Model.beforeCreate((user) => {
+  //   if (user.password && !user.password.startsWith('$2')) {
+  //     user.password = bcrypt.hashSync(user.password, 10);
+  //   }
+  // });
 
   return Model;
 };
