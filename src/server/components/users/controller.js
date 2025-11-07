@@ -161,13 +161,16 @@ function updateAccessToken(userId, accessToken) {
   return new Promise(async (resolve, reject) => {
     try {
       if (!userId) {
-        throw new Error("User ID is required for updating access token");
+        const error = new Error("User ID is required for updating access token");
+        console.error("❌", error.message);
+        reject(error);
+        return;
       }
       const { Users } = await db();
       const result = await Users.updateAccessToken(userId, accessToken);
       resolve(result);
     } catch (error) {
-      console.error("Error updating access token:", error);
+      console.error("❌ Error updating access token:", error.message || error);
       reject(error);
     }
   });

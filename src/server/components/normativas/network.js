@@ -42,7 +42,7 @@ handler.get(`${apiURL}/:tipo/vigente`, async function (req, res) {
 // GET: api/normativas/:id
 handler.get(`${apiURL}/:id`, async function (req, res) {
   try {
-    const result = await controller.getById(req.params.id);
+    const result = await controller.findById(req.params.id);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -64,7 +64,10 @@ handler.post(`${apiURL}/`, async function (req, res) {
 // PUT: api/normativas/:id
 handler.put(`${apiURL}/:id`, async function (req, res) {
   try {
+    console.log('🌐 Network: Recibida petición PUT para normativa', req.params.id);
+    console.log('🌐 Network: Datos recibidos:', JSON.stringify(req.body, null, 2));
     const result = await controller.update(req.params.id, req.body);
+    console.log('🌐 Network: Resultado del controller:', result);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -75,7 +78,7 @@ handler.put(`${apiURL}/:id`, async function (req, res) {
 // DELETE: api/normativas/:id
 handler.delete(`${apiURL}/:id`, async function (req, res) {
   try {
-    const result = await controller.delete(req.params.id);
+    const result = await controller.deleteById(req.params.id);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);

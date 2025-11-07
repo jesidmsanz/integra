@@ -94,6 +94,15 @@ module.exports = function (config) {
         defaultValue: 'pending',
         comment: "Estado de liquidación: pending, liquidated, excluded",
       },
+      hour_type_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        comment: "ID de la normativa que define el tipo de hora laboral",
+        references: {
+          model: "normativas",
+          key: "id",
+        },
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

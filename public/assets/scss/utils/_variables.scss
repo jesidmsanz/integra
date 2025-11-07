@@ -218,7 +218,7 @@ $form-input-bg-color : $white;
 //Tour settings
 $tour-color: var(--theme-default);
 //sidabr main settings
-$sidebar-width: 255px;
+$sidebar-width: 300px;
 $sidebar-position: fixed;
 $sidebar-background-color: $white;
 $sidebar-shadow: 0 0 11px rgba(69, 110, 243, 0.13);
@@ -262,7 +262,7 @@ $sidebar-open-icon: "\f107";
 $sidebar-close-icon: "\f105";
 $sidebar-icon-font-family: $font-awesome;
 $sidebar-height: calc(100vh - 115px);
-$sidebar-compact-width: 246px;
+$sidebar-compact-width: 300px;
 //Header settings
 $main-header-position: fixed;
 $main-header-top: 0;

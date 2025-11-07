@@ -106,11 +106,11 @@
     color: $primary-color;
     &.show {
       &:before {
-        content: "show";
+        content: "Mostrar";
       }
     }
     &:before {
-      content: "hide";
+      content: "Ocultar";
     }
   }
 }

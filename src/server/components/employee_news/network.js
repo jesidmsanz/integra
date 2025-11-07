@@ -12,8 +12,17 @@ const apiURL = "/api/employee_news";
 // GET: api/employee_news
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
-    const result = await controller.findAll();
-    response.success(req, res, result);
+    const { page, limit } = req.query;
+    
+    // Si hay parámetros de paginación, usar findAllPaginated
+    if (page || limit) {
+      const result = await controller.findAllPaginated(page, limit);
+      response.success(req, res, result);
+    } else {
+      // Si no hay paginación, usar findAll normal
+      const result = await controller.findAll();
+      response.success(req, res, result);
+    }
   } catch (error) {
     console.log("ERROR: ", error);
     response.error(req, res, "Error on employee_news", 400, error);

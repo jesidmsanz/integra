@@ -22,6 +22,56 @@ ORDER BY en.id DESC;
     );
   }
 
+  async function findAllPaginated(page = 1, limit = 30) {
+    const safePage = Number.isFinite(parseInt(page)) && parseInt(page) > 0 ? parseInt(page) : 1;
+    const safeLimit = Number.isFinite(parseInt(limit)) && parseInt(limit) > 0 ? parseInt(limit) : 30;
+    const offset = (safePage - 1) * safeLimit;
+
+    // Obtener el total de registros
+    const totalResult = await sequelize.query(
+      `
+      SELECT COUNT(*) as total
+      FROM employee_news en
+      INNER JOIN users u ON en."approvedBy" = u.id
+      INNER JOIN type_news tn ON en."typeNewsId" = tn.id
+      INNER JOIN employees e ON en."employeeId" = e.id
+      `,
+      {
+        type: QueryTypes.SELECT,
+      }
+    );
+    const total = totalResult[0]?.total || 0;
+
+    // Obtener los datos paginados
+    const data = await sequelize.query(
+      `
+      SELECT 
+        en.*,
+        CONCAT(u."firstName", ' ', u."lastName") AS approved_by_name,
+        tn.name AS type_news_name,
+        e.fullname AS employee_name
+      FROM employee_news en
+      INNER JOIN users u ON en."approvedBy" = u.id
+      INNER JOIN type_news tn ON en."typeNewsId" = tn.id
+      INNER JOIN employees e ON en."employeeId" = e.id
+      ORDER BY en.id DESC
+      LIMIT :limit OFFSET :offset
+      `,
+      {
+        replacements: { limit: safeLimit, offset: offset },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    return {
+      data,
+      total: parseInt(total),
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
+  }
+
   function findAllActive() {
     return sequelize.query(
       ` select * from employee_news where employee_news.status = true`,
@@ -206,6 +256,7 @@ ORDER BY en.id DESC;
   return {
     findAll,
     findAllActive,
+    findAllPaginated,
     findById,
     create,
     update,

@@ -22,6 +22,8 @@ const setupNormativasModel = (sequelize) => {
         'vacaciones',
         'cesantias',
         'prima',
+        'horas_base_mensuales',
+        'tipo_hora_laboral',
         'otro'
       ),
       allowNull: false,
@@ -58,6 +60,16 @@ const setupNormativasModel = (sequelize) => {
       allowNull: false,
       defaultValue: true,
       comment: 'Si la normativa está activa'
+    },
+    multiplicador: {
+      type: DataTypes.DECIMAL(10, 4),
+      allowNull: true,
+      comment: 'Multiplicador para calcular el valor (ej: 1.25 para hora extra diurna)'
+    },
+    codigo: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      comment: 'Código único para identificar el tipo de hora (ej: HED, HEN, RNO)'
     },
     created_by: {
       type: DataTypes.INTEGER,

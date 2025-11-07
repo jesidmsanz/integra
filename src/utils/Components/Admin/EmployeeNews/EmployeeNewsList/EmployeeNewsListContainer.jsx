@@ -24,9 +24,27 @@ const EmployeeNewsListContainer = () => {
     setLoading(true);
     try {
       const response = await employeeNewsApi.list(page, rowsPerPage);
-      if (response.length) setData(response);
+      console.log("API Response:", response);
+      
+      // Verificar si la respuesta tiene la estructura esperada con paginación
+      if (response && response.data && Array.isArray(response.data)) {
+        setData(response.data);
+        setTotalRows(response.total || 0);
+        console.log(`✅ Página ${page}: ${response.data.length} registros de ${response.total} total`);
+      } else if (Array.isArray(response)) {
+        // Fallback para respuestas sin paginación
+        setData(response);
+        setTotalRows(response.length);
+        console.log(`⚠️ Respuesta sin paginación: ${response.length} registros`);
+      } else {
+        console.warn("❌ Respuesta inesperada de la API:", response);
+        setData([]);
+        setTotalRows(0);
+      }
     } catch (error) {
       console.error("Error al cargar los datos", error);
+      setData([]);
+      setTotalRows(0);
     } finally {
       setLoading(false);
     }

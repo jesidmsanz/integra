@@ -33,7 +33,7 @@ export const UserSection = () => {
         <li onClick={handleLogout}>
           <Link href={Href}>
             <LogOut />
-            <span>Log Out</span>
+            <span>Cerrar sesión</span>
           </Link>
         </li>
       </ul>

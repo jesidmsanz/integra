@@ -28,9 +28,27 @@ const ApprovalNewsListContainer = () => {
     setLoading(true);
     try {
       const response = await employeeNewsApi.list(page, rowsPerPage);
-      if (response.length) setData(response);
+      console.log("API Response:", response);
+      
+      // Verificar si la respuesta tiene la estructura esperada con paginación
+      if (response && response.data && Array.isArray(response.data)) {
+        setData(response.data);
+        setTotalRows(response.total || 0);
+        console.log(`✅ Página ${page}: ${response.data.length} registros de ${response.total} total`);
+      } else if (Array.isArray(response)) {
+        // Fallback para respuestas sin paginación
+        setData(response);
+        setTotalRows(response.length);
+        console.log(`⚠️ Respuesta sin paginación: ${response.length} registros`);
+      } else {
+        console.warn("❌ Respuesta inesperada de la API:", response);
+        setData([]);
+        setTotalRows(0);
+      }
     } catch (error) {
       console.error("Error al cargar los datos", error);
+      setData([]);
+      setTotalRows(0);
     } finally {
       setLoading(false);
     }
@@ -39,9 +57,21 @@ const ApprovalNewsListContainer = () => {
   const fetchTypeNews = async () => {
     try {
       const response = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
-      if (response && response.data && Array.isArray(response.data)) setTypeNewsList(response.data);
+      console.log("🔍 Respuesta de typeNewsApi.list:", response);
+      
+      // Manejar la respuesta con paginación
+      if (response && response.data && Array.isArray(response.data)) {
+        setTypeNewsList(response.data);
+      } else if (Array.isArray(response)) {
+        // Fallback para respuestas sin paginación
+        setTypeNewsList(response);
+      } else {
+        console.warn("❌ Respuesta inesperada de typeNewsApi:", response);
+        setTypeNewsList([]);
+      }
     } catch (e) {
       console.error("Error cargando tipos de novedad", e);
+      setTypeNewsList([]);
     }
   };
 
@@ -122,10 +152,27 @@ const ApprovalNewsListContainer = () => {
     if (!showRejectForm) {
       try {
         const [users, types] = await Promise.all([usersApi.list(), typeNewsApi.list(1, 1000)]); // Cargar todos los tipos
+        console.log("🔍 Respuesta de users:", users);
+        console.log("🔍 Respuesta de types:", types);
+        
         setUsersList(Array.isArray(users) ? users : []);
-        setTypeNewsList(Array.isArray(types) ? types : []);
+        
+        // Manejar la respuesta de types con paginación
+        if (types && types.data && Array.isArray(types.data)) {
+          setTypeNewsList(types.data);
+          console.log(`✅ Cargados ${types.data.length} tipos de novedad`);
+        } else if (Array.isArray(types)) {
+          // Fallback para respuestas sin paginación
+          setTypeNewsList(types);
+          console.log(`✅ Cargados ${types.length} tipos de novedad (sin paginación)`);
+        } else {
+          console.warn("❌ Respuesta inesperada de typeNewsApi:", types);
+          setTypeNewsList([]);
+        }
       } catch (e) {
         console.error("Error cargando datos para rechazo", e);
+        setTypeNewsList([]);
+        setUsersList([]);
       }
       // Prefijar con datos de la novedad rechazada
       const sd = selectedNews?.startDate ? selectedNews.startDate.split("T")[0] : "";

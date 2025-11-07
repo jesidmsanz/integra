@@ -18,7 +18,7 @@ export const MenuList = [
     Items: [
       {
         title: "Liquidaciones",
-        icon: "file",
+        icon: "ecommerce",
         type: "sub",
         children: [
           {
@@ -54,7 +54,7 @@ export const MenuList = [
       // },
       {
         path: "/admin/empresas",
-        icon: "file",
+        icon: "contact",
         title: "Empresas",
         type: "link",
         permission: "company.view",
@@ -68,42 +68,42 @@ export const MenuList = [
       },
       {
         path: "/admin/empleados",
-        icon: "file",
+        icon: "user",
         title: "Empleados",
         type: "link",
         permission: "employee.view",
       },
       {
         path: "/admin/contratos",
-        icon: "file",
+        icon: "project",
         title: "Contratos",
         type: "link",
         permission: "employee.view",
       },
       {
         path: "/admin/novedades",
-        icon: "file",
+        icon: "task",
         title: "Novedades",
         type: "link",
         permission: "news.view",
       },
       {
         path: "/admin/novedades_empleados",
-        icon: "file",
+        icon: "form",
         title: "Registrar Novedades",
         type: "link",
         permission: "news.register",
       },
       {
         path: "/admin/aprobacion_novedades",
-        icon: "file",
+        icon: "task",
         title: "Aprobar Novedades",
         type: "link",
         permission: "news.approve",
       },
       {
         path: "/admin/configuracion",
-        icon: "setting",
+        icon: "others",
         title: "Configuración",
         type: "link",
         permission: "config.users", // Cualquiera de los permisos de configuración

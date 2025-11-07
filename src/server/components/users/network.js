@@ -70,16 +70,41 @@ handler.put(`${apiURL}/:id`, async function (req, res) {
 handler.post(`${apiURL}/auth/refresh-token`, (req, res) => {
   const { refreshToken } = req.body;
   console.log("Update AccessToken");
+  
+  if (!refreshToken) {
+    return res.status(400).json({ error: "Refresh token is required" });
+  }
+  
   jwt.verify(
     refreshToken,
     process.env.REFRESH_TOKEN_SECRET,
     async (err, decoded) => {
-      if (err) return res.sendStatus(403);
+      if (err) {
+        console.error("Error verificando refresh token:", err.message);
+        return res.status(403).json({ error: "Invalid or expired refresh token" });
+      }
+      
       const { userId } = decoded;
-      const newAccessToken = generateAccessToken({ _id: userId });
-      if (newAccessToken)
+      
+      if (!userId) {
+        console.error("User ID is missing from decoded token");
+        return res.status(403).json({ error: "Invalid token: User ID not found" });
+      }
+      
+      try {
+        const newAccessToken = generateAccessToken({ _id: userId });
+        
+        if (!newAccessToken) {
+          console.error("Error generando nuevo access token");
+          return res.status(500).json({ error: "Error generating access token" });
+        }
+        
         await controller.updateAccessToken(userId, newAccessToken);
-      return res.json({ accessToken: newAccessToken });
+        return res.json({ accessToken: newAccessToken });
+      } catch (error) {
+        console.error("Error actualizando access token:", error);
+        return res.status(500).json({ error: "Error updating access token" });
+      }
     }
   );
 });

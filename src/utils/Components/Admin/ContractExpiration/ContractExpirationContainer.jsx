@@ -9,8 +9,6 @@ import {
   Card,
   CardBody,
   Container,
-  Row,
-  Col,
   Modal,
   ModalHeader,
   ModalBody,
@@ -21,7 +19,7 @@ import {
   Input,
 } from "reactstrap";
 import DataTable from "react-data-table-component";
-import Breadcrumbs from "@/CommonComponent/Breadcrumb";
+import Breadcrumbs from "@/utils/CommonComponent/Breadcrumb";
 import { toast } from "react-toastify";
 
 const ContractExpirationContainer = () => {
@@ -52,17 +50,23 @@ const ContractExpirationContainer = () => {
   }, []);
 
   const today = new Date();
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(today.getDate() + 30);
+  today.setHours(0, 0, 0, 0);
+  
+  // Obtener el primer y último día del mes actual
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  lastDayOfMonth.setHours(23, 59, 59, 999);
 
+  // Próximos a vencer: solo los del mes actual
   const getEmployeesAboutToExpire = () => {
     return employees.filter((emp) => {
       if (!emp.contractenddate) return false;
       const endDate = new Date(emp.contractenddate + "T00:00:00");
-      return endDate >= today && endDate <= thirtyDaysFromNow;
+      return endDate >= today && endDate <= lastDayOfMonth;
     });
   };
 
+  // Vencidos: todos los que ya pasaron
   const getEmployeesExpired = () => {
     return employees.filter((emp) => {
       if (!emp.contractenddate) return false;
@@ -160,6 +164,10 @@ const ContractExpirationContainer = () => {
   const aboutToExpire = getEmployeesAboutToExpire();
   const expired = getEmployeesExpired();
 
+  const toggle = (tab) => {
+    if (activeTab !== tab) setActiveTab(tab);
+  };
+
   return (
     <>
       <Breadcrumbs
@@ -167,54 +175,68 @@ const ContractExpirationContainer = () => {
         parent="Contratos"
       />
       <Container fluid>
-        <Row>
-          <Col sm="12">
-            <Card>
-              <CardBody>
-                <Nav tabs>
-                <NavItem>
-                  <NavLink
-                    className={activeTab === "1" ? "active" : ""}
-                    onClick={() => setActiveTab("1")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    Próximos a Terminar ({aboutToExpire.length})
-                  </NavLink>
-                </NavItem>
-                <NavItem>
-                  <NavLink
-                    className={activeTab === "2" ? "active" : ""}
-                    onClick={() => setActiveTab("2")}
-                    style={{ cursor: "pointer" }}
-                  >
-                    Terminados ({expired.length})
-                  </NavLink>
-                </NavItem>
-              </Nav>
-              <TabContent activeTab={activeTab}>
-                <TabPane tabId="1">
+        <Card>
+          <CardBody>
+            <Nav tabs className="border-tab">
+              <NavItem>
+                <NavLink
+                  className={activeTab === "1" ? "active" : ""}
+                  onClick={() => toggle("1")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <i className="icofont icofont-calendar me-2"></i>
+                  Próximos a Vencer ({aboutToExpire.length})
+                </NavLink>
+              </NavItem>
+              <NavItem>
+                <NavLink
+                  className={activeTab === "2" ? "active" : ""}
+                  onClick={() => toggle("2")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <i className="icofont icofont-close-circled me-2"></i>
+                  Vencidos ({expired.length})
+                </NavLink>
+              </NavItem>
+            </Nav>
+            <TabContent activeTab={activeTab} className="tab-content">
+              <TabPane tabId="1">
+                <div className="table-responsive">
                   <DataTable
                     columns={columnsWithActions}
                     data={aboutToExpire}
                     progressPending={loading}
                     pagination
-                    noDataComponent="No hay empleados próximos a terminar contrato"
+                    paginationPerPage={10}
+                    paginationRowsPerPageOptions={[10, 20, 30, 50]}
+                    noDataComponent="No hay empleados próximos a vencer en el mes actual"
+                    striped
+                    highlightOnHover
+                    dense
+                    responsive
                   />
-                </TabPane>
-                <TabPane tabId="2">
+                </div>
+              </TabPane>
+              <TabPane tabId="2">
+                <div className="table-responsive">
                   <DataTable
                     columns={baseColumns}
                     data={expired}
                     progressPending={loading}
                     pagination
-                    noDataComponent="No hay empleados con contrato terminado"
+                    paginationPerPage={10}
+                    paginationRowsPerPageOptions={[10, 20, 30, 50]}
+                    noDataComponent="No hay empleados con contrato vencido"
+                    striped
+                    highlightOnHover
+                    dense
+                    responsive
                   />
-                </TabPane>
-              </TabContent>
-            </CardBody>
-          </Card>
-        </Col>
-      </Row>
+                </div>
+              </TabPane>
+            </TabContent>
+          </CardBody>
+        </Card>
       </Container>
 
       <Modal isOpen={showModal} toggle={() => setShowModal(false)}>

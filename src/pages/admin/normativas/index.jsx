@@ -43,6 +43,8 @@ const NormativasPage = () => {
     tipo: '',
     valor: '',
     unidad: 'pesos',
+    multiplicador: '',
+    codigo: '',
     vigencia_desde: '',
     vigencia_hasta: '',
     descripcion: '',
@@ -58,6 +60,8 @@ const NormativasPage = () => {
     { value: 'vacaciones', label: 'Vacaciones' },
     { value: 'cesantias', label: 'Cesantías' },
     { value: 'prima', label: 'Prima' },
+    { value: 'horas_base_mensuales', label: 'Horas Base Mensuales' },
+    { value: 'tipo_hora_laboral', label: 'Tipo de Hora Laboral' },
     { value: 'otro', label: 'Otro' }
   ];
 
@@ -75,11 +79,41 @@ const NormativasPage = () => {
   const loadNormativas = async () => {
     try {
       setLoading(true);
-      const result = await normativasApi.list(filters);
-      setNormativas(result.data || []);
+      
+      // Limpiar filtros vacíos antes de enviar
+      const cleanFilters = {};
+      if (filters.tipo && filters.tipo !== '') {
+        cleanFilters.tipo = filters.tipo;
+      }
+      if (filters.activa && filters.activa !== '') {
+        cleanFilters.activa = filters.activa;
+      }
+      if (filters.search && filters.search.trim() !== '') {
+        cleanFilters.search = filters.search.trim();
+      }
+      
+      console.log('🔍 Filtros aplicados:', cleanFilters);
+      const result = await normativasApi.list(cleanFilters);
+      
+      // La respuesta viene como { data: { error: '', body: [...] } } según response.js
+      let normativasData = [];
+      
+      if (result && result.data && result.data.body && Array.isArray(result.data.body)) {
+        normativasData = result.data.body;
+      } else if (result && result.body && Array.isArray(result.body)) {
+        normativasData = result.body;
+      } else if (Array.isArray(result)) {
+        normativasData = result;
+      } else if (result && result.data && Array.isArray(result.data)) {
+        normativasData = result.data;
+      }
+      
+      console.log('📊 Normativas cargadas:', normativasData.length);
+      setNormativas(normativasData);
     } catch (error) {
       console.error('Error cargando normativas:', error);
       toast.error('Error al cargar normativas');
+      setNormativas([]);
     } finally {
       setLoading(false);
     }
@@ -87,9 +121,16 @@ const NormativasPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    // Log para debuggear cambios en activa
+    if (name === 'activa') {
+      console.log('🔄 Frontend: Cambio en activa:', checked, 'tipo:', typeof checked);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
   };
 
@@ -107,6 +148,8 @@ const NormativasPage = () => {
       tipo: '',
       valor: '',
       unidad: 'pesos',
+      multiplicador: '',
+      codigo: '',
       vigencia_desde: '',
       vigencia_hasta: '',
       descripcion: '',
@@ -126,10 +169,12 @@ const NormativasPage = () => {
       tipo: normativa.tipo,
       valor: normativa.valor.toString(),
       unidad: normativa.unidad,
+      multiplicador: normativa.multiplicador ? normativa.multiplicador.toString() : '',
+      codigo: normativa.codigo || '',
       vigencia_desde: normativa.vigencia_desde,
       vigencia_hasta: normativa.vigencia_hasta || '',
       descripcion: normativa.descripcion || '',
-      activa: normativa.activa
+      activa: Boolean(normativa.activa) // Asegurar que sea booleano
     });
     setEditingNormativa(normativa);
     setShowModal(true);
@@ -141,28 +186,43 @@ const NormativasPage = () => {
     try {
       setActionLoading(true);
       
+      // Preparar datos base
       const normativaData = {
-        ...formData,
+        nombre: formData.nombre,
+        tipo: formData.tipo,
         valor: parseFloat(formData.valor),
+        unidad: formData.unidad,
+        multiplicador: formData.multiplicador ? parseFloat(formData.multiplicador) : null,
+        codigo: formData.codigo || null,
         vigencia_desde: formData.vigencia_desde,
         vigencia_hasta: formData.vigencia_hasta || null,
-        created_by: 1 // TODO: Obtener del usuario autenticado
+        descripcion: formData.descripcion || null,
+        activa: Boolean(formData.activa) // Asegurar que sea booleano
       };
 
       if (editingNormativa) {
-        await normativasApi.update(editingNormativa.id, normativaData);
+        // En actualización, no enviar created_by
+        console.log('📝 Frontend: Actualizando normativa:', editingNormativa.id, normativaData);
+        const response = await normativasApi.update(editingNormativa.id, normativaData);
+        console.log('📝 Frontend: Respuesta de actualización:', response);
         toast.success('Normativa actualizada exitosamente');
       } else {
+        // En creación, incluir created_by
+        normativaData.created_by = 1; // TODO: Obtener del usuario autenticado
         await normativasApi.create(normativaData);
         toast.success('Normativa creada exitosamente');
       }
 
       setShowModal(false);
       resetForm();
-      loadNormativas();
+      
+      // Pequeño retraso para asegurar que la actualización se complete en la BD
+      setTimeout(() => {
+        loadNormativas();
+      }, 100);
     } catch (error) {
       console.error('Error guardando normativa:', error);
-      toast.error('Error al guardar normativa');
+      toast.error(error.response?.data?.error || error.message || 'Error al guardar normativa');
     } finally {
       setActionLoading(false);
     }
@@ -206,6 +266,16 @@ const NormativasPage = () => {
   };
 
   const formatValue = (normativa) => {
+    // Para tipos de hora laboral, el valor no es relevante (se usa el multiplicador)
+    if (normativa.tipo === 'tipo_hora_laboral') {
+      return '-';
+    }
+    
+    // Si el valor es 0 o null, mostrar guion
+    if (!normativa.valor || parseFloat(normativa.valor) === 0) {
+      return '-';
+    }
+    
     if (normativa.unidad === 'pesos') {
       return formatCurrency(normativa.valor);
     } else if (normativa.unidad === 'porcentaje') {
@@ -294,11 +364,12 @@ const NormativasPage = () => {
                         <tr>
                           <th>Nombre</th>
                           <th>Tipo</th>
+                          <th>Código</th>
                           <th>Valor</th>
+                          <th>Multiplicador</th>
                           <th>Vigencia Desde</th>
                           <th>Vigencia Hasta</th>
                           <th>Estado</th>
-                          <th>Creado por</th>
                           <th>Acciones</th>
                         </tr>
                       </thead>
@@ -319,7 +390,38 @@ const NormativasPage = () => {
                               </Badge>
                             </td>
                             <td>
-                              <strong>{formatValue(normativa)}</strong>
+                              {normativa.codigo ? (
+                                <Badge color="secondary">{normativa.codigo}</Badge>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td>
+                              {normativa.tipo === 'tipo_hora_laboral' ? (
+                                <span className="text-muted">-</span>
+                              ) : (
+                                <strong>{formatValue(normativa)}</strong>
+                              )}
+                            </td>
+                            <td>
+                              {normativa.multiplicador ? (
+                                (() => {
+                                  const mult = parseFloat(normativa.multiplicador);
+                                  let texto = '';
+                                  if (mult === 1.0) {
+                                    texto = '0%';
+                                  } else if (mult > 1.0) {
+                                    const porcentaje = ((mult - 1) * 100).toFixed(0);
+                                    texto = `+${porcentaje}%`;
+                                  } else {
+                                    const porcentaje = (mult * 100).toFixed(0);
+                                    texto = `${porcentaje}%`;
+                                  }
+                                  return <span className="fw-bold">{texto}</span>;
+                                })()
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
                             </td>
                             <td>
                               {moment(normativa.vigencia_desde).format('DD/MM/YYYY')}
@@ -334,12 +436,6 @@ const NormativasPage = () => {
                               <Badge color={normativa.activa ? 'success' : 'secondary'}>
                                 {normativa.activa ? 'Activa' : 'Inactiva'}
                               </Badge>
-                            </td>
-                            <td>
-                              {normativa.creator 
-                                ? `${normativa.creator.firstName} ${normativa.creator.lastName}`
-                                : 'N/A'
-                              }
                             </td>
                             <td>
                               <div className="d-flex gap-1">
@@ -421,7 +517,7 @@ const NormativasPage = () => {
             </Row>
 
             <Row>
-              <Col md={6}>
+              <Col md={4}>
                 <FormGroup>
                   <Label>Valor *</Label>
                   <Input
@@ -436,7 +532,7 @@ const NormativasPage = () => {
                   />
                 </FormGroup>
               </Col>
-              <Col md={6}>
+              <Col md={4}>
                 <FormGroup>
                   <Label>Unidad *</Label>
                   <Input
@@ -454,7 +550,46 @@ const NormativasPage = () => {
                   </Input>
                 </FormGroup>
               </Col>
+              <Col md={4}>
+                <FormGroup>
+                  <Label>Multiplicador</Label>
+                  <Input
+                    type="number"
+                    name="multiplicador"
+                    value={formData.multiplicador}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.0001"
+                    placeholder="Ej: 1.25 (para 125%)"
+                  />
+                  <small className="text-muted">
+                    Solo para tipos de hora laboral (ej: 1.25 = 125%)
+                  </small>
+                </FormGroup>
+              </Col>
             </Row>
+
+            {formData.tipo === 'tipo_hora_laboral' && (
+              <Row>
+                <Col md={12}>
+                  <FormGroup>
+                    <Label>Código *</Label>
+                    <Input
+                      type="text"
+                      name="codigo"
+                      value={formData.codigo}
+                      onChange={handleInputChange}
+                      required={formData.tipo === 'tipo_hora_laboral'}
+                      maxLength={20}
+                      placeholder="Ej: HED, HEN, RNO, HO"
+                    />
+                    <small className="text-muted">
+                      Código corto para identificar el tipo de hora (ej: HED = Hora Extra Diurna)
+                    </small>
+                  </FormGroup>
+                </Col>
+              </Row>
+            )}
 
             <Row>
               <Col md={6}>

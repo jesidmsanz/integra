@@ -20,6 +20,7 @@ import {
   companiesApi,
 } from "@/utils/api";
 import { toast } from "react-toastify";
+import { getTiposHorasLaborales } from "@/utils/helpers/normativasHelper";
 
 const EmployeeNewsForm = ({
   isOpen,
@@ -34,6 +35,7 @@ const EmployeeNewsForm = ({
     companyId: "",
     employeeId: "",
     typeNewsId: "",
+    hourTypeId: "",
     startDate: "",
     startTime: "",
     endDate: "",
@@ -55,6 +57,8 @@ const EmployeeNewsForm = ({
   const [selectedFile, setSelectedFile] = useState(null);
   const [existingDocument, setExistingDocument] = useState(null);
   const [isApproved, setIsApproved] = useState(false);
+  const [tiposHorasLaborales, setTiposHorasLaborales] = useState([]);
+  const [selectedTypeNews, setSelectedTypeNews] = useState(null);
 
   useEffect(() => {
     
@@ -149,6 +153,7 @@ const EmployeeNewsForm = ({
         companyId: dataToUpdate.companyId || "",
         employeeId: dataToUpdate.employeeId || "",
         typeNewsId: dataToUpdate.typeNewsId || "",
+        hourTypeId: dataToUpdate.hourTypeId || "",
         startDate: startDateFormatted,
         startTime: startTimeFormatted,
         endDate: endDateFormatted,
@@ -173,6 +178,7 @@ const EmployeeNewsForm = ({
         companyId: "",
         employeeId: "",
         typeNewsId: "",
+        hourTypeId: "",
         startDate: "",
         startTime: "",
         endDate: "",
@@ -185,6 +191,7 @@ const EmployeeNewsForm = ({
       setSelectedFile(null);
       setExistingDocument(null);
       setIsApproved(false);
+      setSelectedTypeNews(null);
     }
   }, [isUpdate, dataToUpdate]);
 
@@ -373,6 +380,34 @@ const EmployeeNewsForm = ({
     }
   };
 
+  // Cargar tipos de horas laborales cuando cambia el tipo de novedad
+  useEffect(() => {
+    const loadTiposHoras = async () => {
+      if (formData.typeNewsId) {
+        const selectedType = typeNews.find(t => t.id === parseInt(formData.typeNewsId));
+        setSelectedTypeNews(selectedType);
+        
+        if (selectedType && selectedType.calculateperhour) {
+          try {
+            const tipos = await getTiposHorasLaborales(formData.startDate || new Date());
+            setTiposHorasLaborales(tipos);
+          } catch (error) {
+            console.error("Error cargando tipos de horas laborales:", error);
+            setTiposHorasLaborales([]);
+          }
+        } else {
+          setTiposHorasLaborales([]);
+          setFormData(prev => ({ ...prev, hourTypeId: "" }));
+        }
+      } else {
+        setSelectedTypeNews(null);
+        setTiposHorasLaborales([]);
+      }
+    };
+    
+    loadTiposHoras();
+  }, [formData.typeNewsId, typeNews]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -383,9 +418,11 @@ const EmployeeNewsForm = ({
         [name]: value,
         employeeId: "", // Reset employee selection when company changes
         typeNewsId: "", // Reset type news selection when company changes
+        hourTypeId: "", // Reset hour type selection
       }));
       // Reset filtered type news when company changes
       setFilteredTypeNews([]);
+      setSelectedTypeNews(null);
     } else if (name === "employeeId") {
       
       // Verificar que tanto typeNews como employees estén disponibles antes de filtrar
@@ -400,6 +437,14 @@ const EmployeeNewsForm = ({
         ...prev,
         [name]: value,
         typeNewsId: "", // Reset type news selection when employee changes
+        hourTypeId: "", // Reset hour type selection
+      }));
+      setSelectedTypeNews(null);
+    } else if (name === "typeNewsId") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        hourTypeId: "", // Reset hour type when type news changes
       }));
     } else {
       // Para todos los demás campos, actualizar normalmente
@@ -452,11 +497,18 @@ const EmployeeNewsForm = ({
       if (
         !formData[key] &&
         key !== "observations" &&
-        key !== "document"
+        key !== "document" &&
+        key !== "hourTypeId" // Validar por separado
       ) {
         newErrors[key] = "Este campo es requerido";
       }
     });
+    
+    // Validar hourTypeId solo si el tipo de novedad requiere cálculo por hora
+    if (selectedTypeNews && selectedTypeNews.calculateperhour && !formData.hourTypeId) {
+      newErrors.hourTypeId = "Debe seleccionar un tipo de hora laboral";
+    }
+    
     return newErrors;
   };
 
@@ -479,7 +531,9 @@ const EmployeeNewsForm = ({
         Object.keys(formattedData).forEach(key => {
           if (key === 'document' && selectedFile) {
             formDataToSend.append('document', selectedFile);
-          } else if (formattedData[key] !== null && formattedData[key] !== undefined) {
+          } else if (key === 'hourTypeId' && formattedData[key]) {
+            formDataToSend.append('hourTypeId', formattedData[key]);
+          } else if (formattedData[key] !== null && formattedData[key] !== undefined && key !== 'hourTypeId') {
             formDataToSend.append(key, formattedData[key]);
           }
         });
@@ -502,6 +556,7 @@ const EmployeeNewsForm = ({
             companyId: "",
             employeeId: "",
             typeNewsId: "",
+            hourTypeId: "",
             startDate: "",
             startTime: "",
             endDate: "",
@@ -681,6 +736,72 @@ const EmployeeNewsForm = ({
               </FormGroup>
             </Col>
           </Row>
+          
+          {/* Selector de tipo de hora laboral - Solo si el tipo de novedad calcula por hora */}
+          {selectedTypeNews && selectedTypeNews.calculateperhour && (
+            <Row>
+              <Col md="12">
+                <FormGroup>
+                  <Label for="hourTypeId">Tipo de Hora Laboral *</Label>
+                  <Input
+                    type="select"
+                    name="hourTypeId"
+                    id="hourTypeId"
+                    value={formData.hourTypeId}
+                    onChange={handleChange}
+                    invalid={!!errors.hourTypeId}
+                    required
+                    disabled={isApproved}
+                  >
+                    <option value="">
+                      {tiposHorasLaborales.length === 0
+                        ? "Cargando tipos de horas..."
+                        : "Seleccione un tipo de hora laboral"
+                      }
+                    </option>
+                    {tiposHorasLaborales.map((tipoHora) => {
+                      // Formatear multiplicador de forma más legible
+                      let multiplicadorTexto = "";
+                      if (tipoHora.multiplicador) {
+                        const mult = parseFloat(tipoHora.multiplicador);
+                        if (mult === 1.0) {
+                          multiplicadorTexto = " (Sin recargo)";
+                        } else if (mult > 1.0) {
+                          const porcentaje = ((mult - 1) * 100).toFixed(0);
+                          multiplicadorTexto = ` (+${porcentaje}%)`;
+                        } else {
+                          const porcentaje = (mult * 100).toFixed(0);
+                          multiplicadorTexto = ` (Recargo ${porcentaje}%)`;
+                        }
+                      }
+                      
+                      return (
+                        <option key={tipoHora.id} value={tipoHora.id}>
+                          {tipoHora.codigo ? `[${tipoHora.codigo}] ` : ""}
+                          {tipoHora.nombre}
+                          {multiplicadorTexto}
+                        </option>
+                      );
+                    })}
+                  </Input>
+                  {errors.hourTypeId && (
+                    <FormFeedback>{errors.hourTypeId}</FormFeedback>
+                  )}
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    Seleccione el tipo de hora laboral según la normativa vigente. El porcentaje indica el recargo aplicado sobre el salario base.
+                  </small>
+                  {tiposHorasLaborales.length === 0 && selectedTypeNews && selectedTypeNews.calculateperhour && (
+                    <small className="text-warning d-block mt-1">
+                      <i className="fas fa-exclamation-triangle me-1"></i>
+                      No hay tipos de horas laborales configurados. Configure las normativas de tipo "tipo_hora_laboral" en el módulo de Normativas.
+                    </small>
+                  )}
+                </FormGroup>
+              </Col>
+            </Row>
+          )}
+          
           <Row>
             <Col md="6">
               <FormGroup>
@@ -892,6 +1013,7 @@ const EmployeeNewsForm = ({
                   companyId: "",
                   employeeId: "",
                   typeNewsId: "",
+                  hourTypeId: "",
                   startDate: "",
                   startTime: "",
                   endDate: "",
@@ -905,6 +1027,8 @@ const EmployeeNewsForm = ({
                 setExistingDocument(null);
                 setIsUpdate(false);
                 setViewForm(false);
+                setSelectedTypeNews(null);
+                setTiposHorasLaborales([]);
               }}
               className="rounded-pill dark-toggle-btn mx-2"
             >

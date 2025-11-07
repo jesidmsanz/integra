@@ -34,6 +34,12 @@ import {
 import AddNews from "./AddNews";
 import PeriodValidator from "../PeriodValidator";
 import moment from "moment";
+import { 
+  getHorasBaseMensuales, 
+  getNormativaVigente, 
+  calcularValorHora 
+} from "@/utils/helpers/normativasHelper";
+import normativasApi from "@/utils/api/normativasApi";
 
 const initialState = {
   companyId: null,
@@ -75,6 +81,8 @@ const LiquidationForm = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [periodValidation, setPeriodValidation] = useState({ isValid: true, conflictingPeriods: [] });
+  const [horasBaseMensuales, setHorasBaseMensuales] = useState(220); // Valor por defecto
+  const [normativasCache, setNormativasCache] = useState({}); // Cache de normativas por ID
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat("es-CO", {
@@ -330,31 +338,31 @@ const LiquidationForm = () => {
       name: "Documento",
       selector: (row) => `${row.documenttype} ${row.documentnumber}`,
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Nombre",
       selector: (row) => row.fullname,
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Cargo",
       selector: (row) => row.position || "No disponible",
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Tipo de Contrato",
       selector: (row) => row.contracttype || "No disponible",
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Salario Base",
       selector: (row) => formatCurrency(row.basicmonthlysalary),
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Auxilio de Transporte",
@@ -368,7 +376,7 @@ const LiquidationForm = () => {
           : "No aplica";
       },
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Auxilio de Movilidad",
@@ -377,7 +385,7 @@ const LiquidationForm = () => {
         return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
       },
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Salud (4%)",
@@ -395,7 +403,7 @@ const LiquidationForm = () => {
         return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
       },
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Pensión (4%)",
@@ -413,19 +421,19 @@ const LiquidationForm = () => {
         return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
       },
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Valor por hora",
       selector: (row) => formatCurrency(row.hourlyrate),
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Frecuencia de pago",
       selector: (row) => row.paymentmethod || "No disponible",
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     ...typeNews.map((type) => ({
       name: type.code,
@@ -444,11 +452,14 @@ const LiquidationForm = () => {
           const { valorNovedad } = calculateNovedadValue(novedad, row, type);
           return sum + valorNovedad;
         }, 0);
+        
+        // Redondear a 2 decimales para coincidir con el backend
+        const totalTipoRedondeado = Math.round(totalTipo * 100) / 100;
 
-        return totalTipo ? formatCurrency(totalTipo) : "";
+        return totalTipoRedondeado ? formatCurrency(totalTipoRedondeado) : "";
       },
       sortable: true,
-      minWidth: "100px",
+      width: "100px",
     })),
     {
       name: "Total",
@@ -457,7 +468,7 @@ const LiquidationForm = () => {
         return formatCurrency(employeeValues?.total || 0);
       },
       sortable: true,
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Estado Novedades",
@@ -485,12 +496,12 @@ const LiquidationForm = () => {
         
         return <span className="badge bg-secondary">Sin estado</span>;
       },
-      minWidth: "150px",
+      width: "150px",
     },
     {
       name: "Acción",
       cell: (row) => <LiquidationListTableAction row={row} />,
-      minWidth: "100px",
+      width: "100px",
     },
   ];
 
@@ -516,7 +527,7 @@ const LiquidationForm = () => {
 
   const loadEmployees = async () => {
     try {
-      const response = await employeesApi.list();
+      const response = await employeesApi.listActive();
       if (response.length) {
         setEmployees(response);
       }
@@ -593,6 +604,9 @@ const LiquidationForm = () => {
         await loadCompanies();
         await loadTypeNews();
         await loadEmployees();
+        // Cargar horas base mensuales vigentes
+        const horasBase = await getHorasBaseMensuales(form.startDate || new Date());
+        setHorasBaseMensuales(horasBase);
         // No cargar novedades aquí - se cargarán cuando se seleccione una empresa
       } catch (error) {
         console.error("Error en carga secuencial de liquidación:", error);
@@ -601,6 +615,21 @@ const LiquidationForm = () => {
 
     loadDataSequentially();
   }, []);
+
+  // Cargar horas base cuando cambie la fecha
+  useEffect(() => {
+    const loadHorasBase = async () => {
+      if (form.startDate) {
+        try {
+          const horasBase = await getHorasBaseMensuales(form.startDate);
+          setHorasBaseMensuales(horasBase);
+        } catch (error) {
+          console.error("Error cargando horas base:", error);
+        }
+      }
+    };
+    loadHorasBase();
+  }, [form.startDate]);
 
   useEffect(() => {
     if (form.companyId) {
@@ -720,6 +749,47 @@ const LiquidationForm = () => {
     }
   }, [form.startDate, form.endDate, form.companyId]);
 
+  // Precargar normativas de tipos de horas para el cache
+  useEffect(() => {
+    const precargarNormativas = async () => {
+      try {
+        const response = await normativasApi.list({
+          tipo: 'tipo_hora_laboral',
+          activa: 'true'
+        });
+        
+        // La respuesta viene como { data: { error: '', body: [...] } } según response.js
+        let tiposHoras = [];
+        
+        if (response && response.data && response.data.body && Array.isArray(response.data.body)) {
+          tiposHoras = response.data.body;
+        } else if (response && response.body && Array.isArray(response.body)) {
+          tiposHoras = response.body;
+        } else if (Array.isArray(response)) {
+          tiposHoras = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          tiposHoras = response.data;
+        }
+        
+        if (tiposHoras && tiposHoras.length > 0) {
+          const cache = {};
+          tiposHoras.forEach(normativa => {
+            if (normativa && normativa.id) {
+              cache[normativa.id] = normativa;
+            }
+          });
+          setNormativasCache(cache);
+          console.log(`✅ Precargadas ${Object.keys(cache).length} normativas de tipos de horas`);
+        }
+      } catch (error) {
+        console.error("Error precargando normativas:", error);
+        setNormativasCache({});
+      }
+    };
+    
+    precargarNormativas();
+  }, [form.startDate]);
+
   const LiquidationListTableAction = ({ row }) => {
     return (
       <div className="product-action">
@@ -833,7 +903,9 @@ const LiquidationForm = () => {
           return sum + valorNovedad;
         }, 0);
         
-        totalNovedades += totalTipo;
+        // Redondear totalTipo antes de sumarlo
+        const totalTipoRedondeado = Math.round(totalTipo * 100) / 100;
+        totalNovedades += totalTipoRedondeado;
       });
       
       // Calcular descuentos de seguridad social
@@ -847,7 +919,9 @@ const LiquidationForm = () => {
       const absenceDiscounts = calculateAbsenceDiscounts(employee, form.startDate, form.endDate);
       
       // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
-      const totalFinal = salarioBaseCalculado + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+      let totalFinal = salarioBaseCalculado + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+      // Redondear a 2 decimales para coincidir con el backend
+      totalFinal = Math.round(totalFinal * 100) / 100;
       
       baseData["Total"] = formatCurrency(totalFinal);
 
@@ -1349,14 +1423,50 @@ const LiquidationForm = () => {
         );
       }
 
-      // Si tiene cantidad, usar cantidad directamente; si no, usar porcentaje
-      if (tieneCantidad) {
-        const cantidadPorHora = parseFloat(tipoNovedad.amount);
-        valorNovedad = totalHoras * cantidadPorHora;
-      } else if (tienePorcentaje) {
-        const valorHoraExtra =
-          Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
-        valorNovedad = totalHoras * valorHoraExtra;
+      // NUEVA LÓGICA PARAMETRIZADA: Si la novedad tiene hour_type_id, usar normativas
+      if (novedad.hourTypeId || novedad.hour_type_id) {
+        const hourTypeId = novedad.hourTypeId || novedad.hour_type_id;
+        
+        // Obtener normativa del tipo de hora desde cache
+        const tipoHoraNormativa = normativasCache[hourTypeId];
+        
+        if (tipoHoraNormativa && tipoHoraNormativa.multiplicador) {
+          // Usar la nueva fórmula parametrizada: (salario * multiplicador) / horas_base * horas
+          const salarioMensual = Number(employee.basicmonthlysalary) || 0;
+          const multiplicador = parseFloat(tipoHoraNormativa.multiplicador) || 1;
+          const valorHora = (salarioMensual * multiplicador) / horasBaseMensuales;
+          valorNovedad = totalHoras * valorHora;
+          // Redondear a 2 decimales para coincidir con el backend
+          valorNovedad = Math.round(valorNovedad * 100) / 100;
+        } else {
+          // Fallback: usar lógica antigua si no hay normativa en cache
+          if (tieneCantidad) {
+            const cantidadPorHora = parseFloat(tipoNovedad.amount);
+            valorNovedad = totalHoras * cantidadPorHora;
+            // Redondear a 2 decimales para coincidir con el backend
+            valorNovedad = Math.round(valorNovedad * 100) / 100;
+          } else if (tienePorcentaje) {
+            const valorHoraExtra =
+              Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+            valorNovedad = totalHoras * valorHoraExtra;
+            // Redondear a 2 decimales para coincidir con el backend
+            valorNovedad = Math.round(valorNovedad * 100) / 100;
+          }
+        }
+      } else {
+        // LÓGICA ANTIGUA: Si no tiene hour_type_id, usar lógica tradicional
+        if (tieneCantidad) {
+          const cantidadPorHora = parseFloat(tipoNovedad.amount);
+          valorNovedad = totalHoras * cantidadPorHora;
+          // Redondear a 2 decimales para coincidir con el backend
+          valorNovedad = Math.round(valorNovedad * 100) / 100;
+        } else if (tienePorcentaje) {
+          const valorHoraExtra =
+            Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+          valorNovedad = totalHoras * valorHoraExtra;
+          // Redondear a 2 decimales para coincidir con el backend
+          valorNovedad = Math.round(valorNovedad * 100) / 100;
+        }
       }
       
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
@@ -1371,9 +1481,13 @@ const LiquidationForm = () => {
       if (tieneCantidad) {
         const cantidadFija = parseFloat(tipoNovedad.amount);
         valorNovedad = cantidadFija; // Valor total, no multiplicar por días
+        // Redondear a 2 decimales para coincidir con el backend
+        valorNovedad = Math.round(valorNovedad * 100) / 100;
       } else if (tienePorcentaje) {
         const valorDia = Number(employee.basicmonthlysalary) / 30;
         valorNovedad = dias * valorDia * (Number(tipoNovedad.percentage) / 100);
+        // Redondear a 2 decimales para coincidir con el backend
+        valorNovedad = Math.round(valorNovedad * 100) / 100;
       }
       
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
@@ -1382,6 +1496,10 @@ const LiquidationForm = () => {
       }
       // Si NO es descuento, mantener el valor positivo (suma)
     }
+    
+    // Asegurar redondeo final a 2 decimales (por si acaso)
+    valorNovedad = Math.round(valorNovedad * 100) / 100;
+    
     return { valorNovedad, totalHoras };
   };
 
@@ -1485,6 +1603,8 @@ const LiquidationForm = () => {
           }
           
           newCalculatedValues[employee.id].novedades[type.id].valor += valorNovedad;
+          // Redondear el valor acumulado de novedades a 2 decimales
+          newCalculatedValues[employee.id].novedades[type.id].valor = Math.round(newCalculatedValues[employee.id].novedades[type.id].valor * 100) / 100;
           newCalculatedValues[employee.id].novedades[type.id].horas += totalHoras;
           newCalculatedValues[employee.id].novedades[type.id].novedades.push(news);
 
@@ -1581,6 +1701,14 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].social_security_discounts = socialSecurityDiscounts;
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
       newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
+      
+      // Redondear totales a 2 decimales para coincidir con el backend
+      newCalculatedValues[employee.id].total = Math.round(newCalculatedValues[employee.id].total * 100) / 100;
+      newCalculatedValues[employee.id].total_discounts = Math.round(newCalculatedValues[employee.id].total_discounts * 100) / 100;
+      newCalculatedValues[employee.id].health_discount = Math.round(newCalculatedValues[employee.id].health_discount * 100) / 100;
+      newCalculatedValues[employee.id].pension_discount = Math.round(newCalculatedValues[employee.id].pension_discount * 100) / 100;
+      newCalculatedValues[employee.id].social_security_discounts = Math.round(newCalculatedValues[employee.id].social_security_discounts * 100) / 100;
+      newCalculatedValues[employee.id].absence_discounts = Math.round(newCalculatedValues[employee.id].absence_discounts * 100) / 100;
       
     });
     

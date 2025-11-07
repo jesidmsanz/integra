@@ -37,12 +37,32 @@ function create(obj) {
 }
 
 function update(_id, obj) {
+  console.log('controller obj', obj)
   return new Promise(async (resolve, reject) => {
     try {
       const { Normativas } = await db();
-      const result = await Normativas.update(_id, obj);
+      // Convertir ID a número
+      const id = parseInt(_id, 10);
+      if (isNaN(id)) {
+        throw new Error(`ID inválido: ${_id}`);
+      }
+      
+      // Asegurar que activa sea un booleano
+      if (obj.activa !== undefined) {
+        // Convertir a booleano correctamente
+        if (obj.activa === true || obj.activa === 'true' || obj.activa === 1 || obj.activa === '1') {
+          obj.activa = true;
+        } else {
+          obj.activa = false;
+        }
+      }
+      
+      console.log('🔧 Controller: Actualizando normativa ID:', id, 'con datos:', JSON.stringify(obj, null, 2));
+      const result = await Normativas.update(id, obj);
+      console.log('✅ Controller: Resultado:', result ? 'Éxito' : 'Error');
       resolve(result);
     } catch (error) {
+      console.error('❌ Controller: Error actualizando normativa:', error);
       reject(error);
     }
   });

@@ -8,6 +8,19 @@ function findAll() {
   });
 }
 
+function findAllPaginated(page, limit) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const { EmployeeNews } = await db();
+      const result = await EmployeeNews.findAllPaginated(page, limit);
+      resolve(result);
+    } catch (error) {
+      console.error("Error en findAllPaginated controller:", error);
+      reject(error);
+    }
+  });
+}
+
 function findAllActive() {
   return new Promise(async (resolve, reject) => {
     const { EmployeeNews } = await db();
@@ -32,6 +45,12 @@ function create(obj) {
       // Crear una copia del objeto para no modificar el original
       const createData = { ...obj };
       
+      // Convertir hourTypeId (camelCase) a hour_type_id (snake_case) para la base de datos
+      if (createData.hourTypeId !== undefined) {
+        createData.hour_type_id = createData.hourTypeId;
+        delete createData.hourTypeId;
+      }
+      
       // Si hay un archivo subido, guardar el path
       if (createData.document) {
         createData.document = `/files/${createData.document}`;
@@ -55,6 +74,12 @@ function update(_id, obj) {
       
       // Crear una copia del objeto para no modificar el original
       const updateData = { ...obj };
+      
+      // Convertir hourTypeId (camelCase) a hour_type_id (snake_case) para la base de datos
+      if (updateData.hourTypeId !== undefined) {
+        updateData.hour_type_id = updateData.hourTypeId;
+        delete updateData.hourTypeId;
+      }
       
       // Si hay un archivo subido, guardar el path
       if (updateData.document) {
@@ -172,6 +197,7 @@ function restoreToPending(employeeNewsIds) {
 module.exports = {
   findAll,
   findAllActive,
+  findAllPaginated,
   findById,
   create,
   update,

@@ -47,44 +47,36 @@ const VolantesPago = () => {
     if (status === 'authenticated') {
       loadLiquidations();
     }
-  }, [status, hasPermission, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const loadLiquidations = async () => {
     try {
       setLoading(true);
       const result = await liquidationsApi.list();
-      console.log('🔍 RESULTADO COMPLETO DE LA API:', result);
-      console.log('🔍 result.data:', result.data);
-      console.log('🔍 result.body:', result.body);
-      console.log('🔍 typeof result:', typeof result);
-      console.log('🔍 Object.keys(result):', Object.keys(result));
       
       // Intentar diferentes estructuras de respuesta
       let liquidations = [];
-      if (result.data && Array.isArray(result.data)) {
-        liquidations = result.data;
-      } else if (result.body && Array.isArray(result.body)) {
+      if (result && result.data && result.data.body && Array.isArray(result.data.body)) {
+        liquidations = result.data.body;
+      } else if (result && result.body && Array.isArray(result.body)) {
         liquidations = result.body;
+      } else if (result && result.data && Array.isArray(result.data)) {
+        liquidations = result.data;
       } else if (Array.isArray(result)) {
         liquidations = result;
-      } else {
-        console.log('🔍 Estructura de respuesta no reconocida:', result);
       }
-      
-      console.log('🔍 Liquidaciones extraídas:', liquidations);
-      console.log('🔍 Total liquidaciones:', liquidations.length);
-      console.log('🔍 Estados de liquidaciones:', liquidations.map(l => l.status));
       
       // Filtrar solo liquidaciones aprobadas y pagadas para volantes de pago
       const approvedLiquidations = liquidations.filter(liquidation => 
         liquidation.status === 'approved' || liquidation.status === 'paid'
       );
       
-      console.log('🔍 Liquidaciones aprobadas/pagadas:', approvedLiquidations.length);
       setLiquidations(approvedLiquidations);
     } catch (error) {
       console.error('Error cargando liquidaciones:', error);
       toast.error('Error al cargar liquidaciones');
+      setLiquidations([]);
     } finally {
       setLoading(false);
     }
@@ -94,28 +86,22 @@ const VolantesPago = () => {
     try {
       setLoadingEmployees(true);
       const result = await liquidationsApi.getById(liquidationId);
-      console.log('🔍 RESULTADO getById:', result);
-      console.log('🔍 result.data:', result.data);
-      console.log('🔍 result.body:', result.body);
-      console.log('🔍 typeof result:', typeof result);
       
       // Intentar diferentes estructuras de respuesta
       let liquidationData = null;
-      if (result.data) {
+      if (result && result.data && result.data.body) {
+        liquidationData = result.data.body;
+      } else if (result && result.data) {
         liquidationData = result.data;
-      } else if (result.body) {
+      } else if (result && result.body) {
         liquidationData = result.body;
       } else if (Array.isArray(result) && result.length > 0) {
-        liquidationData = result[0]; // Si es un array, tomar el primer elemento
+        liquidationData = result[0];
       } else {
         liquidationData = result;
       }
       
-      console.log('🔍 liquidationData:', liquidationData);
-      console.log('🔍 liquidationData.liquidation_details:', liquidationData?.liquidation_details);
-      
       if (liquidationData && liquidationData.liquidation_details && Array.isArray(liquidationData.liquidation_details)) {
-        console.log('🔍 Número de detalles de liquidación:', liquidationData.liquidation_details.length);
         // Extraer empleados de los detalles de la liquidación
         const employeesFromLiquidation = liquidationData.liquidation_details.map(detail => ({
           id: detail.employee_id,
@@ -124,10 +110,8 @@ const VolantesPago = () => {
           email: detail.employee_email || '',
           position: detail.employee_position || ''
         }));
-        console.log('🔍 Empleados extraídos:', employeesFromLiquidation);
         setEmployees(employeesFromLiquidation);
       } else {
-        console.log('🔍 No se encontraron liquidation_details válidos');
         setEmployees([]);
       }
     } catch (error) {

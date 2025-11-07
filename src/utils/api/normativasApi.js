@@ -4,14 +4,8 @@ const normativasApi = {
   // Crear nueva normativa
   create: async (normativaData) => {
     try {
-      const response = await fetchApi('/normativas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(normativaData),
-      });
-      return response;
+      const response = await fetchApi.post('/normativas', normativaData);
+      return response.data;
     } catch (error) {
       console.error('Error creando normativa:', error);
       throw error;
@@ -23,14 +17,23 @@ const normativasApi = {
     try {
       const queryParams = new URLSearchParams();
       
-      if (filters.tipo) queryParams.append('tipo', filters.tipo);
-      if (filters.activa !== undefined) queryParams.append('activa', filters.activa);
-      if (filters.fecha_vigencia) queryParams.append('fecha_vigencia', filters.fecha_vigencia);
-      if (filters.search) queryParams.append('search', filters.search);
+      if (filters.tipo && filters.tipo !== '') {
+        queryParams.append('tipo', filters.tipo);
+      }
+      if (filters.activa !== undefined && filters.activa !== '') {
+        queryParams.append('activa', filters.activa);
+      }
+      if (filters.fecha_vigencia) {
+        queryParams.append('fecha_vigencia', filters.fecha_vigencia);
+      }
+      if (filters.search && filters.search.trim() !== '') {
+        queryParams.append('search', filters.search.trim());
+      }
 
       const url = `/normativas${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetchApi(url);
-      return response;
+      console.log('🌐 Llamando API con URL:', url);
+      const response = await fetchApi.get(url);
+      return response.data;
     } catch (error) {
       console.error('Error obteniendo normativas:', error);
       throw error;
@@ -40,8 +43,8 @@ const normativasApi = {
   // Obtener normativa por ID
   getById: async (id) => {
     try {
-      const response = await fetchApi(`/normativas/${id}`);
-      return response;
+      const response = await fetchApi.get(`/normativas/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Error obteniendo normativa:', error);
       throw error;
@@ -51,14 +54,10 @@ const normativasApi = {
   // Actualizar normativa
   update: async (id, updateData) => {
     try {
-      const response = await fetchApi(`/normativas/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-      return response;
+      console.log('📤 Frontend: Enviando updateData:', updateData);
+      const response = await fetchApi.put(`/normativas/${id}`, updateData);
+      console.log('📥 Frontend: Respuesta recibida:', response.data);
+      return response.data;
     } catch (error) {
       console.error('Error actualizando normativa:', error);
       throw error;
@@ -68,10 +67,8 @@ const normativasApi = {
   // Eliminar normativa
   delete: async (id) => {
     try {
-      const response = await fetchApi(`/normativas/${id}`, {
-        method: 'DELETE',
-      });
-      return response;
+      const response = await fetchApi.delete(`/normativas/${id}`);
+      return response.data;
     } catch (error) {
       console.error('Error eliminando normativa:', error);
       throw error;
@@ -85,8 +82,8 @@ const normativasApi = {
       if (fecha) queryParams.append('fecha', fecha);
       
       const url = `/normativas/vigentes${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      const response = await fetchApi(url);
-      return response;
+      const response = await fetchApi.get(url);
+      return response.data;
     } catch (error) {
       console.error('Error obteniendo normativas vigentes:', error);
       throw error;
@@ -101,8 +98,8 @@ const normativasApi = {
       if (fecha) queryParams.append('fecha', fecha);
       
       const url = `/normativas/vigente?${queryParams.toString()}`;
-      const response = await fetchApi(url);
-      return response;
+      const response = await fetchApi.get(url);
+      return response.data;
     } catch (error) {
       console.error('Error obteniendo normativa vigente:', error);
       throw error;

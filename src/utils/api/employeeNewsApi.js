@@ -5,12 +5,58 @@ const mainRoute = "employee_news";
 const employeeNewsApi = {
   list: async (page = 1, limit = 30) => {
     try {
-      const { data } = await fetchApi.get(
-        `${mainRoute}?page=${page}&limit=${limit}`
-      );
-      return data.body;
+      const params = new URLSearchParams();
+      const pageNum = parseInt(page);
+      const limitNum = parseInt(limit);
+      if (!Number.isNaN(pageNum) && pageNum > 0) params.set("page", pageNum.toString());
+      if (!Number.isNaN(limitNum) && limitNum > 0) params.set("limit", limitNum.toString());
+
+      const url = params.toString() ? `${mainRoute}?${params.toString()}` : mainRoute;
+      const response = await fetchApi.get(url);
+
+      console.log("🔍 Respuesta completa de fetchApi:", response);
+
+      // Manejar diferentes estructuras de respuesta
+      if (response.data && response.data.body) {
+        // Si tiene body, usar la estructura del body
+        const body = response.data.body;
+        return {
+          data: body.data || [],
+          total: body.total,
+          page: body.page,
+          limit: body.limit,
+          totalPages: body.totalPages,
+        };
+      } else if (response.data && response.data.data) {
+        // Si tiene data directamente
+        return {
+          data: response.data.data || [],
+          total: response.data.total,
+          page: response.data.page,
+          limit: response.data.limit,
+          totalPages: response.data.totalPages,
+        };
+      } else if (Array.isArray(response.data)) {
+        // Si es un array directo (fallback para compatibilidad)
+        return {
+          data: response.data,
+          total: response.data.length,
+          page: 1,
+          limit: response.data.length,
+          totalPages: 1,
+        };
+      } else {
+        // Fallback
+        return {
+          data: [],
+          total: 0,
+          page: 1,
+          limit: limitNum,
+          totalPages: 0,
+        };
+      }
     } catch (error) {
-      console.error("Error al obtener la lista de tipos de novedades", error);
+      console.error("Error al obtener la lista de novedades de empleados", error);
       throw error;
     }
   },

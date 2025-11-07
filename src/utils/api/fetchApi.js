@@ -42,23 +42,35 @@ fetchApi.interceptors.response.use(
           const response = await axios.post(url, {
             refreshToken: session.refreshToken,
           });
-          const newAccessToken = response.data.accessToken;
-
-          originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
-
-          return axios(originalRequest);
-        } catch (error) {
-          console.error("Refresh token failed", error);
-          // Redirigir al login
+          
+          if (response.data && response.data.accessToken) {
+            const newAccessToken = response.data.accessToken;
+            originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+            return axios(originalRequest);
+          } else {
+            throw new Error("No access token received");
+          }
+        } catch (refreshError) {
+          console.error("❌ Refresh token failed:", refreshError.response?.data || refreshError.message);
+          // Redirigir al login cuando falla el refresh token
           signOut({ redirect: true, callbackUrl: "/auth/login" });
-          return Promise.reject(error);
+          return Promise.reject(refreshError);
         }
       } else {
-        // Redirigir al login
+        // No hay refresh token, redirigir al login
+        console.error("❌ No refresh token available, redirecting to login");
         signOut({ redirect: true, callbackUrl: "/auth/login" });
         return Promise.reject(error);
       }
     }
+    
+    // Si es un error de red o sin respuesta, también redirigir si parece ser un error de autenticación
+    if (!error.response && (error.message?.includes("token") || error.message?.includes("401") || error.message?.includes("403"))) {
+      console.error("❌ Network error with authentication, redirecting to login");
+      signOut({ redirect: true, callbackUrl: "/auth/login" });
+      return Promise.reject(error);
+    }
+    
     return Promise.reject(error);
   }
 );

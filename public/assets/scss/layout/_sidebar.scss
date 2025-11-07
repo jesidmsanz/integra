@@ -6,7 +6,7 @@
   content: "";
   top: 58%;
   width: 8px;
-  border-top: 1px solid $white;
+  border-top: 1px solid rgba($theme-body-font-color, 0.7);
 }
 // default dashboard
 .d-flex {
@@ -1312,11 +1312,11 @@
         visibility: hidden;
         position: absolute;
         top: 11px;
-        right: -9px;
+        right: 10px;
         color: $primary-color;
-        z-index: 9999;
+        z-index: 10;
         [dir="rtl"] & {
-          left: -9px;
+          left: 10px;
           right: unset;
         }
       }
@@ -1481,7 +1481,7 @@
             }
             ~ .page-body,
             ~ footer {
-              margin-left: 71px;
+              margin-left: 0;
               transition: 0.5s;
             }
             ~ .footer-fix {
@@ -1665,10 +1665,11 @@
                           }
                         }
                         a {
-                          padding: 18px 20px 8px 20px !important;
+                          padding: 18px 40px 8px 20px !important;
                           position: relative;
                           color: #222222;
                           transition: all 0.3s ease;
+                          white-space: nowrap;
                           .sub-arrow {
                             right: 20px;
                             position: absolute;
@@ -1679,6 +1680,10 @@
                             &:before {
                               display: none;
                             }
+                          }
+                          span {
+                            white-space: nowrap;
+                            display: inline-block;
                           }
                         }
                         &:first-child {
@@ -2122,7 +2127,7 @@
         visibility: hidden;
         position: absolute;
         top: 8px;
-        right: 54px;
+        right: 10px;
         color: $primary-color;
         width: 20px;
         height: 20px;
@@ -2131,8 +2136,9 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 10;
         [dir="rtl"] & {
-          left: 54px;
+          left: 10px;
           right: unset;
         }
       }
@@ -2231,7 +2237,7 @@
           height: auto;
           line-height: inherit;
           background: $white;
-          width: 150px;
+          width: 300px;
           text-align: left;
           transition: 0.3s;
           box-shadow: 0 0 21px 0 rgba(89, 102, 122, 0.1);
@@ -2455,7 +2461,7 @@
         visibility: hidden;
         position: absolute;
         top: 8px;
-        right: 22px;
+        right: 10px;
         color: $primary-color;
         width: 20px;
         height: 20px;
@@ -2464,8 +2470,9 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 10;
         [dir="rtl"] & {
-          left: 22px;
+          left: 10px;
           right: unset;
         }
       }
