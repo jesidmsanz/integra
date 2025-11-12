@@ -31,9 +31,24 @@ function findAllActive() {
 
 function findById(id) {
   return new Promise(async (resolve, reject) => {
-    const { EmployeeNews } = await db();
-    const result = await EmployeeNews.findById(id);
-    resolve(result);
+    try {
+      const { EmployeeNews } = await db();
+      const result = await EmployeeNews.findById(id);
+      
+      if (result) {
+        // Convertir hour_type_id (snake_case) a hourTypeId (camelCase) para el frontend
+        const jsonResult = result.toJSON ? result.toJSON() : result;
+        if (jsonResult.hour_type_id !== undefined) {
+          jsonResult.hourTypeId = jsonResult.hour_type_id;
+        }
+        resolve(jsonResult);
+      } else {
+        resolve(null);
+      }
+    } catch (error) {
+      console.error("Error en findById controller:", error);
+      reject(error);
+    }
   });
 }
 

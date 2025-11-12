@@ -165,11 +165,26 @@ module.exports = function setupNormativas(Model, db, sequelize) {
     return updated;
   }
 
-  function deleteById(id) {
-    return Model.update(
-      { activa: false },
-      { where: { id } }
+  async function deleteById(id) {
+    // Verificar si hay referencias en employee_news
+    const hasReferences = await sequelize.query(
+      `SELECT COUNT(*) as count FROM employee_news WHERE hour_type_id = :id`,
+      {
+        replacements: { id },
+        type: QueryTypes.SELECT
+      }
     );
+
+    const count = hasReferences[0]?.count || 0;
+    
+    if (count > 0) {
+      throw new Error(`No se puede eliminar esta hora extra porque está siendo utilizada en ${count} novedad(es) de empleado(s). Por favor, desactívela en lugar de eliminarla.`);
+    }
+
+    // Si no hay referencias, eliminar físicamente
+    return Model.destroy({
+      where: { id }
+    });
   }
 
   async function getVigentes(fecha = new Date()) {

@@ -7,6 +7,7 @@ module.exports = function setupCountry(Model, db, sequelize) {
       `
     SELECT 
   en.*,
+  en.hour_type_id AS "hourTypeId",
   CONCAT(u."firstName", ' ', u."lastName") AS approved_by_name,
   tn.name AS type_news_name,
   e.fullname AS employee_name
@@ -47,6 +48,7 @@ ORDER BY en.id DESC;
       `
       SELECT 
         en.*,
+        en.hour_type_id AS "hourTypeId",
         CONCAT(u."firstName", ' ', u."lastName") AS approved_by_name,
         tn.name AS type_news_name,
         e.fullname AS employee_name
@@ -149,6 +151,7 @@ ORDER BY en.id DESC;
       `
       SELECT 
         en.*,
+        en.hour_type_id AS "hourTypeId",
         e.fullname AS employee_name,
         e.documentnumber AS employee_document,
         e.position AS employee_position,

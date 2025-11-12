@@ -137,27 +137,27 @@ const SYSTEM_PERMISSIONS = [
   // Normativas
   {
     key: "normative.view",
-    name: "Ver Normativas",
-    description: "Acceso para ver las normativas laborales",
-    category: "Normativas",
+    name: "Ver Horas Extras",
+    description: "Acceso para ver las horas extras",
+    category: "Horas Extras",
   },
   {
     key: "normative.create",
-    name: "Crear Normativas",
-    description: "Acceso para crear nuevas normativas",
-    category: "Normativas",
+    name: "Crear Horas Extras",
+    description: "Acceso para crear nuevas horas extras",
+    category: "Horas Extras",
   },
   {
     key: "normative.update",
-    name: "Actualizar Normativas",
-    description: "Acceso para editar normativas",
-    category: "Normativas",
+    name: "Actualizar Horas Extras",
+    description: "Acceso para editar horas extras",
+    category: "Horas Extras",
   },
   {
     key: "normative.delete",
-    name: "Eliminar Normativas",
-    description: "Acceso para eliminar normativas",
-    category: "Normativas",
+    name: "Eliminar Horas Extras",
+    description: "Acceso para eliminar horas extras",
+    category: "Horas Extras",
   },
   
   // Reportes

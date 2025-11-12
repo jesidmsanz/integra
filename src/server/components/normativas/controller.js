@@ -75,6 +75,7 @@ function deleteById(id) {
       const result = await Normativas.deleteById(id);
       resolve(result);
     } catch (error) {
+      console.error('❌ Controller: Error eliminando normativa:', error);
       reject(error);
     }
   });

@@ -62,7 +62,7 @@ export const MenuList = [
       {
         path: "/admin/normativas",
         icon: "file",
-        title: "Normativas",
+        title: "Horas Extras",
         type: "link",
         permission: "normative.view",
       },

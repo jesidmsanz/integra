@@ -19,12 +19,23 @@ import {
 } from "reactstrap";
 
 // Campos de dinero del empleado que pueden ser afectados por la novedad
+// Según la tabla de conceptos laborales y el código de liquidación
 const moneyFields = [
+  // Campos con lógica real
   { key: "basicmonthlysalary", label: "Salario Base Mensual" },
-  { key: "hourlyrate", label: "Valor Hora" },
+  { key: "prestacionales", label: "Prestacionales" },
   { key: "transportationassistance", label: "Auxilio de Transporte" },
+  // Campos informativos (sin lógica)
+  { key: "basic_salary", label: "Salario Base" },
   { key: "mobilityassistance", label: "Auxilio de Movilidad" },
-  { key: "discountvalue", label: "Valor de Descuento" },
+  { key: "health", label: "Salud" },
+  { key: "pension", label: "Pensión" },
+  { key: "arl", label: "ARL" },
+  { key: "ccf", label: "Caja de Compensación Familiar" },
+  { key: "vacaciones", label: "Vacaciones" },
+  { key: "cesantias", label: "Cesantías" },
+  { key: "intereses_cesantias", label: "Intereses de Cesantías" },
+  { key: "prima", label: "Prima" },
 ];
 
 // Opciones de género para el campo "Aplica a"
@@ -293,7 +304,7 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
           <Row>
             <Col md="12">
               <FormGroup>
-                <Label>Afecta a:</Label>
+                <Label>Conceptos Prestaciones:</Label>
                 <div className="border rounded p-3">
                   <div className="d-flex flex-wrap gap-3">
                     {moneyFields.map((field) => (

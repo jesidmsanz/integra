@@ -30,6 +30,12 @@ module.exports = function (config) {
         defaultValue: 0,
         comment: "Salario básico del empleado",
       },
+      base_security_social: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Base de seguridad social (salario base + novedades prestacionales)",
+      },
       transportation_assistance: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,

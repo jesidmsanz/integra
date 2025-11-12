@@ -365,6 +365,76 @@ const LiquidationForm = () => {
       width: "150px",
     },
     {
+      name: "Salario Base + Prestacionales",
+      cell: (row) => {
+        const salarioBase = Number(row.basicmonthlysalary) || 0;
+        const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        
+        // Calcular valor prestacionales del empleado
+        let valorPrestacionales = 0;
+        const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === row.id);
+        
+        employeeNews.forEach((news) => {
+          const tipoNovedad = typeNews.find(type => type.id === news.typeNewsId);
+          if (tipoNovedad) {
+            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+            let affectsData = {};
+            
+            if (tipoNovedad.affects) {
+              try {
+                affectsData = typeof tipoNovedad.affects === "string" 
+                  ? JSON.parse(tipoNovedad.affects) 
+                  : tipoNovedad.affects || {};
+              } catch (error) {
+                affectsData = {};
+              }
+            }
+            
+            // Si es prestacionales y no es calculada por hora
+            if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const diasNovedad = news.days || 1;
+                const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+                const salarioPorDias = salarioDiario * diasNovedad;
+                
+                const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+                
+                let valorSalario = 0;
+                if (tieneCantidad) {
+                  valorSalario = parseFloat(tipoNovedad.amount);
+                } else if (tienePorcentaje) {
+                  const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                  valorSalario = salarioPorDias * (porcentaje / 100);
+                }
+                
+                if (esDescuento) {
+                  valorPrestacionales -= valorSalario;
+                } else {
+                  valorPrestacionales += valorSalario;
+                }
+              }
+            } else if (tipoNovedad.calculateperhour) {
+              // Si es calculada por hora y afecta prestacionales
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const { valorNovedad } = calculateNovedadValue(news, row, tipoNovedad);
+                if (esDescuento) {
+                  valorPrestacionales -= valorNovedad;
+                } else {
+                  valorPrestacionales += valorNovedad;
+                }
+              }
+            }
+          }
+        });
+        
+        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+        return formatCurrency(baseSeguridadSocial);
+      },
+      sortable: true,
+      width: "200px",
+    },
+    {
       name: "Auxilio de Transporte",
       cell: (row) => {
         const auxilioCalculado = calculateTransportationAssistance(
@@ -391,14 +461,74 @@ const LiquidationForm = () => {
       name: "Salud (4%)",
       cell: (row) => {
         const salarioBase = Number(row.basicmonthlysalary) || 0;
-        const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        
+        // Calcular valor prestacionales del empleado
+        let valorPrestacionales = 0;
+        const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === row.id);
+        
+        employeeNews.forEach((news) => {
+          const tipoNovedad = typeNews.find(type => type.id === news.typeNewsId);
+          if (tipoNovedad) {
+            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+            let affectsData = {};
+            
+            if (tipoNovedad.affects) {
+              try {
+                affectsData = typeof tipoNovedad.affects === "string" 
+                  ? JSON.parse(tipoNovedad.affects) 
+                  : tipoNovedad.affects || {};
+              } catch (error) {
+                affectsData = {};
+              }
+            }
+            
+            // Si es prestacionales y no es calculada por hora
+            if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const diasNovedad = news.days || 1;
+                const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+                const salarioPorDias = salarioDiario * diasNovedad;
+                
+                const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+                
+                let valorSalario = 0;
+                if (tieneCantidad) {
+                  valorSalario = parseFloat(tipoNovedad.amount);
+                } else if (tienePorcentaje) {
+                  const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                  valorSalario = salarioPorDias * (porcentaje / 100);
+                }
+                
+                if (esDescuento) {
+                  valorPrestacionales -= valorSalario;
+                } else {
+                  valorPrestacionales += valorSalario;
+                }
+              }
+            } else if (tipoNovedad.calculateperhour) {
+              // Si es calculada por hora y afecta prestacionales
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const { valorNovedad } = calculateNovedadValue(news, row, tipoNovedad);
+                if (esDescuento) {
+                  valorPrestacionales -= valorNovedad;
+                } else {
+                  valorPrestacionales += valorNovedad;
+                }
+              }
+            }
+          }
+        });
+        
+        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
         
         // Determinar si es el segundo corte para quincenales
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
         
         // Aplicar lógica de descuentos
         const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        const descuentoSalud = shouldApply ? salarioCalculado * 0.04 : 0;
+        const descuentoSalud = shouldApply ? baseSeguridadSocial * 0.04 : 0;
         
         return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
       },
@@ -409,14 +539,74 @@ const LiquidationForm = () => {
       name: "Pensión (4%)",
       cell: (row) => {
         const salarioBase = Number(row.basicmonthlysalary) || 0;
-        const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+        
+        // Calcular valor prestacionales del empleado
+        let valorPrestacionales = 0;
+        const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === row.id);
+        
+        employeeNews.forEach((news) => {
+          const tipoNovedad = typeNews.find(type => type.id === news.typeNewsId);
+          if (tipoNovedad) {
+            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+            let affectsData = {};
+            
+            if (tipoNovedad.affects) {
+              try {
+                affectsData = typeof tipoNovedad.affects === "string" 
+                  ? JSON.parse(tipoNovedad.affects) 
+                  : tipoNovedad.affects || {};
+              } catch (error) {
+                affectsData = {};
+              }
+            }
+            
+            // Si es prestacionales y no es calculada por hora
+            if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const diasNovedad = news.days || 1;
+                const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+                const salarioPorDias = salarioDiario * diasNovedad;
+                
+                const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+                
+                let valorSalario = 0;
+                if (tieneCantidad) {
+                  valorSalario = parseFloat(tipoNovedad.amount);
+                } else if (tienePorcentaje) {
+                  const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                  valorSalario = salarioPorDias * (porcentaje / 100);
+                }
+                
+                if (esDescuento) {
+                  valorPrestacionales -= valorSalario;
+                } else {
+                  valorPrestacionales += valorSalario;
+                }
+              }
+            } else if (tipoNovedad.calculateperhour) {
+              // Si es calculada por hora y afecta prestacionales
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                const { valorNovedad } = calculateNovedadValue(news, row, tipoNovedad);
+                if (esDescuento) {
+                  valorPrestacionales -= valorNovedad;
+                } else {
+                  valorPrestacionales += valorNovedad;
+                }
+              }
+            }
+          }
+        });
+        
+        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
         
         // Determinar si es el segundo corte para quincenales
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
         
         // Aplicar lógica de descuentos
         const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        const descuentoPension = shouldApply ? salarioCalculado * 0.04 : 0;
+        const descuentoPension = shouldApply ? baseSeguridadSocial * 0.04 : 0;
         
         return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
       },
@@ -1054,6 +1244,7 @@ const LiquidationForm = () => {
         // Calcular totales de novedades y descuentos proporcionales
         let totalNovedades = 0;
         let descuentosProporcionales = 0;
+        let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
 
         news_data.forEach((news) => {
           const tipoNovedad = typeNews.find(type => type.id === news.type_news_id);
@@ -1099,8 +1290,8 @@ const LiquidationForm = () => {
                 }
               }
 
-              // SALARIO BASE
-              if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
+              // PRESTACIONALES
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
                 const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
                 const salarioPorDias = salarioDiario * diasNovedad;
                 
@@ -1110,20 +1301,61 @@ const LiquidationForm = () => {
                 
                 let valorSalario = 0;
                 if (tieneCantidad) {
-                  // Usar cantidad fija TOTAL (no multiplicar por días)
                   const cantidadFija = parseFloat(tipoNovedad.amount);
-                  valorSalario = cantidadFija; // Valor total, no por día
+                  valorSalario = cantidadFija;
                 } else if (tienePorcentaje) {
-                  // Usar porcentaje
                   const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
                   valorSalario = salarioPorDias * (porcentaje / 100);
                 }
                 
                 if (esDescuento) {
                   descuentosProporcionales += valorSalario;
+                  valorPrestacionales -= valorSalario;
                 } else {
                   totalNovedades += valorSalario;
+                  valorPrestacionales += valorSalario;
                 }
+              }
+            } else if (tipoNovedad.calculateperhour) {
+              // Si es calculada por hora, verificar si afecta prestacionales
+              let affectsData = {};
+              if (tipoNovedad.affects) {
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  console.error("Error parseando affects:", error);
+                  affectsData = {};
+                }
+              }
+
+              console.log("🔍 Novedad calculada por hora:", {
+                tipoNovedad: tipoNovedad.name,
+                affects: tipoNovedad.affects,
+                affectsData,
+                prestacionales: affectsData.prestacionales,
+                newsAmount: news.amount,
+                esDescuento
+              });
+
+              // Si afecta prestacionales, sumar el valor a la base de seguridad social
+              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                console.log("✅ Sumando a prestacionales:", news.amount);
+                if (esDescuento) {
+                  valorPrestacionales -= news.amount;
+                } else {
+                  valorPrestacionales += news.amount;
+                }
+              } else {
+                console.log("❌ NO afecta prestacionales o no está marcado");
+              }
+
+              // Sumar/restar a totalNovedades normalmente
+              if (esDescuento) {
+                descuentosProporcionales += news.amount;
+              } else {
+                totalNovedades += news.amount;
               }
             } else {
               // Si no tiene affects, usar lógica simple
@@ -1143,25 +1375,29 @@ const LiquidationForm = () => {
           form.endDate
         );
 
-        // Calcular descuentos de salud y pensión (4% cada uno del salario base)
-        // Determinar si es el segundo corte para quincenales
+        // Calcular base de seguridad social: salario base + novedades prestacionales
+        const baseSeguridadSocial = basicSalaryForPeriod + valorPrestacionales;
+
+        // Calcular descuentos de salud y pensión (4% cada uno de la base de seguridad social)
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-        
-        // Aplicar lógica de descuentos
         const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        const healthDiscount = shouldApply ? basicSalaryForPeriod * 0.04 : 0;
-        const pensionDiscount = shouldApply ? basicSalaryForPeriod * 0.04 : 0;
+        const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+        const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
         const socialSecurityDiscounts = healthDiscount + pensionDiscount;
         
         console.log("🔍 Debug descuentos:", {
+          employee: employee.fullname,
           paymentMethod: form.paymentMethod,
           corte1: form.corte1,
           corte2: form.corte2,
           isSecondCut,
           shouldApply,
           basicSalaryForPeriod,
+          valorPrestacionales,
+          baseSeguridadSocial,
           healthDiscount,
-          pensionDiscount
+          pensionDiscount,
+          totalNovedades
         });
 
         const totalDiscounts = absenceDiscounts + descuentosProporcionales + socialSecurityDiscounts;
@@ -1175,6 +1411,7 @@ const LiquidationForm = () => {
         return {
           employee_id: employee.id,
           basic_salary: basicSalaryForPeriod,
+          base_security_social: baseSeguridadSocial,
           transportation_assistance: transportationAssistance,
           mobility_assistance: 0, // Por ahora no hay auxilio de movilidad
           total_novedades: totalNovedades,
@@ -1371,7 +1608,7 @@ const LiquidationForm = () => {
       if (tienePorcentaje) {
         const percentage = parseFloat(tipoNovedad.percentage);
         if (
-          (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") &&
+          (affectsData.prestacionales === true || affectsData.prestacionales === "true") &&
           percentage === 100
         ) {
           return { valorNovedad: 0, totalHoras: 0 };
@@ -1584,7 +1821,7 @@ const LiquidationForm = () => {
 
       // Procesar novedades del empleado
       const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === employee.id);
-      
+      let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
       
       if (employeeNews.length > 0) {
         employeeNews.forEach(news => {
@@ -1642,8 +1879,8 @@ const LiquidationForm = () => {
               }
             }
 
-            // SALARIO BASE
-            if (affectsData.basicmonthlysalary === true || affectsData.basicmonthlysalary === "true") {
+            // PRESTACIONALES
+            if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
               const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
               const salarioPorDias = salarioDiario * diasNovedad;
               
@@ -1653,21 +1890,44 @@ const LiquidationForm = () => {
               
               let valorSalario = 0;
               if (tieneCantidad) {
-                // Usar cantidad fija TOTAL (no multiplicar por días)
                 const cantidadFija = parseFloat(type.amount);
-                valorSalario = cantidadFija; // Valor total, no por día
+                valorSalario = cantidadFija;
               } else if (tienePorcentaje) {
-                // Usar porcentaje
                 const porcentaje = parseFloat(type.percentage) || 100;
                 valorSalario = salarioPorDias * (porcentaje / 100);
               }
               
               if (esDescuento) {
                 newCalculatedValues[employee.id].total -= valorSalario;
+                valorPrestacionales -= valorSalario;
               } else {
                 newCalculatedValues[employee.id].total += valorSalario;
+                valorPrestacionales += valorSalario;
               }
             }
+          } else if (type.calculateperhour) {
+            // Si es calculada por hora, verificar si afecta prestacionales
+            const esDescuento = type.isDiscount === true || type.isDiscount === "true";
+            let affectsData;
+            try {
+              affectsData = typeof type.affects === "string" 
+                ? JSON.parse(type.affects) 
+                : type.affects || {};
+            } catch (error) {
+              affectsData = {};
+            }
+
+            // Si afecta prestacionales, sumar el valor a la base de seguridad social
+            if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+              if (esDescuento) {
+                valorPrestacionales -= valorNovedad;
+              } else {
+                valorPrestacionales += valorNovedad;
+              }
+            }
+
+            // Sumar/restar al total normalmente
+            newCalculatedValues[employee.id].total += valorNovedad;
           } else {
             // Si no tiene affects, usar lógica simple con isDiscount
             newCalculatedValues[employee.id].total += valorNovedad;
@@ -1682,14 +1942,14 @@ const LiquidationForm = () => {
         form.endDate
       );
 
-      // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno)
-      // Determinar si es el segundo corte para quincenales
+      // Calcular base de seguridad social: salario base + novedades prestacionales
+      const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+
+      // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno de la base de seguridad social)
       const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-      
-      // Aplicar lógica de descuentos
       const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-      const healthDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
-      const pensionDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
+      const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+      const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
       const socialSecurityDiscounts = healthDiscount + pensionDiscount;
 
       // Aplicar todos los descuentos

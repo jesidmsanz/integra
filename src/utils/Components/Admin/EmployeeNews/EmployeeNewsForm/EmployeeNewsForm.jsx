@@ -153,7 +153,7 @@ const EmployeeNewsForm = ({
         companyId: dataToUpdate.companyId || "",
         employeeId: dataToUpdate.employeeId || "",
         typeNewsId: dataToUpdate.typeNewsId || "",
-        hourTypeId: dataToUpdate.hourTypeId || "",
+        hourTypeId: dataToUpdate.hourTypeId || dataToUpdate.hour_type_id || "",
         startDate: startDateFormatted,
         startTime: startTimeFormatted,
         endDate: endDateFormatted,
@@ -816,13 +816,14 @@ const EmployeeNewsForm = ({
                   invalid={!!errors.startDate}
                   required
                   disabled={isApproved}
+                  max={new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
                 />
                 {errors.startDate && (
                   <FormFeedback>{errors.startDate}</FormFeedback>
                 )}
                 <small className="text-muted">
                   <i className="fas fa-info-circle me-1"></i>
-                  Fecha de inicio de la novedad.
+                  Fecha de inicio de la novedad. Solo se pueden seleccionar fechas pasadas (hasta ayer).
                 </small>
               </FormGroup>
             </Col>
@@ -862,13 +863,15 @@ const EmployeeNewsForm = ({
                   invalid={!!errors.endDate}
                   required
                   disabled={isApproved}
+                  max={new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  min={formData.startDate || undefined}
                 />
                 {errors.endDate && (
                   <FormFeedback>{errors.endDate}</FormFeedback>
                 )}
                 <small className="text-muted">
                   <i className="fas fa-info-circle me-1"></i>
-                  Fecha de fin de la novedad.
+                  Fecha de fin de la novedad. Solo se pueden seleccionar fechas pasadas (hasta ayer). Debe ser igual o posterior a la fecha de inicio.
                 </small>
               </FormGroup>
             </Col>

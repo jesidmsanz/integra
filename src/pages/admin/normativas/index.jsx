@@ -112,7 +112,7 @@ const NormativasPage = () => {
       setNormativas(normativasData);
     } catch (error) {
       console.error('Error cargando normativas:', error);
-      toast.error('Error al cargar normativas');
+      toast.error('Error al cargar horas extras');
       setNormativas([]);
     } finally {
       setLoading(false);
@@ -205,12 +205,12 @@ const NormativasPage = () => {
         console.log('📝 Frontend: Actualizando normativa:', editingNormativa.id, normativaData);
         const response = await normativasApi.update(editingNormativa.id, normativaData);
         console.log('📝 Frontend: Respuesta de actualización:', response);
-        toast.success('Normativa actualizada exitosamente');
+        toast.success('Hora extra actualizada exitosamente');
       } else {
         // En creación, incluir created_by
         normativaData.created_by = 1; // TODO: Obtener del usuario autenticado
         await normativasApi.create(normativaData);
-        toast.success('Normativa creada exitosamente');
+        toast.success('Hora extra creada exitosamente');
       }
 
       setShowModal(false);
@@ -222,25 +222,26 @@ const NormativasPage = () => {
       }, 100);
     } catch (error) {
       console.error('Error guardando normativa:', error);
-      toast.error(error.response?.data?.error || error.message || 'Error al guardar normativa');
+        toast.error(error.response?.data?.error || error.message || 'Error al guardar hora extra');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDelete = async (normativa) => {
-    if (!window.confirm(`¿Está seguro de eliminar la normativa "${normativa.nombre}"?`)) {
+    if (!window.confirm(`¿Está seguro de eliminar la hora extra "${normativa.nombre}"?`)) {
       return;
     }
 
     try {
       setActionLoading(true);
       await normativasApi.delete(normativa.id);
-      toast.success('Normativa eliminada exitosamente');
+      toast.success('Hora extra eliminada exitosamente');
       loadNormativas();
     } catch (error) {
       console.error('Error eliminando normativa:', error);
-      toast.error('Error al eliminar normativa');
+      const errorMessage = error.response?.data?.error || error.message || 'Error al eliminar hora extra';
+      toast.error(errorMessage);
     } finally {
       setActionLoading(false);
     }
@@ -287,7 +288,7 @@ const NormativasPage = () => {
 
   return (
     <RootLayout>
-      <Breadcrumbs main="Normativas" parent="Administración" title="Gestión de Normativas" />
+      <Breadcrumbs main="Horas Extras" parent="Administración" title="Gestión de Horas Extras" />
       
       <Container fluid>
         <Row>
@@ -295,10 +296,10 @@ const NormativasPage = () => {
             <Card>
               <CardBody>
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                  <h4 className="card-title mb-0">Normativas de Salarios</h4>
+                  <h4 className="card-title mb-0">Horas Extras</h4>
                   <Button color="primary" onClick={handleCreate}>
                     <i className="fa fa-plus me-2" />
-                    Nueva Normativa
+                    Nueva Hora Extra
                   </Button>
                 </div>
 
@@ -355,7 +356,7 @@ const NormativasPage = () => {
                 {loading ? (
                   <div className="text-center py-4">
                     <Spinner color="primary" />
-                    <p className="mt-2">Cargando normativas...</p>
+                    <p className="mt-2">Cargando horas extras...</p>
                   </div>
                 ) : normativas.length > 0 ? (
                   <div className="table-responsive">
@@ -465,7 +466,7 @@ const NormativasPage = () => {
                 ) : (
                   <Alert color="info">
                     <i className="fa fa-info-circle me-2" />
-                    No se encontraron normativas
+                    No se encontraron horas extras
                   </Alert>
                 )}
               </CardBody>
@@ -477,7 +478,7 @@ const NormativasPage = () => {
       {/* Modal para crear/editar normativa */}
       <Modal isOpen={showModal} toggle={() => setShowModal(false)} size="lg">
         <ModalHeader toggle={() => setShowModal(false)}>
-          {editingNormativa ? 'Editar Normativa' : 'Nueva Normativa'}
+          {editingNormativa ? 'Editar Hora Extra' : 'Nueva Hora Extra'}
         </ModalHeader>
         <Form onSubmit={handleSubmit}>
           <ModalBody>
@@ -628,7 +629,7 @@ const NormativasPage = () => {
                     value={formData.descripcion}
                     onChange={handleInputChange}
                     rows="3"
-                    placeholder="Descripción detallada de la normativa..."
+                    placeholder="Descripción detallada de la hora extra..."
                   />
                 </FormGroup>
               </Col>
@@ -644,7 +645,7 @@ const NormativasPage = () => {
                     onChange={handleInputChange}
                   />
                   <Label check>
-                    Normativa activa
+                    Hora extra activa
                   </Label>
                 </FormGroup>
               </Col>
