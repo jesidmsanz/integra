@@ -22,20 +22,21 @@ import {
 // Según la tabla de conceptos laborales y el código de liquidación
 const moneyFields = [
   // Campos con lógica real
-  { key: "basicmonthlysalary", label: "Salario Base Mensual" },
+  // { key: "basicmonthlysalary", label: "Salario Base Mensual" },
   { key: "prestacionales", label: "Prestacionales" },
-  { key: "transportationassistance", label: "Auxilio de Transporte" },
-  // Campos informativos (sin lógica)
-  { key: "basic_salary", label: "Salario Base" },
-  { key: "mobilityassistance", label: "Auxilio de Movilidad" },
-  { key: "health", label: "Salud" },
-  { key: "pension", label: "Pensión" },
+  { key: "cesantias", label: "Cesantias - Intereses de Cesantias" },
+  { key: "vacaciones", label: "Vacaciones" },
+  { key: "prima", label: "Prima" },
   { key: "arl", label: "ARL" },
   { key: "ccf", label: "Caja de Compensación Familiar" },
-  { key: "vacaciones", label: "Vacaciones" },
-  { key: "cesantias", label: "Cesantías" },
-  { key: "intereses_cesantias", label: "Intereses de Cesantías" },
-  { key: "prima", label: "Prima" },
+  { key: "transportationassistance", label: "Auxilio de Transporte" },
+
+  // Campos informativos (sin lógica)
+  // { key: "basic_salary", label: "Salario Base" },
+  // { key: "mobilityassistance", label: "Auxilio de Movilidad" },
+  // { key: "health", label: "Salud" },
+  // { key: "pension", label: "Pensión" },
+  // { key: "intereses_cesantias", label: "Intereses de Cesantías" },
 ];
 
 // Opciones de género para el campo "Aplica a"
@@ -159,14 +160,17 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
     });
 
     // Validar que porcentaje o cantidad tengan valor (mutuamente excluyentes)
-    const percentageValue = form.percentage ? form.percentage.toString().trim() : "";
+    const percentageValue = form.percentage
+      ? form.percentage.toString().trim()
+      : "";
     const amountValue = form.amount ? form.amount.toString().trim() : "";
-    
+
     if (!percentageValue && !amountValue) {
       newErrors.percentage = "Debe ingresar un porcentaje o una cantidad";
       newErrors.amount = "Debe ingresar un porcentaje o una cantidad";
     } else if (percentageValue && amountValue) {
-      newErrors.percentage = "Solo puede ingresar porcentaje O cantidad, no ambos";
+      newErrors.percentage =
+        "Solo puede ingresar porcentaje O cantidad, no ambos";
       newErrors.amount = "Solo puede ingresar porcentaje O cantidad, no ambos";
     }
 
@@ -202,8 +206,14 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
           affects: JSON.stringify(form.affects),
           applies_to: JSON.stringify(form.applies_to),
           // Convertir amount vacío a null y percentage vacío a null
-          amount: form.amount && form.amount.toString().trim() !== "" ? parseFloat(form.amount) : null,
-          percentage: form.percentage && form.percentage.toString().trim() !== "" ? form.percentage : null,
+          amount:
+            form.amount && form.amount.toString().trim() !== ""
+              ? parseFloat(form.amount)
+              : null,
+          percentage:
+            form.percentage && form.percentage.toString().trim() !== ""
+              ? form.percentage
+              : null,
         };
 
         console.log("form", formDataToSend);
@@ -375,16 +385,20 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                   onChange={(e) => {
                     // Si se ingresa porcentaje, limpiar cantidad
                     const value = e.target.value;
-                    const tieneCantidad = form.amount && form.amount.toString().trim() !== "";
-                    
+                    const tieneCantidad =
+                      form.amount && form.amount.toString().trim() !== "";
+
                     // Mostrar alerta si ya hay cantidad y se está ingresando porcentaje
                     if (value && tieneCantidad) {
-                      toast.warning("Se limpiará el campo Cantidad porque solo puede usar Porcentaje O Cantidad", {
-                        position: "top-center",
-                        autoClose: 3000,
-                      });
+                      toast.warning(
+                        "Se limpiará el campo Cantidad porque solo puede usar Porcentaje O Cantidad",
+                        {
+                          position: "top-center",
+                          autoClose: 3000,
+                        }
+                      );
                     }
-                    
+
                     setForm({
                       ...form,
                       percentage: value,
@@ -404,7 +418,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                 {errors.percentage && (
                   <FormFeedback>{errors.percentage}</FormFeedback>
                 )}
-                <small className="text-muted">Ingrese el porcentaje (ej: 50 para 50%)</small>
+                <small className="text-muted">
+                  Ingrese el porcentaje (ej: 50 para 50%)
+                </small>
               </FormGroup>
             </Col>
             <Col md="6">
@@ -420,16 +436,21 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                   onChange={(e) => {
                     // Si se ingresa cantidad, limpiar porcentaje
                     const value = e.target.value;
-                    const tienePorcentaje = form.percentage && form.percentage.toString().trim() !== "";
-                    
+                    const tienePorcentaje =
+                      form.percentage &&
+                      form.percentage.toString().trim() !== "";
+
                     // Mostrar alerta si ya hay porcentaje y se está ingresando cantidad
                     if (value && tienePorcentaje) {
-                      toast.warning("Se limpiará el campo Porcentaje porque solo puede usar Porcentaje O Cantidad", {
-                        position: "top-center",
-                        autoClose: 3000,
-                      });
+                      toast.warning(
+                        "Se limpiará el campo Porcentaje porque solo puede usar Porcentaje O Cantidad",
+                        {
+                          position: "top-center",
+                          autoClose: 3000,
+                        }
+                      );
                     }
-                    
+
                     setForm({
                       ...form,
                       amount: value,
@@ -446,10 +467,10 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
                   value={form.amount}
                   invalid={!!errors.amount}
                 />
-                {errors.amount && (
-                  <FormFeedback>{errors.amount}</FormFeedback>
-                )}
-                <small className="text-muted">Ingrese la cantidad fija (ej: 100000)</small>
+                {errors.amount && <FormFeedback>{errors.amount}</FormFeedback>}
+                <small className="text-muted">
+                  Ingrese la cantidad fija (ej: 100000)
+                </small>
               </FormGroup>
             </Col>
           </Row>
