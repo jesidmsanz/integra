@@ -365,7 +365,7 @@ const LiquidationForm = () => {
       width: "150px",
     },
     {
-      name: "Salario Base + Prestacionales",
+      name: "Salario Base + Conceptos",
       cell: (row) => {
         const salarioBase = Number(row.basicmonthlysalary) || 0;
         const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
