@@ -43,6 +43,7 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
               'employee_name', e.fullname,
               'employee_document', e.documentnumber,
               'employee_position', e.position,
+              'employee_email', e.email,
               'contract_type', e.contracttype,
               'hourly_rate', e.hourlyrate,
               'payment_method', e.paymentmethod,
