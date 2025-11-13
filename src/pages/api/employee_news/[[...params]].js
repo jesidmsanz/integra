@@ -76,29 +76,34 @@ export default async function(req, res) {
     } else if ((req.method === 'POST' || req.method === 'PUT') && req.headers['content-type']?.includes('application/json')) {
       console.log("Procesando JSON manualmente...");
       
-      // Leer el body manualmente para JSON
-      let body = '';
-      req.on('data', chunk => {
-        body += chunk.toString();
+      // Leer el body como Promise para esperarlo correctamente
+      const bodyPromise = new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (parseError) {
+            reject(parseError);
+          }
+        });
+        req.on('error', reject);
       });
       
-      req.on('end', async () => {
-        try {
-          req.body = JSON.parse(body);
-          console.log("req.body JSON parseado:", req.body);
-          return handler(req, res);
-        } catch (parseError) {
-          console.error("Error parseando JSON:", parseError);
-          return res.status(400).json({ error: "Error parseando JSON" });
-        }
-      });
-      
-      return; // Salir aquí para manejar el JSON asíncronamente
+      try {
+        req.body = await bodyPromise;
+        console.log("req.body JSON parseado:", req.body);
+      } catch (parseError) {
+        console.error("Error parseando JSON:", parseError);
+        return res.status(400).json({ error: "Error parseando JSON: " + parseError.message });
+      }
     } else {
       console.log("No es multipart ni JSON, pasando directamente");
     }
     
-    // Llamar al handler original
+    // Llamar al handler original (req.body ya está listo)
     return handler(req, res);
   } catch (error) {
     console.error("Error en Next.js API route:", error);
