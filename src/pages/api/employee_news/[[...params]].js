@@ -2,9 +2,8 @@ import handler from "@/server/components/employee_news/network";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import getRawBody from "raw-body";
 
-// Configurar Next.js: deshabilitar bodyParser solo para multipart
+// Deshabilitar bodyParser para manejar multipart y JSON manualmente
 export const config = {
   api: {
     bodyParser: false,
@@ -47,17 +46,48 @@ export default async function (req, res) {
     if ((req.method === "POST" || req.method === "PUT") && isMultipart) {
       await runMiddleware(req, res, upload.single("document"));
     }
-    // Procesar JSON con raw-body (más robusto que leer manualmente)
+    // Procesar JSON manualmente (el stream puede no ser readable con raw-body)
     else if ((req.method === "POST" || req.method === "PUT") && isJSON) {
-      const rawBody = await getRawBody(req, {
-        length: req.headers["content-length"],
-        limit: "10mb",
-        encoding: "utf8",
+      req.body = await new Promise((resolve, reject) => {
+        let body = '';
+        let timeout;
+        
+        // Verificar si el stream es readable
+        if (!req.readable) {
+          // Si no es readable, puede que ya fue consumido
+          // Intentar usar req.body si existe
+          if (req.body) {
+            return resolve(req.body);
+          }
+          return reject(new Error('Stream not readable'));
+        }
+        
+        req.on('data', chunk => {
+          body += chunk.toString();
+        });
+        
+        req.on('end', () => {
+          clearTimeout(timeout);
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+        
+        req.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+        
+        // Timeout de seguridad (30 segundos)
+        timeout = setTimeout(() => {
+          reject(new Error('Timeout reading request body'));
+        }, 30000);
       });
-      req.body = JSON.parse(rawBody);
     }
 
-    // Pasar al handler (que ya maneja todo)
+    // Pasar al handler (req.body ya está listo)
     return handler(req, res);
   } catch (error) {
     console.error("Error en Next.js API route:", error);
