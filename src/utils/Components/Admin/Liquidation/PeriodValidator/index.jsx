@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import moment from "moment";
 import liquidationsApi from "@/utils/api/liquidationsApi";
 
-const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, corte1, corte2 }) => {
+const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, corte1, corte2, paymentMethod }) => {
   const [isValid, setIsValid] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +28,7 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
     if (companyId && startDate && endDate) {
       validatePeriod();
     }
-  }, [companyId, startDate, endDate, corte1, corte2]);
+  }, [companyId, startDate, endDate, corte1, corte2, paymentMethod]);
 
   const validatePeriod = async () => {
     try {
@@ -46,47 +46,51 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
       );
 
       // Verificar solapamientos
+      const currentFrequency = paymentMethod || "Mensual";
+      const currentCut = corte1 ? 1 : corte2 ? 2 : null;
+
       const overlappingPeriods = companyLiquidations.filter((liquidation) => {
-        const liquidationStart = liquidation.period_start || (liquidation.period + '-01');
-        const liquidationEnd = liquidation.period_end || (() => {
+        // Solo validar si no está cancelada
+        if (liquidation.status === 'cancelled') return false;
+
+        // Obtener fechas de la liquidación existente
+        const liquidationStart = liquidation.start_date || liquidation.period_start || (liquidation.period ? liquidation.period + '-01' : null);
+        const liquidationEnd = liquidation.end_date || liquidation.period_end || (() => {
           if (liquidation.period) {
             const [year, month] = liquidation.period.split('-');
             const lastDay = new Date(year, month, 0).getDate();
             return liquidation.period + '-' + String(lastDay).padStart(2, '0');
           }
-          return liquidation.period + '-30';
+          return null;
         })();
-        
-        // Verificar solapamiento de períodos
-        const hasOverlap = (
-          (startDate <= liquidationEnd && endDate >= liquidationStart) &&
-          liquidation.status !== 'cancelled'
-        );
 
-        // Si hay cortes seleccionados, verificar también el número de corte
-        if (hasOverlap && (corte1 || corte2)) {
+        if (!liquidationStart || !liquidationEnd) return false;
+
+        // Verificar solapamiento de fechas
+        const hasDateOverlap = startDate <= liquidationEnd && endDate >= liquidationStart;
+        if (!hasDateOverlap) return false;
+
+        // Verificar frecuencia de pago - solo hay conflicto si es la misma frecuencia
+        const liquidationFrequency = liquidation.payment_frequency || "Mensual";
+        if (liquidationFrequency !== currentFrequency) return false;
+
+        // Si es quincenal, verificar que el corte coincida
+        if (currentFrequency === "Quincenal") {
           const liquidationCut = liquidation.cut_number;
-          const currentCut = corte1 ? 1 : corte2 ? 2 : null;
-          
-          // Si el corte coincide, es un conflicto directo
-          if (liquidationCut === currentCut) {
-            return true;
-          }
-          
-          // Si no hay corte específico en la liquidación existente, también es conflicto
-          if (!liquidationCut) {
-            return true;
-          }
+          return liquidationCut === currentCut;
         }
 
-        return hasOverlap;
+        // Si es mensual, cualquier solapamiento es conflicto
+        return true;
       });
 
       setLiquidatedPeriods(overlappingPeriods);
 
       if (overlappingPeriods.length > 0) {
         setIsValid(false);
-        const cutInfo = corte1 ? " (Corte 1-15)" : corte2 ? " (Corte 16-30)" : "";
+        const cutInfo = currentFrequency === "Quincenal" 
+          ? (corte1 ? " (Corte 1-15)" : corte2 ? " (Corte 16-30)" : "")
+          : "";
         setErrorMessage(`El período seleccionado${cutInfo} se cruza con ${overlappingPeriods.length} liquidación(es) existente(s).`);
         onValidationChange && onValidationChange(false, overlappingPeriods);
       } else {

@@ -2156,6 +2156,7 @@ const LiquidationForm = () => {
                     endDate={form.endDate}
                     corte1={form.corte1}
                     corte2={form.corte2}
+                    paymentMethod={form.paymentMethod}
                     onValidationChange={(isValid, conflictingPeriods) => {
                       setPeriodValidation({ isValid, conflictingPeriods });
                     }}
