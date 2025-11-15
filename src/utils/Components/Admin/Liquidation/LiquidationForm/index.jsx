@@ -437,13 +437,30 @@ const LiquidationForm = () => {
     {
       name: "Auxilio de Transporte",
       cell: (row) => {
+        const employeeValues = calculatedValues[row.id] || {};
         const auxilioCalculado = calculateTransportationAssistance(
           row,
           form.paymentMethod
         );
-        return auxilioCalculado > 0
-          ? formatCurrency(auxilioCalculado)
-          : "No aplica";
+        const descuento = employeeValues.transportation_assistance_discount || 0;
+        const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
+          ? employeeValues.transportation_assistance_final 
+          : auxilioCalculado;
+        
+        if (auxilioFinal <= 0) {
+          return "No aplica";
+        }
+        
+        if (descuento > 0) {
+          return (
+            <div>
+              <div>{formatCurrency(auxilioFinal)}</div>
+              <small className="text-danger">(-{formatCurrency(descuento)})</small>
+            </div>
+          );
+        }
+        
+        return formatCurrency(auxilioFinal);
       },
       sortable: true,
       width: "150px",
@@ -1032,13 +1049,25 @@ const LiquidationForm = () => {
         "Tipo de Contrato": employee.contracttype || "No disponible",
         "Salario Base": formatCurrency(employee.basicmonthlysalary),
         "Auxilio de Transporte": (() => {
+          const employeeValues = valoresCalculados[employee.id] || {};
           const auxilioCalculado = calculateTransportationAssistance(
             employee,
             form.paymentMethod
           );
-          return auxilioCalculado > 0
-            ? formatCurrency(auxilioCalculado)
-            : "No aplica";
+          const descuento = employeeValues.transportation_assistance_discount || 0;
+          const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
+            ? employeeValues.transportation_assistance_final 
+            : auxilioCalculado;
+          
+          if (auxilioFinal <= 0) {
+            return "No aplica";
+          }
+          
+          if (descuento > 0) {
+            return `${formatCurrency(auxilioFinal)} (Descuento: ${formatCurrency(descuento)})`;
+          }
+          
+          return formatCurrency(auxilioFinal);
         })(),
         "Auxilio de Movilidad": (() => {
           const auxilio = Number(employee.mobilityassistance) || 0;
@@ -1227,8 +1256,11 @@ const LiquidationForm = () => {
 
               // AUXILIO DE TRANSPORTE
               if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-                const auxilioDiario = Number(employee.transportationassistance) || 0;
-                const valorAuxilio = auxilioDiario * diasNovedad;
+                const auxilioPeriodo = calculateTransportationAssistance(employee, form.paymentMethod);
+                // Calcular días del período según método de pago
+                const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+                const auxilioDiario = auxilioPeriodo / diasPeriodo; // Calcular auxilio diario según período
+                const valorAuxilio = auxilioDiario * diasNovedad; // Descontar solo los días de la novedad
                 
                 if (esDescuento) {
                   descuentosProporcionales += valorAuxilio;
@@ -1772,6 +1804,9 @@ const LiquidationForm = () => {
         newCalculatedValues[employee.id].total += auxilioTransporte;
       }
 
+      // Inicializar descuento del auxilio de transporte
+      let descuentoAuxilioTransporte = 0;
+
       // Procesar novedades del empleado
       const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === employee.id);
       let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
@@ -1810,10 +1845,14 @@ const LiquidationForm = () => {
 
             // AUXILIO DE TRANSPORTE
             if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-              const auxilioDiario = Number(employee.transportationassistance) || 0;
-              const valorAuxilio = auxilioDiario * diasNovedad;
+              const auxilioPeriodo = calculateTransportationAssistance(employee, form.paymentMethod);
+              // Calcular días del período según método de pago
+              const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+              const auxilioDiario = auxilioPeriodo / diasPeriodo; // Calcular auxilio diario según período
+              const valorAuxilio = auxilioDiario * diasNovedad; // Descontar solo los días de la novedad
               
               if (esDescuento) {
+                descuentoAuxilioTransporte += valorAuxilio; // Acumular descuentos
                 newCalculatedValues[employee.id].total -= valorAuxilio;
               } else {
                 newCalculatedValues[employee.id].total += valorAuxilio;
@@ -1913,6 +1952,8 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].pension_discount = pensionDiscount;
       newCalculatedValues[employee.id].social_security_discounts = socialSecurityDiscounts;
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
+      newCalculatedValues[employee.id].transportation_assistance_discount = Math.round(descuentoAuxilioTransporte * 100) / 100;
+      newCalculatedValues[employee.id].transportation_assistance_final = Math.round((auxilioTransporte - descuentoAuxilioTransporte) * 100) / 100;
       newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
       
       // Redondear totales a 2 decimales para coincidir con el backend
@@ -2265,13 +2306,32 @@ const LiquidationForm = () => {
                 <div className="mb-3">
                   <strong>Auxilio de Transporte:</strong>{" "}
                   {(() => {
+                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
                     const auxilioCalculado = calculateTransportationAssistance(
                       selectedEmployee,
                       form.paymentMethod
                     );
-                    return auxilioCalculado > 0
-                      ? formatCurrency(auxilioCalculado)
-                      : "No aplica";
+                    const descuento = employeeValues.transportation_assistance_discount || 0;
+                    const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
+                      ? employeeValues.transportation_assistance_final 
+                      : auxilioCalculado;
+                    
+                    if (auxilioFinal <= 0) {
+                      return "No aplica";
+                    }
+                    
+                    if (descuento > 0) {
+                      return (
+                        <div>
+                          <div>{formatCurrency(auxilioFinal)}</div>
+                          <small className="text-danger">
+                            (Auxilio: {formatCurrency(auxilioCalculado)} - Descuento: {formatCurrency(descuento)})
+                          </small>
+                        </div>
+                      );
+                    }
+                    
+                    return formatCurrency(auxilioFinal);
                   })()}
                 </div>
                 <div className="mb-3">
