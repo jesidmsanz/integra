@@ -4,6 +4,20 @@ import { createRef, useEffect, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// Estilos para el dropdown de posición (sin color salmón)
+const positionToggleStyle = {
+  width: "100%",
+  textAlign: "left",
+  backgroundColor: "#fff",
+  border: "1px solid #ced4da",
+  color: "#495057",
+  padding: "0.375rem 0.75rem",
+  fontSize: "1rem",
+  lineHeight: "1.5",
+  borderRadius: "0.25rem",
+  boxShadow: "none",
+};
+
 import {
   Button,
   Form,
@@ -16,6 +30,10 @@ import {
   Col,
   Row,
   FormFeedback,
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
 } from "reactstrap";
 
 const initialState = {
@@ -90,8 +108,12 @@ const EmployeeForm = ({
   const [companies, setCompanies] = useState([]);
   const [positions, setPositions] = useState([]);
   const [showPositionModal, setShowPositionModal] = useState(false);
+  const [showPositionListModal, setShowPositionListModal] = useState(false);
   const [newPosition, setNewPosition] = useState({ name: "", description: "" });
+  const [editingPosition, setEditingPosition] = useState(null);
   const [savingPosition, setSavingPosition] = useState(false);
+  const [deletingPosition, setDeletingPosition] = useState(null);
+  const [positionDropdownOpen, setPositionDropdownOpen] = useState(false);
   let formRef = createRef();
 
   const selectOptions = {
@@ -362,6 +384,80 @@ const EmployeeForm = ({
     }
   };
 
+  const handleEditPosition = (position) => {
+    setEditingPosition(position);
+    setNewPosition({ name: position.name, description: position.description || "" });
+    setShowPositionModal(true);
+  };
+
+  const handleUpdatePosition = async () => {
+    if (!newPosition.name.trim()) {
+      toast.error("El nombre del cargo es requerido");
+      return;
+    }
+
+    try {
+      setSavingPosition(true);
+      const response = await positionsApi.update(editingPosition.id, {
+        name: newPosition.name.trim(),
+        description: newPosition.description.trim() || null,
+        active: editingPosition.active
+      });
+      
+      if (response.error) {
+        throw new Error(response.message || "Error al actualizar el cargo");
+      }
+      
+      toast.success("Cargo actualizado exitosamente");
+      setNewPosition({ name: "", description: "" });
+      setEditingPosition(null);
+      setShowPositionModal(false);
+      await loadPositions();
+      // Actualizar el cargo seleccionado si es el que se editó
+      if (form.position === editingPosition.name) {
+        setForm(prev => ({ ...prev, position: newPosition.name.trim() }));
+      }
+    } catch (error) {
+      console.error("Error updating position:", error);
+      toast.error(error.message || "Error al actualizar el cargo");
+    } finally {
+      setSavingPosition(false);
+    }
+  };
+
+  const handleDeletePosition = async (position) => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar el cargo "${position.name}"?`)) {
+      return;
+    }
+
+    try {
+      setDeletingPosition(position.id);
+      const response = await positionsApi.remove(position.id);
+      
+      if (response.error) {
+        throw new Error(response.message || "Error al eliminar el cargo");
+      }
+      
+      toast.success("Cargo eliminado exitosamente");
+      await loadPositions();
+      // Si el cargo eliminado estaba seleccionado, limpiar la selección
+      if (form.position === position.name) {
+        setForm(prev => ({ ...prev, position: "" }));
+      }
+    } catch (error) {
+      console.error("Error deleting position:", error);
+      toast.error(error.message || "Error al eliminar el cargo");
+    } finally {
+      setDeletingPosition(null);
+    }
+  };
+
+  const handleClosePositionModal = () => {
+    setShowPositionModal(false);
+    setEditingPosition(null);
+    setNewPosition({ name: "", description: "" });
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Normalizar el valor para que no sea sensible a mayúsculas/minúsculas
@@ -442,6 +538,7 @@ const EmployeeForm = ({
         'residence_place',
         'disability_type', // No requerido si has_disability es false
         'transportationassistance', // Auxilio de Transporte - opcional
+        'mobilityassistance', // Auxilio de Movilidad - opcional
         'hasadditionaldiscount', // Descuento Adicional - opcional
         'shirtsize', // Talla de Camisa - opcional
         'pantssize', // Talla de Pantalón - opcional
@@ -755,35 +852,91 @@ const EmployeeForm = ({
               <Col md="4">
                 <FormGroup>
                   <Label for="position">Cargo:</Label>
-                  <div className="d-flex">
-                    <Input
-                      type="select"
-                      name="position"
-                      id="position"
-                      onChange={handleChange}
-                      value={form.position}
-                      invalid={!!errors.position}
-                      required
-                      style={{ flex: 1 }}
+                  <Dropdown
+                    isOpen={positionDropdownOpen}
+                    toggle={() => setPositionDropdownOpen(!positionDropdownOpen)}
+                    style={{ width: "100%" }}
+                  >
+                    <DropdownToggle
+                      caret
+                      color=""
+                      tag="div"
+                      style={positionToggleStyle}
+                      className="form-control"
                     >
-                      <option value="">Selecciona una opción</option>
+                      {form.position || "Selecciona una opción"}
+                    </DropdownToggle>
+                    <DropdownMenu style={{ width: "100%", maxHeight: "300px", overflowY: "auto" }}>
+                      <DropdownItem
+                        onClick={() => {
+                          setForm(prev => ({ ...prev, position: "" }));
+                          setPositionDropdownOpen(false);
+                        }}
+                      >
+                        Selecciona una opción
+                      </DropdownItem>
+                      <DropdownItem divider />
                       {positions.map((position) => (
-                        <option key={position.id || position.name} value={position.name}>
-                          {position.name}
-                        </option>
+                        <DropdownItem
+                          key={position.id || position.name}
+                          active={form.position === position.name}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setForm(prev => ({ ...prev, position: position.name }));
+                            setPositionDropdownOpen(false);
+                          }}
+                        >
+                          <div className="d-flex justify-content-between align-items-center w-100">
+                            <span>{position.name}</span>
+                            <div className="d-flex gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
+                              <i
+                                className="fa fa-edit text-warning"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPositionDropdownOpen(false);
+                                  handleEditPosition(position);
+                                }}
+                                style={{ cursor: "pointer", fontSize: "12px" }}
+                                title="Editar cargo"
+                              ></i>
+                              {deletingPosition === position.id ? (
+                                <i className="fa fa-spinner fa-spin text-danger" style={{ fontSize: "12px" }}></i>
+                              ) : (
+                                <i
+                                  className="fa fa-trash text-danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeletePosition(position);
+                                  }}
+                                  style={{ cursor: "pointer", fontSize: "12px" }}
+                                  title="Eliminar cargo"
+                                ></i>
+                              )}
+                            </div>
+                          </div>
+                        </DropdownItem>
                       ))}
-                    </Input>
-                    <Button
-                      type="button"
-                      color="primary"
-                      size="sm"
-                      onClick={() => setShowPositionModal(true)}
-                      style={{ marginLeft: "8px" }}
-                      title="Crear nuevo cargo"
-                    >
-                      <i className="fa fa-plus"></i>
-                    </Button>
-                  </div>
+                      <DropdownItem divider />
+                      <DropdownItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPositionDropdownOpen(false);
+                          setEditingPosition(null);
+                          setNewPosition({ name: "", description: "" });
+                          setShowPositionModal(true);
+                        }}
+                      >
+                        <i className="fa fa-plus text-primary mr-2"></i>
+                        Crear nuevo cargo
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
+                  <input
+                    type="hidden"
+                    name="position"
+                    value={form.position}
+                    required
+                  />
                   {errors.position && (
                     <FormFeedback>{errors.position}</FormFeedback>
                   )}
@@ -1177,7 +1330,6 @@ const EmployeeForm = ({
                     onChange={handleCurrencyChange}
                     value={form.mobilityassistance ? formatCurrency(form.mobilityassistance) : ""}
                     invalid={!!errors.mobilityassistance}
-                    required
                   />
                   {errors.mobilityassistance && (
                     <FormFeedback>{errors.mobilityassistance}</FormFeedback>
@@ -1692,10 +1844,10 @@ const EmployeeForm = ({
         </ModalBody>
       </Modal>
 
-      {/* Modal para crear nuevo cargo */}
-      <Modal isOpen={showPositionModal} toggle={() => setShowPositionModal(false)}>
-        <ModalHeader toggle={() => setShowPositionModal(false)}>
-          Crear Nuevo Cargo
+      {/* Modal para crear/editar cargo */}
+      <Modal isOpen={showPositionModal} toggle={handleClosePositionModal}>
+        <ModalHeader toggle={handleClosePositionModal}>
+          {editingPosition ? "Editar Cargo" : "Crear Nuevo Cargo"}
         </ModalHeader>
         <ModalBody>
           <FormGroup>
@@ -1712,19 +1864,93 @@ const EmployeeForm = ({
           <div className="d-flex justify-content-end gap-2 mt-3">
             <Button
               color="secondary"
-              onClick={() => {
-                setShowPositionModal(false);
-                setNewPosition({ name: "", description: "" });
-              }}
+              onClick={handleClosePositionModal}
             >
               Cancelar
             </Button>
             <Button
               color="primary"
-              onClick={handleCreatePosition}
+              onClick={editingPosition ? handleUpdatePosition : handleCreatePosition}
               disabled={savingPosition || !newPosition.name.trim()}
             >
-              {savingPosition ? "Guardando..." : "Guardar"}
+              {savingPosition ? "Guardando..." : editingPosition ? "Actualizar" : "Guardar"}
+            </Button>
+          </div>
+        </ModalBody>
+      </Modal>
+
+      {/* Modal para listar y gestionar cargos */}
+      <Modal isOpen={showPositionListModal} toggle={() => setShowPositionListModal(false)} size="lg">
+        <ModalHeader toggle={() => setShowPositionListModal(false)}>
+          Gestionar Cargos
+        </ModalHeader>
+        <ModalBody>
+          <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <table className="table table-hover">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Estado</th>
+                  <th style={{ width: "150px", textAlign: "center" }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="text-center text-muted">
+                      No hay cargos disponibles
+                    </td>
+                  </tr>
+                ) : (
+                  positions.map((position) => (
+                    <tr key={position.id || position.name}>
+                      <td>{position.name}</td>
+                      <td>
+                        <span className={`badge ${position.active ? 'badge-success' : 'badge-secondary'}`}>
+                          {position.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="d-flex justify-content-center gap-2">
+                          <i
+                            className="fa fa-edit text-warning"
+                            onClick={() => {
+                              setShowPositionListModal(false);
+                              handleEditPosition(position);
+                            }}
+                            style={{ cursor: "pointer", fontSize: "14px" }}
+                            title="Editar cargo"
+                          ></i>
+                          {deletingPosition === position.id ? (
+                            <i className="fa fa-spinner fa-spin text-danger" style={{ fontSize: "14px" }}></i>
+                          ) : (
+                            <i
+                              className="fa fa-trash text-danger"
+                              onClick={() => handleDeletePosition(position)}
+                              style={{ cursor: "pointer", fontSize: "14px" }}
+                              title="Eliminar cargo"
+                            ></i>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="d-flex justify-content-end mt-3">
+            <Button
+              color="primary"
+              onClick={() => {
+                setShowPositionListModal(false);
+                setEditingPosition(null);
+                setNewPosition({ name: "", description: "" });
+                setShowPositionModal(true);
+              }}
+            >
+              <i className="fa fa-plus mr-2"></i>
+              Crear Nuevo Cargo
             </Button>
           </div>
         </ModalBody>

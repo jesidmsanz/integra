@@ -157,7 +157,7 @@ module.exports = function (config) {
       },
       mobilityassistance: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         comment: "Mobility Assistance",
       },
       accounttype: {
