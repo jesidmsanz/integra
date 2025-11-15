@@ -487,12 +487,13 @@ const LiquidationsDashboard = () => {
           row.getCell(7).value = detail.hourly_rate || 0; // VALOR POR HORA
           row.getCell(8).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
 
-          // Agregar datos de novedades - LLENAR CON 0 SI NO HAY
+          // Agregar datos de novedades - SUMAR TODAS LAS NOVEDADES DEL MISMO TIPO
           let currentCol = 9;
           typeNews.forEach((type) => {
-            const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
-            const amount = novedad ? novedad.amount : 0;
-            row.getCell(currentCol).value = amount;
+            // Sumar TODAS las novedades del mismo tipo, no solo la primera
+            const novedadesDelTipo = detail.novedades?.filter(n => n.type_news_id === type.id) || [];
+            const totalAmount = novedadesDelTipo.reduce((sum, novedad) => sum + (Number(novedad.amount) || 0), 0);
+            row.getCell(currentCol).value = totalAmount;
             currentCol++;
           });
 

@@ -743,9 +743,20 @@ const LiquidationForm = () => {
     try {
       // Solo cargar novedades pendientes de liquidación para el período seleccionado
       if (form.startDate && form.endDate && form.companyId) {
+        let startDate = form.startDate;
+        let endDate = form.endDate;
+
+        // Si es quincenal y es corte 2: cargar todas las novedades del mes completo (1-30)
+        if (form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1) {
+          const monthStart = moment.utc(form.startDate).startOf('month');
+          const monthEnd = moment.utc(form.startDate).endOf('month');
+          startDate = monthStart.format('YYYY-MM-DD');
+          endDate = monthEnd.format('YYYY-MM-DD');
+        }
+
         const response = await employeeNewsApi.getPendingByPeriod(
-          form.startDate,
-          form.endDate,
+          startDate,
+          endDate,
           form.companyId
         );
 
@@ -937,7 +948,7 @@ const LiquidationForm = () => {
     if (form.startDate && form.endDate && form.companyId) {
       loadEmployeeNews();
     }
-  }, [form.startDate, form.endDate, form.companyId]);
+  }, [form.startDate, form.endDate, form.companyId, form.paymentMethod, form.corte1, form.corte2]);
 
   // Precargar normativas de tipos de horas para el cache
   useEffect(() => {
@@ -1033,87 +1044,35 @@ const LiquidationForm = () => {
           const auxilio = Number(employee.mobilityassistance) || 0;
           return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
         })(),
-        "Descuento Salud (4%)": (() => {
-          const salarioBase = Number(employee.basicmonthlysalary) || 0;
-          const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-          const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-          const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-          const descuentoSalud = shouldApply ? salarioCalculado * 0.04 : 0;
-          return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
-        })(),
-        "Descuento Pensión (4%)": (() => {
-          const salarioBase = Number(employee.basicmonthlysalary) || 0;
-          const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-          const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-          const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-          const descuentoPension = shouldApply ? salarioCalculado * 0.04 : 0;
-          return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
-        })(),
+        "Descuento Salud (4%)": "", // Se actualizará más abajo con el valor de calculatedValues
+        "Descuento Pensión (4%)": "", // Se actualizará más abajo con el valor de calculatedValues
         "Valor por hora": formatCurrency(employee.hourlyrate),
         "Frecuencia de pago": employee.paymentmethod || "No disponible",
       };
 
+      // Usar los valores ya calculados de calculatedValues para ser consistente con la tabla
       // Agregar columnas dinámicas de tipos de novedad
       typeNews.forEach((type) => {
-        const novedadesDelEmpleado = filteredEmployeeNews.filter((novedad) => {
-          const esDelEmpleado = novedad.employeeId === employee.id;
-          const esDelTipoNovedad = novedad.typeNewsId === type.id;
-          return esDelEmpleado && esDelTipoNovedad;
-        });
-
-        const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
-          const { valorNovedad } = calculateNovedadValue(
-            novedad,
-            employee,
-            type
-          );
-          return sum + valorNovedad;
-        }, 0);
-
-        baseData[type.code] = totalTipo ? formatCurrency(totalTipo) : "";
+        const novedadData = employeeValues.novedades?.[type.id];
+        const valorNovedad = novedadData?.valor || 0;
+        baseData[type.code] = valorNovedad > 0 ? formatCurrency(valorNovedad) : "";
       });
 
-      // CALCULAR EL TOTAL DIRECTAMENTE USANDO LA MISMA LÓGICA
-      const salarioBase = Number(employee.basicmonthlysalary) || 0;
-      const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+      // Usar los valores calculados directamente de calculatedValues
+      const healthDiscount = employeeValues.health_discount || 0;
+      const pensionDiscount = employeeValues.pension_discount || 0;
+      const absenceDiscounts = employeeValues.absence_discounts || 0;
       
-      const auxilioTransporte = calculateTransportationAssistance(employee, form.paymentMethod);
+      // Actualizar los descuentos en baseData usando los valores calculados
+      baseData["Descuento Salud (4%)"] = healthDiscount > 0 
+        ? formatCurrency(healthDiscount) 
+        : "No aplica este corte";
+      baseData["Descuento Pensión (4%)"] = pensionDiscount > 0 
+        ? formatCurrency(pensionDiscount) 
+        : "No aplica este corte";
       
-      // Calcular total de novedades
-      let totalNovedades = 0;
-      typeNews.forEach((type) => {
-        const novedadesDelEmpleado = filteredEmployeeNews.filter((novedad) => {
-          const esDelEmpleado = novedad.employeeId === employee.id;
-          const esDelTipoNovedad = novedad.typeNewsId === type.id;
-          return esDelEmpleado && esDelTipoNovedad;
-        });
-
-        const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
-          const { valorNovedad } = calculateNovedadValue(novedad, employee, type);
-          return sum + valorNovedad;
-        }, 0);
-        
-        // Redondear totalTipo antes de sumarlo
-        const totalTipoRedondeado = Math.round(totalTipo * 100) / 100;
-        totalNovedades += totalTipoRedondeado;
-      });
-      
-      // Calcular descuentos de seguridad social
-      const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-      const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-      const healthDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
-      const pensionDiscount = shouldApply ? salarioBaseCalculado * 0.04 : 0;
-      const socialSecurityDiscounts = healthDiscount + pensionDiscount;
-      
-      // Calcular descuentos por ausentismo
-      const absenceDiscounts = calculateAbsenceDiscounts(employee, form.startDate, form.endDate);
-      
-      // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
-      let totalFinal = salarioBaseCalculado + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
-      // Redondear a 2 decimales para coincidir con el backend
-      totalFinal = Math.round(totalFinal * 100) / 100;
-      
-      baseData["Total"] = formatCurrency(totalFinal);
+      // Usar el total ya calculado de calculatedValues
+      baseData["Total"] = formatCurrency(employeeValues.total || 0);
 
       return baseData;
     });
@@ -1530,10 +1489,21 @@ const LiquidationForm = () => {
 
       const newsStart = moment.utc(news.startDate);
       const newsEnd = moment.utc(news.endDate);
-      const filterStart = moment.utc(form.startDate);
-      const filterEnd = moment.utc(form.endDate);
+      let filterStart = moment.utc(form.startDate);
+      let filterEnd = moment.utc(form.endDate);
 
-      // Verificar si está dentro del rango de fechas general
+      // Si es quincenal y es corte 1: NO se liquidan novedades
+      if (form.paymentMethod === "Quincenal" && form.corte1 && !form.corte2) {
+        return false;
+      }
+
+      // Si es quincenal y es corte 2: incluir todas las novedades del mes completo (1-30)
+      if (form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1) {
+        filterStart = moment.utc(form.startDate).startOf('month');
+        filterEnd = moment.utc(form.startDate).endOf('month');
+      }
+
+      // Verificar si está dentro del rango de fechas
       const isInDateRange =
         (newsStart.isSameOrAfter(filterStart) &&
           newsStart.isSameOrBefore(filterEnd)) ||
@@ -1542,24 +1512,7 @@ const LiquidationForm = () => {
         (newsStart.isSameOrBefore(filterStart) &&
           newsEnd.isSameOrAfter(filterEnd));
 
-      if (!isInDateRange) return false;
-
-      // Si es quincenal y hay cortes seleccionados
-      if (form.paymentMethod === "Quincenal" && (form.corte1 || form.corte2)) {
-        const diaInicio = newsStart.date();
-
-        // Para corte 2 (16-31)
-        if (!form.corte1 && form.corte2) {
-          return diaInicio >= 16;
-        }
-
-        // Para corte 1 (1-15)
-        if (form.corte1 && !form.corte2) {
-          return diaInicio <= 15;
-        }
-      }
-
-      return true;
+      return isInDateRange;
     });
     setFilteredEmployeeNews(filtered);
   };
