@@ -16,6 +16,7 @@ const setupNormativasModel = require("../../components/normativas/model");
 const setupRolesModel = require("../../components/roles/model");
 const setupPermissionsModel = require("../../components/permissions/model");
 const setupRolePermissionsModel = require("../../components/role_permissions/model");
+const setupPositionsModel = require("../../components/positions/model");
 
 // Stores
 const setupUsers = require("../../components/users/store");
@@ -32,6 +33,7 @@ const setupNormativas = require("../../components/normativas/store");
 const setupRoles = require("../../components/roles/store");
 const setupPermissions = require("../../components/permissions/store");
 const setupRolePermissions = require("../../components/role_permissions/store");
+const setupPositions = require("../../components/positions/store");
 
 module.exports = async (config) => {
   const sequelize = setupDatabase(config);
@@ -55,6 +57,7 @@ module.exports = async (config) => {
     const RolesModel = setupRolesModel(sequelize);
     const PermissionsModel = setupPermissionsModel(sequelize);
     const RolePermissionsModel = setupRolePermissionsModel(sequelize);
+    const PositionsModel = setupPositionsModel(sequelize);
 
     // Establecer relaciones entre modelos
     // Liquidations -> Companies
@@ -198,6 +201,7 @@ module.exports = async (config) => {
     const Roles = setupRoles(RolesModel, config, sequelize);
     const Permissions = setupPermissions(PermissionsModel, config, sequelize);
     const RolePermissions = setupRolePermissions(RolePermissionsModel, config, sequelize);
+    const Positions = setupPositions(PositionsModel, config, sequelize);
 
     return {
       Users,
@@ -214,6 +218,7 @@ module.exports = async (config) => {
       Roles,
       Permissions,
       RolePermissions,
+      Positions,
       sequelize,
     };
   } catch (error) {

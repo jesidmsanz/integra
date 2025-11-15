@@ -1,4 +1,4 @@
-import { companiesApi, employeesApi } from "@/utils/api";
+import { companiesApi, employeesApi, positionsApi } from "@/utils/api";
 import { use } from "passport";
 import { createRef, useEffect, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
@@ -88,6 +88,10 @@ const EmployeeForm = ({
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [showPositionModal, setShowPositionModal] = useState(false);
+  const [newPosition, setNewPosition] = useState({ name: "", description: "" });
+  const [savingPosition, setSavingPosition] = useState(false);
   let formRef = createRef();
 
   const selectOptions = {
@@ -310,6 +314,54 @@ const EmployeeForm = ({
     }
   };
 
+  const loadPositions = async () => {
+    try {
+      const response = await positionsApi.listActive();
+      if (response.error) {
+        throw new Error(response.message);
+      }
+      const positionsList = Array.isArray(response) ? response : (response.body || response.data || []);
+      setPositions(positionsList);
+    } catch (error) {
+      console.log("error loading positions", error);
+      // Si falla, usar los cargos por defecto
+      setPositions(selectOptions.position.map(name => ({ id: name, name })));
+    }
+  };
+
+  const handleCreatePosition = async () => {
+    if (!newPosition.name.trim()) {
+      toast.error("El nombre del cargo es requerido");
+      return;
+    }
+
+    try {
+      setSavingPosition(true);
+      const response = await positionsApi.create({
+        name: newPosition.name.trim(),
+        description: newPosition.description.trim() || null,
+        active: true
+      });
+      
+      if (response.error) {
+        throw new Error(response.message || "Error al crear el cargo");
+      }
+      
+      toast.success("Cargo creado exitosamente");
+      setNewPosition({ name: "", description: "" });
+      setShowPositionModal(false);
+      await loadPositions();
+      // Seleccionar el cargo recién creado
+      const createdPosition = Array.isArray(response) ? response[0] : (response.body || response.data || response);
+      setForm(prev => ({ ...prev, position: createdPosition.name }));
+    } catch (error) {
+      console.error("Error creating position:", error);
+      toast.error(error.message || "Error al crear el cargo");
+    } finally {
+      setSavingPosition(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     // Normalizar el valor para que no sea sensible a mayúsculas/minúsculas
@@ -332,6 +384,7 @@ const EmployeeForm = ({
 
   useEffect(() => {
     loadCompanies();
+    loadPositions();
     if (isUpdate && dataToUpdate) {
       console.log("🔍 dataToUpdate:", dataToUpdate);
       const formattedData = {
@@ -702,22 +755,35 @@ const EmployeeForm = ({
               <Col md="4">
                 <FormGroup>
                   <Label for="position">Cargo:</Label>
-                  <Input
-                    type="select"
-                    name="position"
-                    id="position"
-                    onChange={handleChange}
-                    value={form.position}
-                    invalid={!!errors.position}
-                    required
-                  >
-                    <option value="">Selecciona una opción</option>
-                    {selectOptions.position.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </Input>
+                  <div className="d-flex">
+                    <Input
+                      type="select"
+                      name="position"
+                      id="position"
+                      onChange={handleChange}
+                      value={form.position}
+                      invalid={!!errors.position}
+                      required
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Selecciona una opción</option>
+                      {positions.map((position) => (
+                        <option key={position.id || position.name} value={position.name}>
+                          {position.name}
+                        </option>
+                      ))}
+                    </Input>
+                    <Button
+                      type="button"
+                      color="primary"
+                      size="sm"
+                      onClick={() => setShowPositionModal(true)}
+                      style={{ marginLeft: "8px" }}
+                      title="Crear nuevo cargo"
+                    >
+                      <i className="fa fa-plus"></i>
+                    </Button>
+                  </div>
                   {errors.position && (
                     <FormFeedback>{errors.position}</FormFeedback>
                   )}
@@ -1623,6 +1689,44 @@ const EmployeeForm = ({
               </Col>
             </Row>
           </Form>
+        </ModalBody>
+      </Modal>
+
+      {/* Modal para crear nuevo cargo */}
+      <Modal isOpen={showPositionModal} toggle={() => setShowPositionModal(false)}>
+        <ModalHeader toggle={() => setShowPositionModal(false)}>
+          Crear Nuevo Cargo
+        </ModalHeader>
+        <ModalBody>
+          <FormGroup>
+            <Label for="newPositionName">Nombre del Cargo *</Label>
+            <Input
+              type="text"
+              id="newPositionName"
+              value={newPosition.name}
+              onChange={(e) => setNewPosition(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Ej: Auxiliar Administrativo"
+              required
+            />
+          </FormGroup>
+          <div className="d-flex justify-content-end gap-2 mt-3">
+            <Button
+              color="secondary"
+              onClick={() => {
+                setShowPositionModal(false);
+                setNewPosition({ name: "", description: "" });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="primary"
+              onClick={handleCreatePosition}
+              disabled={savingPosition || !newPosition.name.trim()}
+            >
+              {savingPosition ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
         </ModalBody>
       </Modal>
     </>

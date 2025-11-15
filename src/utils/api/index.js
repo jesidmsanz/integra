@@ -8,6 +8,7 @@ import liquidationsApi from "./liquidationsApi";
 import rolesApi from "./rolesApi";
 import permissionsApi from "./permissionsApi";
 import rolePermissionsApi from "./rolePermissionsApi";
+import positionsApi from "./positionsApi";
 
 export {
   usersApi,
@@ -20,4 +21,5 @@ export {
   rolesApi,
   permissionsApi,
   rolePermissionsApi,
+  positionsApi,
 };
