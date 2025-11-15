@@ -483,7 +483,50 @@ const LiquidationsDashboard = () => {
           row.getCell(3).value = detail.employee_position; // CARGO
           row.getCell(4).value = detail.contract_type || "No disponible"; // TIPO DE CONTRATO
           row.getCell(5).value = detail.basic_salary; // SALARIO BASE
-          row.getCell(6).value = detail.transportation_assistance; // AUXILIO DE TRANSPORTE
+          
+          // Calcular auxilio de transporte con descuentos aplicados
+          const auxilioTransporteOriginal = Number(detail.transportation_assistance) || 0;
+          let descuentoAuxilioTransporte = 0;
+          
+          if (detail.novedades && detail.novedades.length > 0) {
+            detail.novedades.forEach(novedad => {
+              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
+              if (!tipoNovedad) return;
+              
+              const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+              
+              if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+                let affectsData;
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  affectsData = {};
+                }
+                
+                if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+                  // Calcular días de la novedad
+                  const fechaInicio = moment.utc(novedad.start_date || novedad.startDate);
+                  const fechaFin = moment.utc(novedad.end_date || novedad.endDate);
+                  const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
+                  
+                  // Calcular auxilio diario según período de pago (usar auxilio original)
+                  const diasPeriodo = detail.payment_method === "Quincenal" ? 15 : 30;
+                  const auxilioDiario = auxilioTransporteOriginal / diasPeriodo;
+                  const valorAuxilio = auxilioDiario * diasNovedad;
+                  
+                  if (esDescuento) {
+                    descuentoAuxilioTransporte += valorAuxilio;
+                  }
+                }
+              }
+            });
+          }
+          
+          const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
+          
+          row.getCell(6).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (con descuentos aplicados)
           row.getCell(7).value = detail.hourly_rate || 0; // VALOR POR HORA
           row.getCell(8).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
 
@@ -517,7 +560,8 @@ const LiquidationsDashboard = () => {
           
           // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
           const salarioBase = Number(detail.basic_salary) || 0;
-          const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+          // Usar el auxilio de transporte ya calculado con descuentos (de arriba)
+          const auxilioTransporte = auxilioTransporteFinal;
           
           // Calcular total de novedades
           let totalNovedades = 0;
@@ -606,7 +650,46 @@ const LiquidationsDashboard = () => {
         
         liquidationData.liquidation_details.forEach(detail => {
           totalSalario += detail.basic_salary || 0;
-          totalTransporte += detail.transportation_assistance || 0;
+          
+          // Calcular auxilio de transporte con descuentos para el total
+          const auxilioTransporteOriginal = Number(detail.transportation_assistance) || 0;
+          let descuentoAuxilioTransporte = 0;
+          
+          if (detail.novedades && detail.novedades.length > 0) {
+            detail.novedades.forEach(novedad => {
+              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
+              if (!tipoNovedad) return;
+              
+              const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+              
+              if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
+                let affectsData;
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  affectsData = {};
+                }
+                
+                if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+                  const fechaInicio = moment.utc(novedad.start_date || novedad.startDate);
+                  const fechaFin = moment.utc(novedad.end_date || novedad.endDate);
+                  const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
+                  const diasPeriodo = detail.payment_method === "Quincenal" ? 15 : 30;
+                  const auxilioDiario = auxilioTransporteOriginal / diasPeriodo;
+                  const valorAuxilio = auxilioDiario * diasNovedad;
+                  
+                  if (esDescuento) {
+                    descuentoAuxilioTransporte += valorAuxilio;
+                  }
+                }
+              }
+            });
+          }
+          
+          const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
+          totalTransporte += auxilioTransporteFinal;
           
           // Acumular descuentos individuales
           totalSalud += Number(detail.health_discount) || 0;
@@ -615,7 +698,7 @@ const LiquidationsDashboard = () => {
           
           // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
           const salarioBase = Number(detail.basic_salary) || 0;
-          const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+          const auxilioTransporte = auxilioTransporteFinal;
           
           // Calcular total de novedades
           let totalNovedades = 0;
