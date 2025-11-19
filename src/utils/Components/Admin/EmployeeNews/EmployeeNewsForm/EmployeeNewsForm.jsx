@@ -240,7 +240,13 @@ const EmployeeNewsForm = ({
           const filtered = response.filter(
             (emp) => emp.companyid === parseInt(companyId)
           );
-          setFilteredEmployees(filtered);
+          // Ordenar alfabéticamente por nombre completo
+          const sorted = filtered.sort((a, b) => {
+            const nameA = (a.fullname || '').toLowerCase();
+            const nameB = (b.fullname || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+          });
+          setFilteredEmployees(sorted);
           
           // Si hay un empleado seleccionado, filtrar los tipos de novedad
           if (formData.employeeId) {
@@ -305,25 +311,26 @@ const EmployeeNewsForm = ({
       return;
     }
 
-
     const employeeGender = selectedEmployee.sex?.toLowerCase();
     
-    // Si el empleado no tiene género asignado, mostrar todos los tipos de novedades
+    // Si el empleado no tiene género asignado, NO mostrar ninguna novedad
     if (!employeeGender) {
-      console.log("⚠️ Empleado sin género asignado, mostrando todos los tipos de novedades");
-      setFilteredTypeNews(typeNews);
+      console.log("⚠️ Empleado sin género asignado, no se muestran tipos de novedades");
+      setFilteredTypeNews([]);
+      // Resetear el tipo de novedad seleccionado si había uno
+      if (formData.typeNewsId) {
+        setFormData(prev => ({ ...prev, typeNewsId: "" }));
+      }
       return;
     }
 
-
+    // Filtrar según el género del empleado
     const filtered = typeNews.filter(type => {
       try {
-        
         // Parsear el campo applies_to que es un JSON string
         const appliesTo = typeof type.applies_to === 'string' && type.applies_to
           ? JSON.parse(type.applies_to) 
           : type.applies_to || {};
-        
         
         // Normalizar las claves del objeto applies_to
         const normalizedAppliesTo = {
@@ -332,29 +339,26 @@ const EmployeeNewsForm = ({
           ambos: appliesTo.ambos === true || appliesTo.ambos === 'true'
         };
         
-        // Si no hay configuración de género en el tipo de novedad, mostrarlo (compatibilidad hacia atrás)
+        // Si no hay configuración de género en el tipo de novedad, no mostrarlo (ser más restrictivo)
         if (!normalizedAppliesTo.masculino && !normalizedAppliesTo.femenino && !normalizedAppliesTo.ambos) {
-          console.log(`⚠️ Tipo de novedad ${type.name} sin configuración de género, mostrándolo`);
-          return true;
+          return false;
         }
         
         // Si el empleado es femenino, mostrar novedades que apliquen a femenino o ambos
         if (employeeGender === 'femenino') {
-          const shouldShow = normalizedAppliesTo.femenino || normalizedAppliesTo.ambos;
-          return shouldShow;
+          return normalizedAppliesTo.femenino || normalizedAppliesTo.ambos;
         }
         // Si el empleado es masculino, mostrar novedades que apliquen a masculino o ambos
         else if (employeeGender === 'masculino') {
-          const shouldShow = normalizedAppliesTo.masculino || normalizedAppliesTo.ambos;
-          return shouldShow;
+          return normalizedAppliesTo.masculino || normalizedAppliesTo.ambos;
         }
         
-        // Si no se puede determinar el género, mostrar todas
-        return true;
+        // Si no se puede determinar el género, no mostrar
+        return false;
       } catch (error) {
         console.error('❌ Error al parsear applies_to para tipo de novedad:', type.id, error);
-        // En caso de error, mostrar todas las novedades
-        return true;
+        // En caso de error, no mostrar
+        return false;
       }
     });
 
@@ -698,18 +702,35 @@ const EmployeeNewsForm = ({
                     Seleccione un empleado para ver los tipos de novedad disponibles según su género.
                   </small>
                 )}
-                {formData.employeeId && filteredTypeNews.length === 0 && (
-                  <small className="text-warning">
-                    <i className="fas fa-exclamation-triangle me-1"></i>
-                    No hay tipos de novedad disponibles para este empleado. Verifique la configuración de géneros en los tipos de novedad.
-                  </small>
-                )}
-                {formData.employeeId && filteredTypeNews.length > 0 && (
-                  <small className="text-muted">
-                    <i className="fas fa-check-circle me-1"></i>
-                    {filteredTypeNews.length} tipo{filteredTypeNews.length !== 1 ? 's' : ''} de novedad disponible{filteredTypeNews.length !== 1 ? 's' : ''} para este empleado.
-                  </small>
-                )}
+                {formData.employeeId && (() => {
+                  const selectedEmployee = employees.find(emp => emp.id === parseInt(formData.employeeId));
+                  const hasGender = selectedEmployee?.sex?.toLowerCase();
+                  
+                  if (!hasGender) {
+                    return (
+                      <small className="text-danger">
+                        <i className="fas fa-exclamation-triangle me-1"></i>
+                        Asigne sexo al empleado para poder seleccionar tipos de novedad.
+                      </small>
+                    );
+                  }
+                  
+                  if (filteredTypeNews.length === 0) {
+                    return (
+                      <small className="text-danger">
+                        <i className="fas fa-exclamation-triangle me-1"></i>
+                        Asigne sexo al empleado para poder seleccionar tipos de novedad.
+                      </small>
+                    );
+                  }
+                  
+                  return (
+                    <small className="text-muted">
+                      <i className="fas fa-check-circle me-1"></i>
+                      {filteredTypeNews.length} tipo{filteredTypeNews.length !== 1 ? 's' : ''} de novedad disponible{filteredTypeNews.length !== 1 ? 's' : ''} para este empleado.
+                    </small>
+                  );
+                })()}
               </FormGroup>
             </Col>
             <Col md="6">
