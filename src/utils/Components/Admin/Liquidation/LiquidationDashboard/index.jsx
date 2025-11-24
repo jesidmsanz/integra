@@ -264,7 +264,9 @@ const LiquidationsDashboard = () => {
           { key: 'cargo', width: 18 },
           { key: 'tipo_contrato', width: 18 },
           { key: 'salario_base', width: 18 },
+          { key: 'salario_base_conceptos', width: 20 },
           { key: 'auxilio_transporte', width: 18 },
+          { key: 'auxilio_movilidad', width: 18 },
           { key: 'valor_hora', width: 18 },
           { key: 'frecuencia_pago', width: 18 }
         ];
@@ -294,7 +296,7 @@ const LiquidationsDashboard = () => {
         worksheet.columns = finalColumns;
         
         
-        const totalColumns = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
+        const totalColumns = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
         
         // Función para obtener letra de columna
         const getColumnLetter = (num) => {
@@ -432,7 +434,9 @@ const LiquidationsDashboard = () => {
           'CARGO',
           'TIPO DE CONTRATO',
           'SALARIO BASE',
+          'SALARIO BASE + CONCEPTOS',
           'AUXILIO DE TRANSPORTE',
+          'AUXILIO DE MOVILIDAD',
           'VALOR POR HORA',
           'FRECUENCIA DE PAGO',
           ...typeNews.map(type => type.code || type.name),
@@ -484,6 +488,43 @@ const LiquidationsDashboard = () => {
           row.getCell(4).value = detail.contract_type || "No disponible"; // TIPO DE CONTRATO
           row.getCell(5).value = detail.basic_salary; // SALARIO BASE
           
+          // Calcular Salario Base + Conceptos (base de seguridad social)
+          const salarioBase = Number(detail.basic_salary) || 0;
+          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
+          const cuarentaPorcientoSalario = salarioBase * 0.4;
+          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+          
+          // Buscar novedades prestacionales
+          let valorPrestacionales = 0;
+          if (detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
+              if (tipoNovedad) {
+                let affectsData = {};
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  affectsData = {};
+                }
+                
+                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                  const amount = Number(novedad.amount) || 0;
+                  valorPrestacionales += amount;
+                }
+              }
+            });
+          }
+          
+          // Si el auxilio excede 40%, se suma a la base de seguridad social
+          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
+            ? valorPrestacionales + auxilioMovilidad 
+            : valorPrestacionales;
+          
+          const baseSeguridadSocial = salarioBase + valorPrestacionalesConMovilidad;
+          row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS
+          
           // Calcular auxilio de transporte con descuentos aplicados
           const auxilioTransporteOriginal = Number(detail.transportation_assistance) || 0;
           let descuentoAuxilioTransporte = 0;
@@ -526,12 +567,13 @@ const LiquidationsDashboard = () => {
           
           const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
           
-          row.getCell(6).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (con descuentos aplicados)
-          row.getCell(7).value = detail.hourly_rate || 0; // VALOR POR HORA
-          row.getCell(8).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
+          row.getCell(7).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (con descuentos aplicados)
+          row.getCell(8).value = Number(detail.mobility_assistance) || 0; // AUXILIO DE MOVILIDAD
+          row.getCell(9).value = detail.hourly_rate || 0; // VALOR POR HORA
+          row.getCell(10).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
 
           // Agregar datos de novedades - SUMAR TODAS LAS NOVEDADES DEL MISMO TIPO
-          let currentCol = 9;
+          let currentCol = 11;
           typeNews.forEach((type) => {
             // Sumar TODAS las novedades del mismo tipo, no solo la primera
             const novedadesDelTipo = detail.novedades?.filter(n => n.type_news_id === type.id) || [];
@@ -540,26 +582,28 @@ const LiquidationsDashboard = () => {
             currentCol++;
           });
 
-          // Agregar datos de descuentos
-          const saludCol = 8 + typeNews.length + 1;
-          const pensionCol = 8 + typeNews.length + 2;
-          const ausentismoCol = 8 + typeNews.length + 3;
-          
-          const healthDiscount = Number(detail.health_discount) || 0;
-          const pensionDiscount = Number(detail.pension_discount) || 0;
+          // Recalcular descuentos de salud y pensión usando la base de seguridad social ya calculada
+          const isSecondCut = detail.payment_method === "Quincenal" && liquidationData.cut_number === 2;
+          const shouldApply = !isSecondCut || detail.payment_method !== "Quincenal";
+          const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+          const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
           const absenceDiscounts = Number(detail.absence_discounts) || 0;
+          
+          // Agregar datos de descuentos
+          const saludCol = 10 + typeNews.length + 1;
+          const pensionCol = 10 + typeNews.length + 2;
+          const ausentismoCol = 10 + typeNews.length + 3;
           
           row.getCell(saludCol).value = healthDiscount;
           row.getCell(pensionCol).value = pensionDiscount;
           row.getCell(ausentismoCol).value = absenceDiscounts;
 
           // Columnas para totales
-          const devengadoCol = 8 + typeNews.length + 4;
-          const deduccionesCol = 8 + typeNews.length + 5;
-          const totalCol = 8 + typeNews.length + 6;
+          const devengadoCol = 10 + typeNews.length + 4;
+          const deduccionesCol = 10 + typeNews.length + 5;
+          const totalCol = 10 + typeNews.length + 6;
           
           // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-          const salarioBase = Number(detail.basic_salary) || 0;
           // Usar el auxilio de transporte ya calculado con descuentos (de arriba)
           const auxilioTransporte = auxilioTransporteFinal;
           
@@ -576,11 +620,14 @@ const LiquidationsDashboard = () => {
             });
           }
           
-          // Calcular descuentos de seguridad social (reutilizar variables ya declaradas arriba)
+          // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
+          // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
+          
+          // Calcular descuentos de seguridad social
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
           // Totales: Devengado, Deducciones y Neto
-          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas;
+          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas + auxilioMovilidad;
           const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
           const totalFinal = totalDevengado - totalDeducciones;
           
@@ -590,7 +637,7 @@ const LiquidationsDashboard = () => {
           row.getCell(totalCol).value = totalFinal;
 
           // Aplicar estilos a toda la fila COMPACTOS
-          const totalCols = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
+          const totalCols = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
           for (let col = 1; col <= totalCols; col++) {
             const cell = row.getCell(col);
             cell.font = {
@@ -615,17 +662,21 @@ const LiquidationsDashboard = () => {
             };
 
             // Formato de moneda para columnas numéricas
-            if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
+            if (col >= 5 && col <= 6) { // SALARIO BASE y SALARIO BASE + CONCEPTOS
               cell.numFmt = '"$"#,##0';
-            } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
+            } else if (col >= 7 && col <= 8) { // AUXILIO DE TRANSPORTE y AUXILIO DE MOVILIDAD
               cell.numFmt = '"$"#,##0';
-            } else if (col >= 8 + typeNews.length + 1 && col <= 8 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
+            } else if (col === 9) { // VALOR POR HORA
               cell.numFmt = '"$"#,##0';
-            } else if (col === 8 + typeNews.length + 4) { // DEVENGADO
+            } else if (col >= 11 && col <= 10 + typeNews.length) { // NOVEDADES
               cell.numFmt = '"$"#,##0';
-            } else if (col === 8 + typeNews.length + 5) { // DEDUCCIONES
+            } else if (col >= 10 + typeNews.length + 1 && col <= 10 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
               cell.numFmt = '"$"#,##0';
-            } else if (col === 8 + typeNews.length + 6) { // TOTAL
+            } else if (col === 10 + typeNews.length + 4) { // DEVENGADO
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 10 + typeNews.length + 6) { // TOTAL
               cell.numFmt = '"$"#,##0';
             }
           }
@@ -641,6 +692,7 @@ const LiquidationsDashboard = () => {
         // Calcular totales manualmente (SIN FÓRMULAS)
         let totalSalario = 0;
         let totalTransporte = 0;
+        let totalMovilidad = 0;
         let totalDevengadoGeneral = 0;
         let totalDeduccionesGeneral = 0;
         let totalNeto = 0;
@@ -691,13 +743,56 @@ const LiquidationsDashboard = () => {
           const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
           totalTransporte += auxilioTransporteFinal;
           
-          // Acumular descuentos individuales
-          totalSalud += Number(detail.health_discount) || 0;
-          totalPension += Number(detail.pension_discount) || 0;
+          // Acumular auxilio de movilidad
+          totalMovilidad += Number(detail.mobility_assistance) || 0;
+          
+          // Obtener auxilio de movilidad y recalcular salud/pensión
+          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
+          const salarioBase = Number(detail.basic_salary) || 0;
+          const cuarentaPorcientoSalario = salarioBase * 0.4;
+          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+          
+          // Calcular novedades prestacionales
+          let valorPrestacionales = 0;
+          if (detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
+              if (tipoNovedad) {
+                let affectsData = {};
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  affectsData = {};
+                }
+                
+                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                  const amount = Number(novedad.amount) || 0;
+                  valorPrestacionales += amount;
+                }
+              }
+            });
+          }
+          
+          // Calcular base de seguridad social
+          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
+            ? valorPrestacionales + auxilioMovilidad 
+            : valorPrestacionales;
+          const baseSeguridadSocial = salarioBase + valorPrestacionalesConMovilidad;
+          
+          // Recalcular descuentos de salud y pensión
+          const isSecondCut = detail.payment_method === "Quincenal" && liquidationData.cut_number === 2;
+          const shouldApply = !isSecondCut || detail.payment_method !== "Quincenal";
+          const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+          const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+          
+          // Acumular descuentos recalculados
+          totalSalud += healthDiscount;
+          totalPension += pensionDiscount;
           totalAusentismo += Number(detail.absence_discounts) || 0;
           
           // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-          const salarioBase = Number(detail.basic_salary) || 0;
           const auxilioTransporte = auxilioTransporteFinal;
           
           // Calcular total de novedades
@@ -713,16 +808,17 @@ const LiquidationsDashboard = () => {
             });
           }
           
+          // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
+          // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
+          
           // Calcular descuentos de seguridad social
-          const healthDiscount = Number(detail.health_discount) || 0;
-          const pensionDiscount = Number(detail.pension_discount) || 0;
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
           // Calcular descuentos por ausentismo
           const absenceDiscounts = Number(detail.absence_discounts) || 0;
           
           // Totales: Devengado, Deducciones y Neto
-          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas;
+          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas + auxilioMovilidad;
           const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
           const totalFinal = totalDevengado - totalDeducciones;
           
@@ -732,11 +828,51 @@ const LiquidationsDashboard = () => {
         });
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
-        totalRowObj.getCell(6).value = totalTransporte; // AUXILIO DE TRANSPORTE
-        // Columnas 7 y 8 (VALOR POR HORA y FRECUENCIA DE PAGO) no tienen totales
+        
+        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social)
+        let totalBaseConceptos = 0;
+        liquidationData.liquidation_details.forEach(detail => {
+          const salarioBase = Number(detail.basic_salary) || 0;
+          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
+          const cuarentaPorcientoSalario = salarioBase * 0.4;
+          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+          
+          let valorPrestacionales = 0;
+          if (detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
+              if (tipoNovedad) {
+                let affectsData = {};
+                try {
+                  affectsData = typeof tipoNovedad.affects === "string" 
+                    ? JSON.parse(tipoNovedad.affects) 
+                    : tipoNovedad.affects || {};
+                } catch (error) {
+                  affectsData = {};
+                }
+                
+                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+                  const amount = Number(novedad.amount) || 0;
+                  valorPrestacionales += amount;
+                }
+              }
+            });
+          }
+          
+          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
+            ? valorPrestacionales + auxilioMovilidad 
+            : valorPrestacionales;
+          
+          totalBaseConceptos += salarioBase + valorPrestacionalesConMovilidad;
+        });
+        totalRowObj.getCell(6).value = totalBaseConceptos; // SALARIO BASE + CONCEPTOS
+        
+        totalRowObj.getCell(7).value = totalTransporte; // AUXILIO DE TRANSPORTE
+        totalRowObj.getCell(8).value = totalMovilidad; // AUXILIO DE MOVILIDAD
+        // Columnas 9 y 10 (VALOR POR HORA y FRECUENCIA DE PAGO) no tienen totales
         
         // Totales de novedades (SIN FÓRMULAS)
-        let currentCol = 9;
+        let currentCol = 11;
         typeNews.forEach((type) => {
           let totalNovedad = 0;
           liquidationData.liquidation_details.forEach(detail => {
@@ -748,23 +884,23 @@ const LiquidationsDashboard = () => {
         });
         
         // Totales de descuentos (SIN FÓRMULAS)
-        const saludColTotal = 8 + typeNews.length + 1;
-        const pensionColTotal = 8 + typeNews.length + 2;
-        const ausentismoColTotal = 8 + typeNews.length + 3;
+        const saludColTotal = 10 + typeNews.length + 1;
+        const pensionColTotal = 10 + typeNews.length + 2;
+        const ausentismoColTotal = 10 + typeNews.length + 3;
         totalRowObj.getCell(saludColTotal).value = totalSalud;
         totalRowObj.getCell(pensionColTotal).value = totalPension;
         totalRowObj.getCell(ausentismoColTotal).value = totalAusentismo;
         
         // Totales Devengado, Deducciones y Neto (SIN FÓRMULAS)
-        const devengadoCol = 8 + typeNews.length + 4;
-        const deduccionesCol = 8 + typeNews.length + 5;
-        const totalCol = 8 + typeNews.length + 6;
+        const devengadoCol = 10 + typeNews.length + 4;
+        const deduccionesCol = 10 + typeNews.length + 5;
+        const totalCol = 10 + typeNews.length + 6;
         totalRowObj.getCell(devengadoCol).value = totalDevengadoGeneral;
         totalRowObj.getCell(deduccionesCol).value = totalDeduccionesGeneral;
         totalRowObj.getCell(totalCol).value = totalNeto;
 
         // Estilo de la fila de totales COMPACTA
-        const totalCols = 8 + typeNews.length + 3 + 3; // base + novedades + descuentos (3) + devengado + deducciones + total
+        const totalCols = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
         for (let col = 1; col <= totalCols; col++) {
           const cell = totalRowObj.getCell(col);
           cell.font = {
@@ -790,17 +926,21 @@ const LiquidationsDashboard = () => {
           };
 
           // Formato de moneda para columnas numéricas en totales
-          if (col >= 5 && col <= 6) { // SALARIO BASE y AUXILIO DE TRANSPORTE
+          if (col >= 5 && col <= 6) { // SALARIO BASE y SALARIO BASE + CONCEPTOS
             cell.numFmt = '"$"#,##0';
-          } else if (col >= 9 && col <= 8 + typeNews.length) { // NOVEDADES
+          } else if (col >= 7 && col <= 8) { // AUXILIO DE TRANSPORTE y AUXILIO DE MOVILIDAD
             cell.numFmt = '"$"#,##0';
-          } else if (col >= 8 + typeNews.length + 1 && col <= 8 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
+          } else if (col === 9) { // VALOR POR HORA
             cell.numFmt = '"$"#,##0';
-          } else if (col === 8 + typeNews.length + 4) { // DEVENGADO
+          } else if (col >= 11 && col <= 10 + typeNews.length) { // NOVEDADES
             cell.numFmt = '"$"#,##0';
-          } else if (col === 8 + typeNews.length + 5) { // DEDUCCIONES
+          } else if (col >= 10 + typeNews.length + 1 && col <= 10 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
             cell.numFmt = '"$"#,##0';
-          } else if (col === 8 + typeNews.length + 6) { // TOTAL
+          } else if (col === 10 + typeNews.length + 4) { // DEVENGADO
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 10 + typeNews.length + 6) { // TOTAL
             cell.numFmt = '"$"#,##0';
           }
         }

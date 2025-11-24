@@ -81,6 +81,9 @@ const LiquidationForm = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [periodValidation, setPeriodValidation] = useState({ isValid: true, conflictingPeriods: [] });
+  const [showMobilityModal, setShowMobilityModal] = useState(false);
+  const [selectedEmployeeForMobility, setSelectedEmployeeForMobility] = useState(null);
+  const [mobilityValue, setMobilityValue] = useState("");
   const [horasBaseMensuales, setHorasBaseMensuales] = useState(220); // Valor por defecto
   const [normativasCache, setNormativasCache] = useState({}); // Cache de normativas por ID
 
@@ -91,6 +94,19 @@ const LiquidationForm = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  // Función helper para calcular base de seguridad social con auxilio de movilidad
+  const calculateBaseSeguridadSocial = (salarioBaseCalculado, valorPrestacionales, auxilioMovilidad) => {
+    const cuarentaPorcientoSalario = salarioBaseCalculado * 0.4;
+    const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+    
+    // Si excede el 40%, se suma a la base de seguridad social
+    const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
+      ? valorPrestacionales + auxilioMovilidad 
+      : valorPrestacionales;
+    
+    return salarioBaseCalculado + valorPrestacionalesConMovilidad;
   };
 
   // Función para validar y ajustar fechas según el corte seleccionado
@@ -428,7 +444,16 @@ const LiquidationForm = () => {
           }
         });
         
-        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+        const employeeValues = calculatedValues[row.id] || {};
+        const auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
+          ? employeeValues.mobility_assistance_final 
+          : 0;
+        
+        const baseSeguridadSocial = calculateBaseSeguridadSocial(
+          salarioBaseCalculado, 
+          valorPrestacionales, 
+          auxilioMovilidad
+        );
         return formatCurrency(baseSeguridadSocial);
       },
       sortable: true,
@@ -468,8 +493,23 @@ const LiquidationForm = () => {
     {
       name: "Auxilio de Movilidad",
       cell: (row) => {
-        const auxilio = Number(row.mobilityassistance) || 0;
-        return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
+        const employeeValues = calculatedValues[row.id] || {};
+        const auxilio = employeeValues.mobility_assistance_final !== undefined 
+          ? employeeValues.mobility_assistance_final 
+          : 0;
+        
+        return (
+          <span
+            style={{ cursor: "pointer", color: "#007bff", textDecoration: "underline" }}
+            onClick={() => {
+              setSelectedEmployeeForMobility(row);
+              setMobilityValue(auxilio.toString());
+              setShowMobilityModal(true);
+            }}
+          >
+            {auxilio > 0 ? formatCurrency(auxilio) : "No aplica"}
+          </span>
+        );
       },
       sortable: true,
       width: "150px",
@@ -538,7 +578,16 @@ const LiquidationForm = () => {
           }
         });
         
-        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+        const employeeValues = calculatedValues[row.id] || {};
+        const auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
+          ? employeeValues.mobility_assistance_final 
+          : 0;
+        
+        const baseSeguridadSocial = calculateBaseSeguridadSocial(
+          salarioBaseCalculado, 
+          valorPrestacionales, 
+          auxilioMovilidad
+        );
         
         // Determinar si es el segundo corte para quincenales
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
@@ -616,7 +665,16 @@ const LiquidationForm = () => {
           }
         });
         
-        const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+        const employeeValues = calculatedValues[row.id] || {};
+        const auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
+          ? employeeValues.mobility_assistance_final 
+          : 0;
+        
+        const baseSeguridadSocial = calculateBaseSeguridadSocial(
+          salarioBaseCalculado, 
+          valorPrestacionales, 
+          auxilioMovilidad
+        );
         
         // Determinar si es el segundo corte para quincenales
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
@@ -1070,7 +1128,10 @@ const LiquidationForm = () => {
           return formatCurrency(auxilioFinal);
         })(),
         "Auxilio de Movilidad": (() => {
-          const auxilio = Number(employee.mobilityassistance) || 0;
+          const employeeValues = valoresCalculados[employee.id] || {};
+          const auxilio = employeeValues.mobility_assistance_final !== undefined 
+            ? employeeValues.mobility_assistance_final 
+            : 0;
           return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
         })(),
         "Descuento Salud (4%)": "", // Se actualizará más abajo con el valor de calculatedValues
@@ -1366,8 +1427,21 @@ const LiquidationForm = () => {
           form.endDate
         );
 
-        // Calcular base de seguridad social: salario base + novedades prestacionales
-        const baseSeguridadSocial = basicSalaryForPeriod + valorPrestacionales;
+        // Obtener auxilio de movilidad
+        const mobilityAssistance = employeeValues.mobility_assistance_final !== undefined 
+          ? employeeValues.mobility_assistance_final 
+          : 0;
+
+        // Calcular base de seguridad social: salario base + novedades prestacionales + auxilio movilidad (si excede 40%)
+        const baseSeguridadSocial = calculateBaseSeguridadSocial(
+          basicSalaryForPeriod, 
+          valorPrestacionales, 
+          mobilityAssistance
+        );
+
+        // Calcular si el auxilio de movilidad excede el 40% del salario base
+        const cuarentaPorcientoSalario = basicSalaryForPeriod * 0.4;
+        const auxilioExcede40Porciento = mobilityAssistance > cuarentaPorcientoSalario;
 
         // Calcular descuentos de salud y pensión (4% cada uno de la base de seguridad social)
         const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
@@ -1393,10 +1467,15 @@ const LiquidationForm = () => {
 
         const totalDiscounts = absenceDiscounts + descuentosProporcionales + socialSecurityDiscounts;
 
+        // Si el auxilio de movilidad NO excede el 40%, se suma al devengado
+        // Si excede el 40%, ya está incluido en la base de seguridad social
+        const auxilioMovilidadEnDevengado = auxilioExcede40Porciento ? 0 : mobilityAssistance;
+
         const netAmount =
           basicSalaryForPeriod +
           transportationAssistance +
-          totalNovedades -
+          totalNovedades +
+          auxilioMovilidadEnDevengado -
           totalDiscounts;
 
         return {
@@ -1404,7 +1483,7 @@ const LiquidationForm = () => {
           basic_salary: basicSalaryForPeriod,
           base_security_social: baseSeguridadSocial,
           transportation_assistance: transportationAssistance,
-          mobility_assistance: 0, // Por ahora no hay auxilio de movilidad
+          mobility_assistance: mobilityAssistance,
           total_novedades: totalNovedades,
           total_discounts: totalDiscounts,
           health_discount: healthDiscount,
@@ -1770,7 +1849,7 @@ const LiquidationForm = () => {
   };
 
   // Función optimizada para calcular todos los valores
-  const calculateAllValues = () => {
+  const calculateAllValues = (preservedMobilityValues = null) => {
     const newCalculatedValues = {};
 
     employees.forEach((employee) => {
@@ -1934,8 +2013,28 @@ const LiquidationForm = () => {
         form.endDate
       );
 
-      // Calcular base de seguridad social: salario base + novedades prestacionales
-      const baseSeguridadSocial = salarioBaseCalculado + valorPrestacionales;
+      // Obtener auxilio de movilidad (usar valores preservados si se proporcionan)
+      const employeeValues = preservedMobilityValues?.[employee.id] || calculatedValues[employee.id] || {};
+      const auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
+        ? employeeValues.mobility_assistance_final 
+        : 0;
+
+      // Calcular base de seguridad social: salario base + novedades prestacionales + auxilio movilidad (si excede 40%)
+      const baseSeguridadSocial = calculateBaseSeguridadSocial(
+        salarioBaseCalculado, 
+        valorPrestacionales, 
+        auxilioMovilidad
+      );
+
+      // Calcular si el auxilio de movilidad excede el 40% del salario base
+      const cuarentaPorcientoSalario = salarioBaseCalculado * 0.4;
+      const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+
+      // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
+      // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
+      if (auxilioMovilidad > 0) {
+        newCalculatedValues[employee.id].total += auxilioMovilidad;
+      }
 
       // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno de la base de seguridad social)
       const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
@@ -1963,6 +2062,11 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].pension_discount = Math.round(newCalculatedValues[employee.id].pension_discount * 100) / 100;
       newCalculatedValues[employee.id].social_security_discounts = Math.round(newCalculatedValues[employee.id].social_security_discounts * 100) / 100;
       newCalculatedValues[employee.id].absence_discounts = Math.round(newCalculatedValues[employee.id].absence_discounts * 100) / 100;
+      
+      // Preservar el auxilio de movilidad si existe
+      if (employeeValues.mobility_assistance_final !== undefined) {
+        newCalculatedValues[employee.id].mobility_assistance_final = employeeValues.mobility_assistance_final;
+      }
       
     });
     
@@ -2337,35 +2441,32 @@ const LiquidationForm = () => {
                 <div className="mb-3">
                   <strong>Auxilio de Movilidad:</strong>{" "}
                   {(() => {
-                    const auxilio = Number(selectedEmployee.mobilityassistance) || 0;
+                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    const auxilio = employeeValues.mobility_assistance_final !== undefined 
+                      ? employeeValues.mobility_assistance_final 
+                      : 0;
                     return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Descuento Salud (4%):</strong>{" "}
                   {(() => {
-                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
-                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-                    const descuentoSalud = salarioCalculado * 0.04;
-                    return formatCurrency(descuentoSalud);
+                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    return formatCurrency(employeeValues.health_discount || 0);
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Descuento Pensión (4%):</strong>{" "}
                   {(() => {
-                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
-                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-                    const descuentoPension = salarioCalculado * 0.04;
-                    return formatCurrency(descuentoPension);
+                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    return formatCurrency(employeeValues.pension_discount || 0);
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Total Descuentos Seguridad Social:</strong>{" "}
                   {(() => {
-                    const salarioBase = Number(selectedEmployee.basicmonthlysalary) || 0;
-                    const salarioCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-                    const totalDescuentos = (salarioCalculado * 0.04) + (salarioCalculado * 0.04);
-                    return formatCurrency(totalDescuentos);
+                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    return formatCurrency(employeeValues.social_security_discounts || 0);
                   })()}
                 </div>
                 <div className="mb-3">
@@ -2495,6 +2596,100 @@ const LiquidationForm = () => {
             </Button>
           </div>
         </ModalBody>
+      </Modal>
+
+      {/* Modal para editar Auxilio de Movilidad */}
+      <Modal
+        isOpen={showMobilityModal}
+        toggle={() => {
+          setShowMobilityModal(false);
+          setSelectedEmployeeForMobility(null);
+          setMobilityValue("");
+        }}
+        centered
+      >
+        <ModalHeader toggle={() => {
+          setShowMobilityModal(false);
+          setSelectedEmployeeForMobility(null);
+          setMobilityValue("");
+        }}>
+          Editar Auxilio de Movilidad
+        </ModalHeader>
+        <ModalBody>
+          {selectedEmployeeForMobility && (
+            <>
+              <FormGroup>
+                <Label>Trabajador</Label>
+                <div
+                  style={{
+                    padding: "0.5rem 0.75rem",
+                    backgroundColor: "#f8f9fa",
+                    border: "1px solid #ced4da",
+                    borderRadius: "0.25rem",
+                    color: "#212529",
+                    fontWeight: "500"
+                  }}
+                >
+                  {selectedEmployeeForMobility.fullname}
+                </div>
+              </FormGroup>
+              <FormGroup>
+                <Label>Valor del Auxilio de Movilidad</Label>
+                <InputGroup>
+                  <InputGroupText>$</InputGroupText>
+                  <Input
+                    type="number"
+                    value={mobilityValue}
+                    onChange={(e) => setMobilityValue(e.target.value)}
+                    placeholder="0"
+                    min="0"
+                    step="1"
+                  />
+                </InputGroup>
+              </FormGroup>
+            </>
+          )}
+        </ModalBody>
+        <div className="modal-footer" style={{ padding: "1rem", borderTop: "1px solid #dee2e6" }}>
+          <Button
+            color="secondary"
+            onClick={() => {
+              setShowMobilityModal(false);
+              setSelectedEmployeeForMobility(null);
+              setMobilityValue("");
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            color="primary"
+            onClick={() => {
+              if (selectedEmployeeForMobility) {
+                const value = parseFloat(mobilityValue) || 0;
+                setCalculatedValues((prev) => {
+                  const updated = {
+                    ...prev,
+                    [selectedEmployeeForMobility.id]: {
+                      ...prev[selectedEmployeeForMobility.id],
+                      mobility_assistance_final: value,
+                    },
+                  };
+                  // Recalcular pasando los valores actualizados
+                  setTimeout(() => {
+                    calculateAllValues(updated);
+                  }, 0);
+                  return updated;
+                });
+                setShowMobilityModal(false);
+                setSelectedEmployeeForMobility(null);
+                setMobilityValue("");
+                toast.success("Auxilio de movilidad actualizado");
+              }
+            }}
+          >
+            Guardar
+          </Button>
+        </div>
       </Modal>
     </>
   );
