@@ -1318,6 +1318,9 @@ const LiquidationsDashboard = () => {
                               Transporte
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
+                              Auxilio Movilidad
+                            </th>
+                            <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
                               Total Novedades
                             </th>
                             <th style={{ fontSize: "1rem", padding: "0.5rem" }}>
@@ -1383,6 +1386,16 @@ const LiquidationsDashboard = () => {
                                     padding: "0.5rem",
                                   }}
                                 >
+                                  {formatCurrency(
+                                    Number(detail.mobility_assistance) || 0
+                                  )}
+                                </td>
+                                <td
+                                  style={{
+                                    fontSize: "1rem",
+                                    padding: "0.5rem",
+                                  }}
+                                >
                                   {(() => {
                                     // CALCULAR TOTAL NOVEDADES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
                                     let totalNovedades = 0;
@@ -1401,9 +1414,10 @@ const LiquidationsDashboard = () => {
                                   }}
                                 >
                                   {(() => {
-                                    // DEVENGADO = SALARIO + TRANSPORTE + NOVEDADES POSITIVAS
+                                    // DEVENGADO = SALARIO + TRANSPORTE + AUXILIO MOVILIDAD + NOVEDADES POSITIVAS
                                     const salarioBase = Number(detail.basic_salary) || 0;
                                     const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+                                    const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
                                     let novedadesPositivas = 0;
                                     if (detail.novedades) {
                                       detail.novedades.forEach(novedad => {
@@ -1411,7 +1425,7 @@ const LiquidationsDashboard = () => {
                                         if (amount >= 0) novedadesPositivas += amount;
                                       });
                                     }
-                                    const devengado = salarioBase + auxilioTransporte + novedadesPositivas;
+                                    const devengado = salarioBase + auxilioTransporte + auxilioMovilidad + novedadesPositivas;
                                     return formatCurrency(devengado);
                                   })()}
                                 </td>
@@ -1441,12 +1455,18 @@ const LiquidationsDashboard = () => {
                                       // CALCULAR NETO EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
                                       const salarioBase = Number(detail.basic_salary) || 0;
                                       const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+                                      const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
                                       
                                       // Calcular total de novedades
                                       let totalNovedades = 0;
+                                      let totalNovedadesPositivas = 0;
+                                      let totalNovedadesNegativas = 0;
                                       if (detail.novedades) {
                                         detail.novedades.forEach(novedad => {
-                                          totalNovedades += Number(novedad.amount) || 0;
+                                          const amount = Number(novedad.amount) || 0;
+                                          totalNovedades += amount;
+                                          if (amount >= 0) totalNovedadesPositivas += amount;
+                                          if (amount < 0) totalNovedadesNegativas += amount;
                                         });
                                       }
                                       
@@ -1458,8 +1478,10 @@ const LiquidationsDashboard = () => {
                                       // Calcular descuentos por ausentismo
                                       const absenceDiscounts = Number(detail.absence_discounts) || 0;
                                       
-                                      // Total final: Salario Base + Auxilio Transporte + Novedades - Descuentos
-                                      const totalFinal = salarioBase + auxilioTransporte + totalNovedades - (socialSecurityDiscounts + absenceDiscounts);
+                                      // Total final: Salario Base + Auxilio Transporte + Auxilio Movilidad + Novedades Positivas - (Descuentos + Novedades Negativas)
+                                      const totalDevengado = salarioBase + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
+                                      const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
+                                      const totalFinal = totalDevengado - totalDeducciones;
                                       
                                       return formatCurrency(totalFinal);
                                     })()}
