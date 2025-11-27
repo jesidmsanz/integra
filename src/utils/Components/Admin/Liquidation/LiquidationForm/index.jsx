@@ -1251,6 +1251,14 @@ const LiquidationForm = () => {
     try {
       setSaving(true);
 
+      // Asegurar que los valores calculados estén actualizados antes de guardar
+      // Esto garantiza que transportation_assistance_final y mobility_assistance_final estén disponibles
+      if (Object.keys(calculatedValues).length === 0) {
+        calculateAllValues();
+        // Esperar un momento para que se actualicen los valores
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       // Preparar los datos de empleados para la liquidación
       const employees_data = filteredData.map((employee) => {
         const employeeValues = calculatedValues[employee.id] || { total: 0 };
@@ -1260,11 +1268,16 @@ const LiquidationForm = () => {
         const basicSalaryForPeriod =
           form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
 
-        // Calcular auxilio de transporte
-        const transportationAssistance = calculateTransportationAssistance(
-          employee,
-          form.paymentMethod
-        );
+        // Obtener auxilio de transporte calculado proporcionalmente
+        // IMPORTANTE: Usar siempre el valor calculado de calculatedValues si está disponible
+        let transportationAssistance = 0;
+        if (employeeValues.transportation_assistance_final !== undefined && employeeValues.transportation_assistance_final !== null) {
+          transportationAssistance = Number(employeeValues.transportation_assistance_final) || 0;
+        } else {
+          // Si no está disponible, calcularlo (esto no debería pasar normalmente)
+          console.warn(`⚠️ transportation_assistance_final no disponible para empleado ${employee.id}, calculando...`);
+          transportationAssistance = calculateTransportationAssistance(employee, form.paymentMethod);
+        }
 
         // Calcular novedades del empleado
         const employeeNews = filteredEmployeeNews.filter(
@@ -1427,10 +1440,15 @@ const LiquidationForm = () => {
           form.endDate
         );
 
-        // Obtener auxilio de movilidad
-        const mobilityAssistance = employeeValues.mobility_assistance_final !== undefined 
-          ? employeeValues.mobility_assistance_final 
-          : 0;
+        // Obtener auxilio de movilidad calculado proporcionalmente
+        // IMPORTANTE: Usar siempre el valor calculado de calculatedValues si está disponible
+        let mobilityAssistance = 0;
+        if (employeeValues.mobility_assistance_final !== undefined && employeeValues.mobility_assistance_final !== null) {
+          mobilityAssistance = Number(employeeValues.mobility_assistance_final) || 0;
+        } else {
+          // Si no está disponible, usar 0 (esto no debería pasar normalmente)
+          console.warn(`⚠️ mobility_assistance_final no disponible para empleado ${employee.id}`);
+        }
 
         // Calcular base de seguridad social: salario base + novedades prestacionales + auxilio movilidad (si excede 40%)
         const baseSeguridadSocial = calculateBaseSeguridadSocial(
@@ -1874,21 +1892,14 @@ const LiquidationForm = () => {
 
       newCalculatedValues[employee.id].total += salarioBaseCalculado;
 
-      // Agregar el auxilio de transporte según el método de pago
-      const auxilioTransporte = calculateTransportationAssistance(
-        employee,
-        form.paymentMethod
-      );
-      if (auxilioTransporte > 0) {
-        newCalculatedValues[employee.id].total += auxilioTransporte;
-      }
-
       // Inicializar descuento del auxilio de transporte
       let descuentoAuxilioTransporte = 0;
 
       // Procesar novedades del empleado
       const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === employee.id);
       let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
+      let diasAfectadosAuxilioMovilidad = 0; // Días totales que afectan auxilio de movilidad
+      let diasAfectadosAuxilioTransporte = 0; // Días totales que afectan auxilio de transporte
       
       if (employeeNews.length > 0) {
         employeeNews.forEach(news => {
@@ -1924,30 +1935,14 @@ const LiquidationForm = () => {
 
             // AUXILIO DE TRANSPORTE
             if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-              const auxilioPeriodo = calculateTransportationAssistance(employee, form.paymentMethod);
-              // Calcular días del período según método de pago
-              const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
-              const auxilioDiario = auxilioPeriodo / diasPeriodo; // Calcular auxilio diario según período
-              const valorAuxilio = auxilioDiario * diasNovedad; // Descontar solo los días de la novedad
-              
-              if (esDescuento) {
-                descuentoAuxilioTransporte += valorAuxilio; // Acumular descuentos
-                newCalculatedValues[employee.id].total -= valorAuxilio;
-              } else {
-                newCalculatedValues[employee.id].total += valorAuxilio;
-              }
+              // Acumular días afectados (no importa si es descuento o aumento)
+              diasAfectadosAuxilioTransporte += diasNovedad;
             }
 
             // AUXILIO DE MOVILIDAD
             if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
-              const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
-              if (auxilioMovilidad > 0) {
-                if (esDescuento) {
-                  newCalculatedValues[employee.id].total -= auxilioMovilidad;
-                } else {
-                  newCalculatedValues[employee.id].total += auxilioMovilidad;
-                }
-              }
+              // Acumular días afectados (no importa si es descuento o aumento)
+              diasAfectadosAuxilioMovilidad += diasNovedad;
             }
 
             // PRESTACIONALES
@@ -2013,11 +2008,49 @@ const LiquidationForm = () => {
         form.endDate
       );
 
-      // Obtener auxilio de movilidad (usar valores preservados si se proporcionan)
-      const employeeValues = preservedMobilityValues?.[employee.id] || calculatedValues[employee.id] || {};
-      const auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
-        ? employeeValues.mobility_assistance_final 
-        : 0;
+      // Calcular auxilio de movilidad proporcional a los días trabajados
+      // Si hay un valor preservado (modificado desde el modal), usar ese valor como base mensual
+      const employeeValues = preservedMobilityValues?.[employee.id] || {};
+      let auxilioMovilidad = 0;
+      
+      // Determinar el valor base: si hay valor preservado, usar ese; si no, usar el del empleado
+      const auxilioMovilidadBase = employeeValues.mobility_assistance_final !== undefined
+        ? Number(employeeValues.mobility_assistance_final) || 0  // Valor modificado desde el modal (base mensual)
+        : Number(employee.mobilityassistance) || 0;  // Valor original del empleado
+      
+      if (auxilioMovilidadBase > 0) {
+        const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+        const diasTrabajados = diasPeriodo - diasAfectadosAuxilioMovilidad;
+        
+        // Calcular auxilio proporcional: (auxilio mensual base / 30) * días trabajados
+        const auxilioDiario = auxilioMovilidadBase / 30;
+        auxilioMovilidad = auxilioDiario * diasTrabajados;
+        auxilioMovilidad = Math.round(auxilioMovilidad * 100) / 100;
+      }
+      
+      // Guardar el auxilio de movilidad calculado
+      newCalculatedValues[employee.id].mobility_assistance_final = auxilioMovilidad;
+
+      // Calcular auxilio de transporte proporcional a los días trabajados
+      const auxilioTransporteBase = Number(employee.transportationassistance) || 0;
+      let auxilioTransporte = 0;
+      
+      if (auxilioTransporteBase > 0) {
+        const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+        const diasTrabajados = diasPeriodo - diasAfectadosAuxilioTransporte;
+        
+        // Calcular auxilio proporcional: (auxilio diario) * días trabajados
+        auxilioTransporte = auxilioTransporteBase * diasTrabajados;
+        auxilioTransporte = Math.round(auxilioTransporte * 100) / 100;
+      }
+      
+      // Agregar el auxilio de transporte al total
+      if (auxilioTransporte > 0) {
+        newCalculatedValues[employee.id].total += auxilioTransporte;
+      }
+      
+      // Guardar el auxilio de transporte calculado
+      newCalculatedValues[employee.id].transportation_assistance_final = auxilioTransporte;
 
       // Calcular base de seguridad social: salario base + novedades prestacionales + auxilio movilidad (si excede 40%)
       const baseSeguridadSocial = calculateBaseSeguridadSocial(
@@ -2052,7 +2085,6 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].social_security_discounts = socialSecurityDiscounts;
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
       newCalculatedValues[employee.id].transportation_assistance_discount = Math.round(descuentoAuxilioTransporte * 100) / 100;
-      newCalculatedValues[employee.id].transportation_assistance_final = Math.round((auxilioTransporte - descuentoAuxilioTransporte) * 100) / 100;
       newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
       
       // Redondear totales a 2 decimales para coincidir con el backend
@@ -2062,11 +2094,6 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].pension_discount = Math.round(newCalculatedValues[employee.id].pension_discount * 100) / 100;
       newCalculatedValues[employee.id].social_security_discounts = Math.round(newCalculatedValues[employee.id].social_security_discounts * 100) / 100;
       newCalculatedValues[employee.id].absence_discounts = Math.round(newCalculatedValues[employee.id].absence_discounts * 100) / 100;
-      
-      // Preservar el auxilio de movilidad si existe
-      if (employeeValues.mobility_assistance_final !== undefined) {
-        newCalculatedValues[employee.id].mobility_assistance_final = employeeValues.mobility_assistance_final;
-      }
       
     });
     
@@ -2666,6 +2693,14 @@ const LiquidationForm = () => {
             onClick={() => {
               if (selectedEmployeeForMobility) {
                 const value = parseFloat(mobilityValue) || 0;
+                // Crear objeto con el valor preservado para pasar a calculateAllValues
+                const preservedMobilityValues = {
+                  [selectedEmployeeForMobility.id]: {
+                    mobility_assistance_final: value,
+                  },
+                };
+                
+                // Actualizar calculatedValues y recalcular todo
                 setCalculatedValues((prev) => {
                   const updated = {
                     ...prev,
@@ -2674,9 +2709,9 @@ const LiquidationForm = () => {
                       mobility_assistance_final: value,
                     },
                   };
-                  // Recalcular pasando los valores actualizados
+                  // Recalcular pasando los valores preservados
                   setTimeout(() => {
-                    calculateAllValues(updated);
+                    calculateAllValues(preservedMobilityValues);
                   }, 0);
                   return updated;
                 });

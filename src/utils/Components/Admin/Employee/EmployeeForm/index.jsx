@@ -1299,7 +1299,7 @@ const EmployeeForm = ({
               <Col md="4">
                 <FormGroup>
                   <Label for="transportationassistance">
-                    Auxilio de Transporte:
+                    Auxilio de Transporte (diario):
                   </Label>
                   <Input
                     type="text"
@@ -1321,7 +1321,7 @@ const EmployeeForm = ({
             <Row>
               <Col md="4">
                 <FormGroup>
-                  <Label for="mobilityassistance">Auxilio de Movilidad:</Label>
+                  <Label for="mobilityassistance">Auxilio de Movilidad (mensual):</Label>
                   <Input
                     type="text"
                     name="mobilityassistance"

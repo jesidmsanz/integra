@@ -488,87 +488,15 @@ const LiquidationsDashboard = () => {
           row.getCell(4).value = detail.contract_type || "No disponible"; // TIPO DE CONTRATO
           row.getCell(5).value = detail.basic_salary; // SALARIO BASE
           
-          // Calcular Salario Base + Conceptos (base de seguridad social)
+          // Usar los valores guardados directamente (ya calculados correctamente en LiquidationForm)
           const salarioBase = Number(detail.basic_salary) || 0;
-          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
-          const cuarentaPorcientoSalario = salarioBase * 0.4;
-          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+          const baseSeguridadSocial = Number(detail.base_security_social) || salarioBase;
+          const auxilioTransporteFinal = Number(detail.transportation_assistance) || 0;
+          const auxilioMovilidadFinal = Number(detail.mobility_assistance) || 0;
           
-          // Buscar novedades prestacionales
-          let valorPrestacionales = 0;
-          if (detail.novedades) {
-            detail.novedades.forEach(novedad => {
-              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
-              if (tipoNovedad) {
-                let affectsData = {};
-                try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
-                } catch (error) {
-                  affectsData = {};
-                }
-                
-                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
-                  const amount = Number(novedad.amount) || 0;
-                  valorPrestacionales += amount;
-                }
-              }
-            });
-          }
-          
-          // Si el auxilio excede 40%, se suma a la base de seguridad social
-          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
-            ? valorPrestacionales + auxilioMovilidad 
-            : valorPrestacionales;
-          
-          const baseSeguridadSocial = salarioBase + valorPrestacionalesConMovilidad;
-          row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS
-          
-          // Calcular auxilio de transporte con descuentos aplicados
-          const auxilioTransporteOriginal = Number(detail.transportation_assistance) || 0;
-          let descuentoAuxilioTransporte = 0;
-          
-          if (detail.novedades && detail.novedades.length > 0) {
-            detail.novedades.forEach(novedad => {
-              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
-              if (!tipoNovedad) return;
-              
-              const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
-              
-              if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
-                let affectsData;
-                try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
-                } catch (error) {
-                  affectsData = {};
-                }
-                
-                if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-                  // Calcular días de la novedad
-                  const fechaInicio = moment.utc(novedad.start_date || novedad.startDate);
-                  const fechaFin = moment.utc(novedad.end_date || novedad.endDate);
-                  const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
-                  
-                  // Calcular auxilio diario según período de pago (usar auxilio original)
-                  const diasPeriodo = detail.payment_method === "Quincenal" ? 15 : 30;
-                  const auxilioDiario = auxilioTransporteOriginal / diasPeriodo;
-                  const valorAuxilio = auxilioDiario * diasNovedad;
-                  
-                  if (esDescuento) {
-                    descuentoAuxilioTransporte += valorAuxilio;
-                  }
-                }
-              }
-            });
-          }
-          
-          const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
-          
-          row.getCell(7).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (con descuentos aplicados)
-          row.getCell(8).value = Number(detail.mobility_assistance) || 0; // AUXILIO DE MOVILIDAD
+          row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS (usar valor guardado)
+          row.getCell(7).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (ya calculado proporcionalmente)
+          row.getCell(8).value = auxilioMovilidadFinal; // AUXILIO DE MOVILIDAD (ya calculado proporcionalmente)
           row.getCell(9).value = detail.hourly_rate || 0; // VALOR POR HORA
           row.getCell(10).value = detail.payment_method || "No disponible"; // FRECUENCIA DE PAGO
 
@@ -582,11 +510,9 @@ const LiquidationsDashboard = () => {
             currentCol++;
           });
 
-          // Recalcular descuentos de salud y pensión usando la base de seguridad social ya calculada
-          const isSecondCut = detail.payment_method === "Quincenal" && liquidationData.cut_number === 2;
-          const shouldApply = !isSecondCut || detail.payment_method !== "Quincenal";
-          const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
-          const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+          // Usar los descuentos guardados directamente (ya calculados correctamente)
+          const healthDiscount = Number(detail.health_discount) || 0;
+          const pensionDiscount = Number(detail.pension_discount) || 0;
           const absenceDiscounts = Number(detail.absence_discounts) || 0;
           
           // Agregar datos de descuentos
@@ -603,33 +529,29 @@ const LiquidationsDashboard = () => {
           const deduccionesCol = 10 + typeNews.length + 5;
           const totalCol = 10 + typeNews.length + 6;
           
-          // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-          // Usar el auxilio de transporte ya calculado con descuentos (de arriba)
-          const auxilioTransporte = auxilioTransporteFinal;
+          // Usar los valores guardados directamente para calcular totales
+          // Estos valores ya fueron calculados correctamente en LiquidationForm
+          const totalNovedades = Number(detail.total_novedades) || 0;
+          const totalDiscounts = Number(detail.total_discounts) || 0;
           
-          // Calcular total de novedades
-          let totalNovedades = 0;
+          // Calcular total de novedades positivas y negativas
           let totalNovedadesPositivas = 0;
           let totalNovedadesNegativas = 0;
           if (detail.novedades) {
             detail.novedades.forEach(novedad => {
               const amount = Number(novedad.amount) || 0;
-              totalNovedades += amount;
               if (amount >= 0) totalNovedadesPositivas += amount;
               if (amount < 0) totalNovedadesNegativas += amount;
             });
           }
           
-          // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
-          // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
-          
           // Calcular descuentos de seguridad social
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
-          // Totales: Devengado, Deducciones y Neto
-          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas + auxilioMovilidad;
+          // Totales: Devengado, Deducciones y Neto (igual que en LiquidationForm)
+          const totalDevengado = salarioBase + auxilioTransporteFinal + totalNovedadesPositivas + auxilioMovilidadFinal;
           const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
-          const totalFinal = totalDevengado - totalDeducciones;
+          const totalFinal = Number(detail.net_amount) || (totalDevengado - totalDeducciones);
           
           // Asignar columnas de totales
           row.getCell(devengadoCol).value = totalDevengado;
@@ -703,124 +625,44 @@ const LiquidationsDashboard = () => {
         liquidationData.liquidation_details.forEach(detail => {
           totalSalario += detail.basic_salary || 0;
           
-          // Calcular auxilio de transporte con descuentos para el total
-          const auxilioTransporteOriginal = Number(detail.transportation_assistance) || 0;
-          let descuentoAuxilioTransporte = 0;
+          // Usar los valores guardados que ya están calculados proporcionalmente
+          const auxilioTransporteFinal = Number(detail.transportation_assistance) || 0;
+          const auxilioMovilidadFinal = Number(detail.mobility_assistance) || 0;
           
-          if (detail.novedades && detail.novedades.length > 0) {
-            detail.novedades.forEach(novedad => {
-              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
-              if (!tipoNovedad) return;
-              
-              const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
-              
-              if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
-                let affectsData;
-                try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
-                } catch (error) {
-                  affectsData = {};
-                }
-                
-                if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-                  const fechaInicio = moment.utc(novedad.start_date || novedad.startDate);
-                  const fechaFin = moment.utc(novedad.end_date || novedad.endDate);
-                  const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
-                  const diasPeriodo = detail.payment_method === "Quincenal" ? 15 : 30;
-                  const auxilioDiario = auxilioTransporteOriginal / diasPeriodo;
-                  const valorAuxilio = auxilioDiario * diasNovedad;
-                  
-                  if (esDescuento) {
-                    descuentoAuxilioTransporte += valorAuxilio;
-                  }
-                }
-              }
-            });
-          }
-          
-          const auxilioTransporteFinal = Math.round((auxilioTransporteOriginal - descuentoAuxilioTransporte) * 100) / 100;
           totalTransporte += auxilioTransporteFinal;
+          totalMovilidad += auxilioMovilidadFinal;
           
-          // Acumular auxilio de movilidad
-          totalMovilidad += Number(detail.mobility_assistance) || 0;
-          
-          // Obtener auxilio de movilidad y recalcular salud/pensión
-          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
+          // Usar los valores guardados directamente (ya calculados correctamente)
           const salarioBase = Number(detail.basic_salary) || 0;
-          const cuarentaPorcientoSalario = salarioBase * 0.4;
-          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+          const auxilioTransporte = Number(detail.transportation_assistance) || 0;
+          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
+          const healthDiscount = Number(detail.health_discount) || 0;
+          const pensionDiscount = Number(detail.pension_discount) || 0;
+          const absenceDiscounts = Number(detail.absence_discounts) || 0;
           
-          // Calcular novedades prestacionales
-          let valorPrestacionales = 0;
-          if (detail.novedades) {
-            detail.novedades.forEach(novedad => {
-              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
-              if (tipoNovedad) {
-                let affectsData = {};
-                try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
-                } catch (error) {
-                  affectsData = {};
-                }
-                
-                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
-                  const amount = Number(novedad.amount) || 0;
-                  valorPrestacionales += amount;
-                }
-              }
-            });
-          }
-          
-          // Calcular base de seguridad social
-          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
-            ? valorPrestacionales + auxilioMovilidad 
-            : valorPrestacionales;
-          const baseSeguridadSocial = salarioBase + valorPrestacionalesConMovilidad;
-          
-          // Recalcular descuentos de salud y pensión
-          const isSecondCut = detail.payment_method === "Quincenal" && liquidationData.cut_number === 2;
-          const shouldApply = !isSecondCut || detail.payment_method !== "Quincenal";
-          const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
-          const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
-          
-          // Acumular descuentos recalculados
+          // Acumular descuentos (usar valores guardados)
           totalSalud += healthDiscount;
           totalPension += pensionDiscount;
-          totalAusentismo += Number(detail.absence_discounts) || 0;
+          totalAusentismo += absenceDiscounts;
           
-          // CALCULAR TOTALES EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-          const auxilioTransporte = auxilioTransporteFinal;
-          
-          // Calcular total de novedades
-          let totalNovedades = 0;
+          // Calcular total de novedades positivas y negativas
           let totalNovedadesPositivas = 0;
           let totalNovedadesNegativas = 0;
           if (detail.novedades) {
             detail.novedades.forEach(novedad => {
               const amount = Number(novedad.amount) || 0;
-              totalNovedades += amount;
               if (amount >= 0) totalNovedadesPositivas += amount;
               if (amount < 0) totalNovedadesNegativas += amount;
             });
           }
           
-          // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
-          // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
-          
           // Calcular descuentos de seguridad social
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
-          // Calcular descuentos por ausentismo
-          const absenceDiscounts = Number(detail.absence_discounts) || 0;
-          
-          // Totales: Devengado, Deducciones y Neto
+          // Totales: Devengado, Deducciones y Neto (igual que en LiquidationForm)
           const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas + auxilioMovilidad;
           const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
-          const totalFinal = totalDevengado - totalDeducciones;
+          const totalFinal = Number(detail.net_amount) || (totalDevengado - totalDeducciones);
           
           totalDevengadoGeneral += totalDevengado;
           totalDeduccionesGeneral += totalDeducciones;
@@ -829,41 +671,10 @@ const LiquidationsDashboard = () => {
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
         
-        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social)
+        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social guardadas)
         let totalBaseConceptos = 0;
         liquidationData.liquidation_details.forEach(detail => {
-          const salarioBase = Number(detail.basic_salary) || 0;
-          const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
-          const cuarentaPorcientoSalario = salarioBase * 0.4;
-          const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
-          
-          let valorPrestacionales = 0;
-          if (detail.novedades) {
-            detail.novedades.forEach(novedad => {
-              const tipoNovedad = typeNews.find(type => type.id === novedad.type_news_id);
-              if (tipoNovedad) {
-                let affectsData = {};
-                try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
-                } catch (error) {
-                  affectsData = {};
-                }
-                
-                if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
-                  const amount = Number(novedad.amount) || 0;
-                  valorPrestacionales += amount;
-                }
-              }
-            });
-          }
-          
-          const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
-            ? valorPrestacionales + auxilioMovilidad 
-            : valorPrestacionales;
-          
-          totalBaseConceptos += salarioBase + valorPrestacionalesConMovilidad;
+          totalBaseConceptos += Number(detail.base_security_social) || Number(detail.basic_salary) || 0;
         });
         totalRowObj.getCell(6).value = totalBaseConceptos; // SALARIO BASE + CONCEPTOS
         
@@ -871,13 +682,14 @@ const LiquidationsDashboard = () => {
         totalRowObj.getCell(8).value = totalMovilidad; // AUXILIO DE MOVILIDAD
         // Columnas 9 y 10 (VALOR POR HORA y FRECUENCIA DE PAGO) no tienen totales
         
-        // Totales de novedades (SIN FÓRMULAS)
+        // Totales de novedades (SIN FÓRMULAS) - SUMAR TODAS LAS NOVEDADES DEL MISMO TIPO
         let currentCol = 11;
         typeNews.forEach((type) => {
           let totalNovedad = 0;
           liquidationData.liquidation_details.forEach(detail => {
-            const novedad = detail.novedades?.find(n => n.type_news_id === type.id);
-            totalNovedad += novedad ? (novedad.amount || 0) : 0;
+            // Sumar TODAS las novedades del mismo tipo, no solo la primera
+            const novedadesDelTipo = detail.novedades?.filter(n => n.type_news_id === type.id) || [];
+          totalNovedad += novedadesDelTipo.reduce((sum, novedad) => sum + (Number(novedad.amount) || 0), 0);
           });
           totalRowObj.getCell(currentCol).value = totalNovedad;
           currentCol++;
