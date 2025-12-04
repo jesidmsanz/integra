@@ -22,7 +22,7 @@ import {
 // Según la tabla de conceptos laborales y el código de liquidación
 const moneyFields = [
   // Campos con lógica real
-  // { key: "basicmonthlysalary", label: "Salario Base Mensual" },
+  { key: "baseSalary", label: "Salario Base" },
   { key: "prestacionales", label: "Prestacionales" },
   { key: "cesantias", label: "Cesantias - Intereses de Cesantias" },
   { key: "vacaciones", label: "Vacaciones" },

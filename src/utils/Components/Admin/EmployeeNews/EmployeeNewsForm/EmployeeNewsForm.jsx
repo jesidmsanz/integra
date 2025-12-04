@@ -21,6 +21,7 @@ import {
 } from "@/utils/api";
 import { toast } from "react-toastify";
 import { getTiposHorasLaborales } from "@/utils/helpers/normativasHelper";
+import moment from "moment";
 
 const EmployeeNewsForm = ({
   isOpen,
@@ -59,6 +60,8 @@ const EmployeeNewsForm = ({
   const [isApproved, setIsApproved] = useState(false);
   const [tiposHorasLaborales, setTiposHorasLaborales] = useState([]);
   const [selectedTypeNews, setSelectedTypeNews] = useState(null);
+  const [existingNews, setExistingNews] = useState([]);
+  const [overlapError, setOverlapError] = useState("");
 
   useEffect(() => {
     
@@ -141,6 +144,11 @@ const EmployeeNewsForm = ({
       const startTimeFormatted = formatTime(dataToUpdate.startTime);
       const endDateFormatted = formatDate(dataToUpdate.endDate);
       const endTimeFormatted = formatTime(dataToUpdate.endTime);
+      
+      // Cargar novedades existentes del empleado cuando se edita
+      if (dataToUpdate.employeeId) {
+        loadExistingNews(dataToUpdate.employeeId);
+      }
 
       console.log("✅ Fechas formateadas:", {
         startDateFormatted,
@@ -437,6 +445,14 @@ const EmployeeNewsForm = ({
         // gracias al useEffect adicional
       }
       
+      // Cargar novedades existentes del empleado
+      if (value) {
+        loadExistingNews(value);
+      } else {
+        setExistingNews([]);
+        setOverlapError("");
+      }
+      
       setFormData((prev) => ({
         ...prev,
         [name]: value,
@@ -456,6 +472,132 @@ const EmployeeNewsForm = ({
         ...prev,
         [name]: value,
       }));
+      
+    }
+  };
+  
+  // useEffect para validar solapamiento cuando cambien las fechas o el empleado
+  useEffect(() => {
+    if (formData.employeeId && formData.startDate && formData.endDate && existingNews.length >= 0) {
+      // Usar setTimeout para validar después de que el estado se actualice
+      const timer = setTimeout(() => {
+        validateOverlap();
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setOverlapError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.employeeId, formData.startDate, formData.endDate, existingNews.length]);
+  
+  // Función para cargar novedades existentes del empleado
+  const loadExistingNews = async (employeeId) => {
+    try {
+      console.log("🔍 Cargando novedades para empleado ID:", employeeId);
+      const response = await employeeNewsApi.list(1, 1000, null, null, employeeId);
+      console.log("🔍 Respuesta completa de la API:", response);
+      
+      // La respuesta puede venir en diferentes formatos
+      let newsList = [];
+      if (response?.body?.data) {
+        newsList = response.body.data;
+      } else if (response?.data) {
+        newsList = Array.isArray(response.data) ? response.data : response.data.data || [];
+      } else if (Array.isArray(response)) {
+        newsList = response;
+      }
+      
+      console.log("🔍 Lista de novedades obtenida:", newsList);
+      
+      // Filtrar solo novedades activas y aprobadas (o pendientes) del empleado correcto
+      const activeNews = newsList.filter(
+        (news) => {
+          const isActive = news.status === "active" || news.status === "Active";
+          const isApproved = news.approved === true || news.approved === null;
+          const isCorrectEmployee = (news.employeeId === parseInt(employeeId) || news.employee_id === parseInt(employeeId));
+          return isActive && isApproved && isCorrectEmployee;
+        }
+      );
+      
+      console.log("🔍 Novedades activas del empleado:", activeNews);
+      console.log("🔍 Tipos de novedad disponibles:", typeNews);
+      setExistingNews(activeNews);
+    } catch (error) {
+      console.error("Error cargando novedades existentes:", error);
+      setExistingNews([]);
+    }
+  };
+  
+  // Función para validar solapamiento de fechas
+  const validateOverlap = () => {
+    if (!formData.employeeId || !formData.startDate || !formData.endDate) {
+      setOverlapError("");
+      return;
+    }
+    
+    const startDate = new Date(formData.startDate);
+    const endDate = new Date(formData.endDate);
+    
+    // Validar que la fecha de inicio sea menor o igual a la fecha de fin
+    if (startDate > endDate) {
+      setOverlapError("");
+      return; // Este error se maneja en otra validación
+    }
+    
+    // Buscar solapamientos con novedades existentes (excluyendo la novedad actual si es edición)
+    const overlappingNews = existingNews.filter((news) => {
+      // Si es edición, excluir la novedad actual
+      if (isUpdate && dataToUpdate && news.id === dataToUpdate.id) {
+        return false;
+      }
+      
+      const existingStart = new Date(news.startDate);
+      const existingEnd = new Date(news.endDate || news.startDate);
+      
+      // Verificar solapamiento: las fechas se solapan si:
+      // startDate <= existingEnd && endDate >= existingStart
+      return startDate <= existingEnd && endDate >= existingStart;
+    });
+    
+    if (overlappingNews.length > 0) {
+      console.log("🔍 Novedades solapadas encontradas:", overlappingNews);
+      console.log("🔍 Buscando tipos de novedad...");
+      
+      const newsTypes = overlappingNews.map((news) => {
+        // Primero intentar usar el nombre directamente si está disponible en la respuesta
+        if (news.type_news_name) {
+          console.log("🔍 Usando type_news_name de la respuesta:", news.type_news_name);
+          return news.type_news_name;
+        }
+        
+        // Si no está disponible, buscar por ID
+        const typeNewsId = news.typeNewsId || news.type_news_id || news.typeNews?.id;
+        console.log("🔍 Novedad:", {
+          id: news.id,
+          typeNewsId: typeNewsId,
+          newsObject: news
+        });
+        
+        // Buscar el tipo de novedad
+        const type = typeNews.find((t) => {
+          const match = t.id === typeNewsId || 
+                       t.id === parseInt(typeNewsId);
+          return match;
+        });
+        
+        console.log("🔍 Tipo encontrado:", type);
+        
+        return type?.name || "Novedad";
+      }).join(", ");
+      
+      const startDateStr = moment(formData.startDate).format("DD/MM/YYYY");
+      const endDateStr = moment(formData.endDate).format("DD/MM/YYYY");
+      
+      setOverlapError(
+        `El empleado ya tiene ${overlappingNews.length} novedad(es) activa(s) en el período ${startDateStr} - ${endDateStr}: ${newsTypes}. No se pueden asignar múltiples novedades en el mismo período.`
+      );
+    } else {
+      setOverlapError("");
     }
   };
 
@@ -513,11 +655,26 @@ const EmployeeNewsForm = ({
       newErrors.hourTypeId = "Debe seleccionar un tipo de hora laboral";
     }
     
+    // Validar solapamiento de fechas
+    validateOverlap();
+    if (overlapError) {
+      newErrors.overlap = overlapError;
+    }
+    
     return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar solapamiento antes de enviar
+    validateOverlap();
+    if (overlapError) {
+      toast.error(overlapError);
+      setErrors({ overlap: overlapError });
+      return;
+    }
+    
     const newErrors = validateForm();
     if (Object.keys(newErrors).length === 0) {
       setLoading(true);
@@ -894,6 +1051,12 @@ const EmployeeNewsForm = ({
                   <i className="fas fa-info-circle me-1"></i>
                   Fecha de fin de la novedad. Solo se pueden seleccionar fechas pasadas (hasta ayer). Debe ser igual o posterior a la fecha de inicio.
                 </small>
+                {overlapError && (
+                  <div className="text-danger mt-2">
+                    <i className="fas fa-exclamation-triangle me-1"></i>
+                    {overlapError}
+                  </div>
+                )}
               </FormGroup>
             </Col>
             <Col md="6">

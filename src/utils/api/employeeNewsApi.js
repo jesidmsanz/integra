@@ -3,13 +3,16 @@ import fetchApi, { getAxiosError } from "./fetchApi";
 const mainRoute = "employee_news";
 
 const employeeNewsApi = {
-  list: async (page = 1, limit = 30) => {
+  list: async (page = 1, limit = 30, status = null, approved = null, employeeId = null) => {
     try {
       const params = new URLSearchParams();
       const pageNum = parseInt(page);
       const limitNum = parseInt(limit);
       if (!Number.isNaN(pageNum) && pageNum > 0) params.set("page", pageNum.toString());
       if (!Number.isNaN(limitNum) && limitNum > 0) params.set("limit", limitNum.toString());
+      if (status) params.set("status", status);
+      if (approved !== null) params.set("approved", approved.toString());
+      if (employeeId) params.set("employeeId", employeeId.toString());
 
       const url = params.toString() ? `${mainRoute}?${params.toString()}` : mainRoute;
       const response = await fetchApi.get(url);

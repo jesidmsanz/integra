@@ -12,11 +12,11 @@ const apiURL = "/api/employee_news";
 // GET: api/employee_news
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
-    const { page, limit } = req.query;
+    const { page, limit, employeeId } = req.query;
     
     // Si hay parámetros de paginación, usar findAllPaginated
     if (page || limit) {
-      const result = await controller.findAllPaginated(page, limit);
+      const result = await controller.findAllPaginated(page, limit, employeeId);
       response.success(req, res, result);
     } else {
       // Si no hay paginación, usar findAll normal

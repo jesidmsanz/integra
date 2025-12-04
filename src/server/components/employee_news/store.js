@@ -23,10 +23,16 @@ ORDER BY en.id DESC;
     );
   }
 
-  async function findAllPaginated(page = 1, limit = 30) {
+  async function findAllPaginated(page = 1, limit = 30, employeeId = null) {
     const safePage = Number.isFinite(parseInt(page)) && parseInt(page) > 0 ? parseInt(page) : 1;
     const safeLimit = Number.isFinite(parseInt(limit)) && parseInt(limit) > 0 ? parseInt(limit) : 30;
     const offset = (safePage - 1) * safeLimit;
+
+    // Construir condición WHERE para filtrar por employeeId si se proporciona
+    const whereClause = employeeId ? `WHERE en."employeeId" = :employeeId` : '';
+    const replacements = employeeId 
+      ? { limit: safeLimit, offset: offset, employeeId: parseInt(employeeId) }
+      : { limit: safeLimit, offset: offset };
 
     // Obtener el total de registros
     const totalResult = await sequelize.query(
@@ -36,8 +42,10 @@ ORDER BY en.id DESC;
       INNER JOIN users u ON en."approvedBy" = u.id
       INNER JOIN type_news tn ON en."typeNewsId" = tn.id
       INNER JOIN employees e ON en."employeeId" = e.id
+      ${whereClause}
       `,
       {
+        replacements: employeeId ? { employeeId: parseInt(employeeId) } : {},
         type: QueryTypes.SELECT,
       }
     );
@@ -56,11 +64,12 @@ ORDER BY en.id DESC;
       INNER JOIN users u ON en."approvedBy" = u.id
       INNER JOIN type_news tn ON en."typeNewsId" = tn.id
       INNER JOIN employees e ON en."employeeId" = e.id
+      ${whereClause}
       ORDER BY en.id DESC
       LIMIT :limit OFFSET :offset
       `,
       {
-        replacements: { limit: safeLimit, offset: offset },
+        replacements: replacements,
         type: QueryTypes.SELECT,
       }
     );

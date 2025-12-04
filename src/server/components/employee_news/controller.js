@@ -8,11 +8,11 @@ function findAll() {
   });
 }
 
-function findAllPaginated(page, limit) {
+function findAllPaginated(page, limit, employeeId = null) {
   return new Promise(async (resolve, reject) => {
     try {
       const { EmployeeNews } = await db();
-      const result = await EmployeeNews.findAllPaginated(page, limit);
+      const result = await EmployeeNews.findAllPaginated(page, limit, employeeId);
       resolve(result);
     } catch (error) {
       console.error("Error en findAllPaginated controller:", error);
