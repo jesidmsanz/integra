@@ -145,6 +145,7 @@ function create(liquidationData) {
           liquidation_id: liquidationRecord.id,
           employee_id: employee.employee_id,
           basic_salary: toDecimal(employee.basic_salary),
+          basic_salary_proportional: toDecimal(employee.basic_salary_proportional || employee.basic_salary),
           base_security_social: toDecimal(employee.base_security_social),
           transportation_assistance: toDecimal(employee.transportation_assistance),
           mobility_assistance: toDecimal(employee.mobility_assistance),

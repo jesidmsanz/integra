@@ -553,7 +553,9 @@ const LiquidationsDashboard = () => {
               });
             }
             const socialSecurityDiscounts = healthDiscount + pensionDiscount;
-            totalDevengado = salarioBase + auxilioTransporteFinal + auxilioMovilidadFinal + totalNovedadesPositivas;
+            // Usar basic_salary_proportional si existe, sino usar basic_salary
+            const salarioParaCalculo = Number(detail.basic_salary_proportional) || salarioBase;
+            totalDevengado = salarioParaCalculo + auxilioTransporteFinal + auxilioMovilidadFinal + totalNovedadesPositivas;
             totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
             totalFinal = totalDevengado - totalDeducciones;
           }

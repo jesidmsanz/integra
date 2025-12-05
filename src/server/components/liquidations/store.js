@@ -48,6 +48,7 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
               'hourly_rate', e.hourlyrate,
               'payment_method', e.paymentmethod,
               'basic_salary', ld.basic_salary,
+              'basic_salary_proportional', ld.basic_salary_proportional,
               'base_security_social', ld.base_security_social,
               'transportation_assistance', ld.transportation_assistance,
               'mobility_assistance', ld.mobility_assistance,

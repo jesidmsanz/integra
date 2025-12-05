@@ -1452,7 +1452,8 @@ const LiquidationForm = () => {
 
         return {
           employee_id: employee.id,
-          basic_salary: basicSalary, // GUARDAR EL SALARIO MENSUAL COMPLETO (como se muestra en la tabla: $2.500.000)
+          basic_salary: basicSalary, // GUARDAR EL SALARIO MENSUAL COMPLETO para columna "SALARIO BASE"
+          basic_salary_proportional: salarioBaseProporcional, // GUARDAR EL SALARIO PROPORCIONAL para cálculos
           base_security_social: baseSeguridadSocial,
           transportation_assistance: transportationAssistance,
           mobility_assistance: mobilityAssistance,

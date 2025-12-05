@@ -28,7 +28,13 @@ module.exports = function (config) {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,
         defaultValue: 0,
-        comment: "Salario básico del empleado",
+        comment: "Salario básico mensual completo del empleado",
+      },
+      basic_salary_proportional: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Salario básico proporcional (considerando días trabajados y novedades)",
       },
       base_security_social: {
         type: Sequelize.DECIMAL(15, 2),
