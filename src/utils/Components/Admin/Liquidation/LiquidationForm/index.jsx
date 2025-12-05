@@ -1208,16 +1208,17 @@ const LiquidationForm = () => {
       const employees_data = filteredData.map((employee) => {
         const employeeValues = calculatedValues[employee.id] || { total: 0 };
 
-        // Convertir a números para evitar concatenación de strings
+        // GUARDAR EL SALARIO BASE MENSUAL COMPLETO (como se muestra en la tabla)
+        // En la tabla se muestra: row.basicmonthlysalary (el salario mensual completo)
         const basicSalary = Number(employee.basicmonthlysalary) || 0;
-        const basicSalaryForPeriod =
-          form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+        
+        // Para cálculos internos, usar el salario del período
+        const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
 
-        // Calcular auxilio de transporte
-        const transportationAssistance = calculateTransportationAssistance(
-          employee,
-          form.paymentMethod
-        );
+        // USAR EL VALOR YA CALCULADO EN calculateAllValues (que considera proporciones y días trabajados)
+        const transportationAssistance = employeeValues.transportation_assistance_final !== undefined 
+          ? employeeValues.transportation_assistance_final 
+          : calculateTransportationAssistance(employee, form.paymentMethod);
 
         // Calcular novedades del empleado
         const employeeNews = filteredEmployeeNews.filter(
@@ -1385,12 +1386,15 @@ const LiquidationForm = () => {
           ? employeeValues.mobility_assistance_final 
           : 0;
 
-        // Calcular base de seguridad social: salario base + novedades prestacionales + auxilio movilidad (si excede 40%)
-        const baseSeguridadSocial = calculateBaseSeguridadSocial(
-          basicSalaryForPeriod, 
-          valorPrestacionales, 
-          mobilityAssistance
-        );
+        // USAR EL VALOR YA CALCULADO EN calculateAllValues (que considera salario proporcional y días trabajados)
+        // Este valor ya está calculado correctamente con todas las proporciones y novedades
+        const baseSeguridadSocial = employeeValues.base_security_social !== undefined 
+          ? employeeValues.base_security_social 
+          : calculateBaseSeguridadSocial(
+              basicSalaryForPeriod, 
+              valorPrestacionales, 
+              mobilityAssistance
+            );
 
         // Calcular si el auxilio de movilidad excede el 40% del salario base
         const cuarentaPorcientoSalario = basicSalaryForPeriod * 0.4;
@@ -1418,33 +1422,49 @@ const LiquidationForm = () => {
           totalNovedades
         });
 
-        const totalDiscounts = absenceDiscounts + descuentosProporcionales + socialSecurityDiscounts;
+        // Separar novedades positivas y negativas (EXACTAMENTE IGUAL QUE EN LA TABLA DEL DASHBOARD)
+        let totalNovedadesPositivas = 0;
+        let totalNovedadesNegativas = 0;
+        news_data.forEach((news) => {
+          const amount = Number(news.amount) || 0;
+          if (amount >= 0) {
+            totalNovedadesPositivas += amount;
+          } else {
+            totalNovedadesNegativas += amount;
+          }
+        });
 
-        // Si el auxilio de movilidad NO excede el 40%, se suma al devengado
-        // Si excede el 40%, ya está incluido en la base de seguridad social
-        const auxilioMovilidadEnDevengado = auxilioExcede40Porciento ? 0 : mobilityAssistance;
-
-        const netAmount =
-          basicSalaryForPeriod +
-          transportationAssistance +
-          totalNovedades +
-          auxilioMovilidadEnDevengado -
-          totalDiscounts;
+        // Calcular totales EXACTAMENTE IGUAL QUE EN LA TABLA DEL DASHBOARD
+        // En la tabla: totalDevengado = salarioBaseProporcional + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas
+        // Usar el salario base proporcional (que considera días trabajados) del calculatedValues
+        const salarioBaseProporcional = employeeValues.basic_salary_proportional !== undefined
+          ? employeeValues.basic_salary_proportional
+          : basicSalaryForPeriod;
+        
+        // El auxilio de movilidad SIEMPRE se suma al devengado (según la tabla del dashboard)
+        const totalDevengado = salarioBaseProporcional + transportationAssistance + mobilityAssistance + totalNovedadesPositivas;
+        
+        // Las deducciones incluyen: seguridad social + ausentismo + novedades negativas (en valor absoluto)
+        const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
+        
+        // El neto es devengado menos deducciones
+        const netAmount = totalDevengado - totalDeducciones;
 
         return {
           employee_id: employee.id,
-          basic_salary: basicSalaryForPeriod,
+          basic_salary: basicSalary, // GUARDAR EL SALARIO MENSUAL COMPLETO (como se muestra en la tabla: $2.500.000)
           base_security_social: baseSeguridadSocial,
           transportation_assistance: transportationAssistance,
           mobility_assistance: mobilityAssistance,
-          total_novedades: totalNovedades,
-          total_discounts: totalDiscounts,
+          total_novedades: totalNovedades, // Mantener total_novedades para compatibilidad
+          total_discounts: totalDeducciones, // Guardar totalDeducciones calculado igual que la tabla
+          total_earnings: totalDevengado, // Guardar totalDevengado para usar en Excel
           health_discount: healthDiscount,
           pension_discount: pensionDiscount,
           social_security_discounts: socialSecurityDiscounts,
           absence_discounts: absenceDiscounts,
           proportional_discounts: descuentosProporcionales,
-          net_amount: netAmount,
+          net_amount: netAmount, // Guardar net_amount calculado igual que la tabla
           news_data: news_data,
         };
       });
@@ -1987,7 +2007,11 @@ const LiquidationForm = () => {
       } else if (!reemplazaSalarioBase) {
         // Si no hay días afectados y no hay novedad que reemplace el salario base, usar el salario base completo
         salarioBaseProporcional = salarioBaseCalculado;
+        newCalculatedValues[employee.id].total += salarioBaseProporcional;
       }
+      
+      // Guardar el salario base proporcional para uso en el guardado
+      newCalculatedValues[employee.id].basic_salary_proportional = salarioBaseProporcional;
 
       // CALCULAR DESCUENTOS POR AUSENTISMO (días de descanso)
       const absenceDiscounts = calculateAbsenceDiscounts(
@@ -2058,6 +2082,9 @@ const LiquidationForm = () => {
 
       // Guardar la base de seguridad social calculada para uso en otras partes
       newCalculatedValues[employee.id].base_security_social = baseSeguridadSocial;
+      
+      // Guardar el salario base proporcional para uso en el guardado
+      newCalculatedValues[employee.id].basic_salary_proportional = salarioBaseProporcional;
 
       // Calcular si el auxilio de movilidad excede el 40% del salario base
       const cuarentaPorcientoSalario = salarioBaseCalculado * 0.4;

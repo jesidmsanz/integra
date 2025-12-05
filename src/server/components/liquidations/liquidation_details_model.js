@@ -54,6 +54,12 @@ module.exports = function (config) {
         defaultValue: 0,
         comment: "Total de novedades (adiciones)",
       },
+      total_earnings: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: false,
+        defaultValue: 0,
+        comment: "Total devengado (salario + auxilios + novedades positivas)",
+      },
       total_discounts: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,

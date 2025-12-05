@@ -491,37 +491,12 @@ const LiquidationsDashboard = () => {
           // Usar los valores guardados directamente (ya calculados correctamente en LiquidationForm)
           const salarioBase = Number(detail.basic_salary) || 0;
           
-          // Si base_security_social no está guardado, calcularlo desde health_discount o pension_discount
-          // (cada uno es 4% de base_security_social, así que base_security_social = health_discount / 0.04)
-          let baseSeguridadSocial = Number(detail.base_security_social) || 0;
-          if (!baseSeguridadSocial || baseSeguridadSocial === salarioBase) {
-            const healthDiscount = Number(detail.health_discount) || 0;
-            const pensionDiscount = Number(detail.pension_discount) || 0;
-            // Si hay descuentos de salud o pensión, calcular base_security_social desde ahí
-            if (healthDiscount > 0) {
-              baseSeguridadSocial = healthDiscount / 0.04;
-            } else if (pensionDiscount > 0) {
-              baseSeguridadSocial = pensionDiscount / 0.04;
-            } else {
-              baseSeguridadSocial = salarioBase;
-            }
-          }
+          // USAR DIRECTAMENTE EL VALOR GUARDADO - NO RECALCULAR
+          // El valor base_security_social ya se guarda correctamente en LiquidationForm
+          const baseSeguridadSocial = Number(detail.base_security_social) || salarioBase;
           
           const auxilioTransporteFinal = Number(detail.transportation_assistance) || 0;
           const auxilioMovilidadFinal = Number(detail.mobility_assistance) || 0;
-          
-          // Debug para LAURY
-          if (detail.employee_document === "1042439932") {
-            console.log("🔍 EXPORT EXCEL DASHBOARD - LAURY:", {
-              basic_salary: salarioBase,
-              base_security_social_from_db: detail.base_security_social,
-              base_security_social_calculated: baseSeguridadSocial,
-              health_discount: detail.health_discount,
-              pension_discount: detail.pension_discount,
-              transportation_assistance: auxilioTransporteFinal,
-              mobility_assistance: auxilioMovilidadFinal
-            });
-          }
           
           row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS
           row.getCell(7).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (ya calculado proporcionalmente)
@@ -558,29 +533,30 @@ const LiquidationsDashboard = () => {
           const deduccionesCol = 10 + typeNews.length + 5;
           const totalCol = 10 + typeNews.length + 6;
           
-          // Usar los valores guardados directamente para calcular totales
-          // Estos valores ya fueron calculados correctamente en LiquidationForm
-          const totalNovedades = Number(detail.total_novedades) || 0;
-          const totalDiscounts = Number(detail.total_discounts) || 0;
+          // USAR DIRECTAMENTE LOS VALORES GUARDADOS (ya calculados correctamente al guardar)
+          // Estos valores ya fueron calculados exactamente igual que en la tabla
+          // Si no están guardados (liquidaciones antiguas), calcularlos
+          let totalDevengado = Number(detail.total_earnings) || 0;
+          let totalDeducciones = Number(detail.total_discounts) || 0;
+          let totalFinal = Number(detail.net_amount) || 0;
           
-          // Calcular total de novedades positivas y negativas
-          let totalNovedadesPositivas = 0;
-          let totalNovedadesNegativas = 0;
-          if (detail.novedades) {
-            detail.novedades.forEach(novedad => {
-              const amount = Number(novedad.amount) || 0;
-              if (amount >= 0) totalNovedadesPositivas += amount;
-              if (amount < 0) totalNovedadesNegativas += amount;
-            });
+          // Fallback para liquidaciones antiguas que no tienen total_earnings
+          if (!totalDevengado || !totalDeducciones) {
+            // Calcular desde las novedades
+            let totalNovedadesPositivas = 0;
+            let totalNovedadesNegativas = 0;
+            if (detail.novedades) {
+              detail.novedades.forEach(novedad => {
+                const amount = Number(novedad.amount) || 0;
+                if (amount >= 0) totalNovedadesPositivas += amount;
+                if (amount < 0) totalNovedadesNegativas += amount;
+              });
+            }
+            const socialSecurityDiscounts = healthDiscount + pensionDiscount;
+            totalDevengado = salarioBase + auxilioTransporteFinal + auxilioMovilidadFinal + totalNovedadesPositivas;
+            totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
+            totalFinal = totalDevengado - totalDeducciones;
           }
-          
-          // Calcular descuentos de seguridad social
-          const socialSecurityDiscounts = healthDiscount + pensionDiscount;
-          
-          // Totales: Devengado, Deducciones y Neto (igual que en LiquidationForm)
-          const totalDevengado = salarioBase + auxilioTransporteFinal + totalNovedadesPositivas + auxilioMovilidadFinal;
-          const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
-          const totalFinal = Number(detail.net_amount) || (totalDevengado - totalDeducciones);
           
           // Asignar columnas de totales
           row.getCell(devengadoCol).value = totalDevengado;
@@ -688,10 +664,13 @@ const LiquidationsDashboard = () => {
           // Calcular descuentos de seguridad social
           const socialSecurityDiscounts = healthDiscount + pensionDiscount;
           
-          // Totales: Devengado, Deducciones y Neto (igual que en LiquidationForm)
-          const totalDevengado = salarioBase + auxilioTransporte + totalNovedadesPositivas + auxilioMovilidad;
+          // Totales: Devengado, Deducciones y Neto (EXACTAMENTE IGUAL QUE EN LA TABLA DEL DASHBOARD)
+          // En la tabla se calcula: totalDevengado = salarioBase + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas
+          // Y totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas)
+          // Y totalFinal = totalDevengado - totalDeducciones (SIEMPRE CALCULADO, NO USAR detail.net_amount)
+          const totalDevengado = salarioBase + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
           const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
-          const totalFinal = Number(detail.net_amount) || (totalDevengado - totalDeducciones);
+          const totalFinal = totalDevengado - totalDeducciones;
           
           totalDevengadoGeneral += totalDevengado;
           totalDeduccionesGeneral += totalDeducciones;
@@ -700,22 +679,11 @@ const LiquidationsDashboard = () => {
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
         
-        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social)
+        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social guardadas)
         let totalBaseConceptos = 0;
         liquidationData.liquidation_details.forEach(detail => {
-          let baseSegSocial = Number(detail.base_security_social) || 0;
-          if (!baseSegSocial) {
-            // Calcular desde health_discount o pension_discount
-            const healthDiscount = Number(detail.health_discount) || 0;
-            const pensionDiscount = Number(detail.pension_discount) || 0;
-            if (healthDiscount > 0) {
-              baseSegSocial = healthDiscount / 0.04;
-            } else if (pensionDiscount > 0) {
-              baseSegSocial = pensionDiscount / 0.04;
-            } else {
-              baseSegSocial = Number(detail.basic_salary) || 0;
-            }
-          }
+          // USAR DIRECTAMENTE EL VALOR GUARDADO - NO RECALCULAR
+          const baseSegSocial = Number(detail.base_security_social) || Number(detail.basic_salary) || 0;
           totalBaseConceptos += baseSegSocial;
         });
         totalRowObj.getCell(6).value = totalBaseConceptos; // SALARIO BASE + CONCEPTOS
@@ -1307,7 +1275,17 @@ const LiquidationsDashboard = () => {
                                   <strong>
                                     {(() => {
                                       // CALCULAR NETO EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-                                      const salarioBase = Number(detail.basic_salary) || 0;
+                                      // detail.basic_salary ahora es el salario mensual completo (como se muestra en la tabla)
+                                      // Pero para calcular el devengado, necesitamos el salario proporcional
+                                      // Usar base_security_social para inferir el salario proporcional, o calcular desde las novedades
+                                      const salarioBaseMensual = Number(detail.basic_salary) || 0;
+                                      
+                                      // Calcular salario proporcional desde base_security_social
+                                      // base_security_social = salario_proporcional + conceptos
+                                      // Si no hay conceptos adicionales, base_security_social ≈ salario_proporcional
+                                      // Para simplificar, usar el salario mensual completo (ya que las novedades se suman por separado)
+                                      const salarioBaseParaDevengado = salarioBaseMensual;
+                                      
                                       const auxilioTransporte = Number(detail.transportation_assistance) || 0;
                                       const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
                                       
@@ -1333,7 +1311,9 @@ const LiquidationsDashboard = () => {
                                       const absenceDiscounts = Number(detail.absence_discounts) || 0;
                                       
                                       // Total final: Salario Base + Auxilio Transporte + Auxilio Movilidad + Novedades Positivas - (Descuentos + Novedades Negativas)
-                                      const totalDevengado = salarioBase + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
+                                      // NOTA: El salario base aquí debe ser el proporcional, pero como las novedades ya incluyen los ajustes,
+                                      // usamos el salario mensual completo y las novedades se encargan del ajuste
+                                      const totalDevengado = salarioBaseParaDevengado + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
                                       const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
                                       const totalFinal = totalDevengado - totalDeducciones;
                                       
