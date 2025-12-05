@@ -251,7 +251,7 @@ const LiquidationsDashboard = () => {
       // Obtener detalles de la liquidación
       const details = await liquidationsApi.getById(liquidation.id);
       const liquidationData = details.body || details.data;
-      
+      console.log("🔍 EXPORT EXCEL DASHBOARD - LIQUIDACIÓN DATA:", liquidationData);
       if (liquidationData && liquidationData.liquidation_details) {
         // Crear libro de trabajo con ExcelJS
         const workbook = new ExcelJS.Workbook();
@@ -490,11 +490,40 @@ const LiquidationsDashboard = () => {
           
           // Usar los valores guardados directamente (ya calculados correctamente en LiquidationForm)
           const salarioBase = Number(detail.basic_salary) || 0;
-          const baseSeguridadSocial = Number(detail.base_security_social) || salarioBase;
+          
+          // Si base_security_social no está guardado, calcularlo desde health_discount o pension_discount
+          // (cada uno es 4% de base_security_social, así que base_security_social = health_discount / 0.04)
+          let baseSeguridadSocial = Number(detail.base_security_social) || 0;
+          if (!baseSeguridadSocial || baseSeguridadSocial === salarioBase) {
+            const healthDiscount = Number(detail.health_discount) || 0;
+            const pensionDiscount = Number(detail.pension_discount) || 0;
+            // Si hay descuentos de salud o pensión, calcular base_security_social desde ahí
+            if (healthDiscount > 0) {
+              baseSeguridadSocial = healthDiscount / 0.04;
+            } else if (pensionDiscount > 0) {
+              baseSeguridadSocial = pensionDiscount / 0.04;
+            } else {
+              baseSeguridadSocial = salarioBase;
+            }
+          }
+          
           const auxilioTransporteFinal = Number(detail.transportation_assistance) || 0;
           const auxilioMovilidadFinal = Number(detail.mobility_assistance) || 0;
           
-          row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS (usar valor guardado)
+          // Debug para LAURY
+          if (detail.employee_document === "1042439932") {
+            console.log("🔍 EXPORT EXCEL DASHBOARD - LAURY:", {
+              basic_salary: salarioBase,
+              base_security_social_from_db: detail.base_security_social,
+              base_security_social_calculated: baseSeguridadSocial,
+              health_discount: detail.health_discount,
+              pension_discount: detail.pension_discount,
+              transportation_assistance: auxilioTransporteFinal,
+              mobility_assistance: auxilioMovilidadFinal
+            });
+          }
+          
+          row.getCell(6).value = baseSeguridadSocial; // SALARIO BASE + CONCEPTOS
           row.getCell(7).value = auxilioTransporteFinal; // AUXILIO DE TRANSPORTE (ya calculado proporcionalmente)
           row.getCell(8).value = auxilioMovilidadFinal; // AUXILIO DE MOVILIDAD (ya calculado proporcionalmente)
           row.getCell(9).value = detail.hourly_rate || 0; // VALOR POR HORA
@@ -671,10 +700,23 @@ const LiquidationsDashboard = () => {
         
         totalRowObj.getCell(5).value = totalSalario; // SALARIO BASE
         
-        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social guardadas)
+        // Calcular total Salario Base + Conceptos (suma de todas las bases de seguridad social)
         let totalBaseConceptos = 0;
         liquidationData.liquidation_details.forEach(detail => {
-          totalBaseConceptos += Number(detail.base_security_social) || Number(detail.basic_salary) || 0;
+          let baseSegSocial = Number(detail.base_security_social) || 0;
+          if (!baseSegSocial) {
+            // Calcular desde health_discount o pension_discount
+            const healthDiscount = Number(detail.health_discount) || 0;
+            const pensionDiscount = Number(detail.pension_discount) || 0;
+            if (healthDiscount > 0) {
+              baseSegSocial = healthDiscount / 0.04;
+            } else if (pensionDiscount > 0) {
+              baseSegSocial = pensionDiscount / 0.04;
+            } else {
+              baseSegSocial = Number(detail.basic_salary) || 0;
+            }
+          }
+          totalBaseConceptos += baseSegSocial;
         });
         totalRowObj.getCell(6).value = totalBaseConceptos; // SALARIO BASE + CONCEPTOS
         
