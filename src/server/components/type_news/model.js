@@ -74,6 +74,12 @@ module.exports = function (config) {
         defaultValue: false,
         comment: "Si es true, la novedad descuenta; si es false, suma",
       },
+      payment_rule: {
+        type: Sequelize.STRING(50),
+        allowNull: true,
+        defaultValue: 'normal',
+        comment: "Regla de pago: normal, incapacidad_general_arl, incapacidad_general_eps, incapacidad_eps, accidente_trabajo",
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

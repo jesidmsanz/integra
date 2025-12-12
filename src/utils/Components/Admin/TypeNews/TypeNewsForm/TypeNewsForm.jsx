@@ -58,6 +58,7 @@ const initialState = {
   notes: "",
   calculateperhour: false,
   isDiscount: false, // Nuevo campo: true = descuenta, false = suma
+  payment_rule: "normal", // Regla de pago
 };
 
 const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
@@ -81,10 +82,16 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
           ? JSON.parse(data.applies_to)
           : data.applies_to || {};
 
+      // Asegurar que payment_rule tenga un valor válido
+      const paymentRule = data.payment_rule && data.payment_rule !== 'null' && data.payment_rule !== 'undefined'
+        ? data.payment_rule
+        : 'normal';
+
       setForm({
         ...data,
         affects: affectsData,
         applies_to: appliesToData,
+        payment_rule: paymentRule,
       });
     } else {
       setForm(initialState);
@@ -99,6 +106,7 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
     setForm({
       ...form,
       [name]: type === "checkbox" ? checked : value,
@@ -214,12 +222,14 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             form.percentage && form.percentage.toString().trim() !== ""
               ? form.percentage
               : null,
+          // Asegurar que payment_rule se envíe correctamente
+          payment_rule: form.payment_rule || 'normal',
         };
-
-        console.log("form", formDataToSend);
+        
         const save = isUpdate
           ? await typeNewsApi.update(data.id, formDataToSend)
           : await typeNewsApi.create(formDataToSend);
+        
         if (save?.id) {
           setForm(initialState);
           onSuccess();
@@ -230,6 +240,9 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             : toast.success("El registro se guardó exitosamente", {
                 position: "top-center",
               });
+        } else {
+          console.error("❌ No se recibió ID en la respuesta:", save);
+          toast.error("Error: No se pudo guardar el registro");
         }
       } catch (error) {
         toast.error("Hubo un error al guardar el registro");
@@ -521,7 +534,32 @@ const TypeNewsForm = ({ isOpen, toggle, data, isUpdate, onSuccess }) => {
             </Col>
           </Row>
           <Row>
-            <Col md="12">
+            <Col md="6">
+              <FormGroup>
+                <Label for="payment_rule">Tipo de Regla de Pago:</Label>
+                <Input
+                  type="select"
+                  name="payment_rule"
+                  id="payment_rule"
+                  onChange={handleChange}
+                  value={form.payment_rule || "normal"}
+                  invalid={!!errors.payment_rule}
+                >
+                  <option value="normal">Normal (sin regla especial)</option>
+                  <option value="incapacidad_general_arl">Incapacidad General ARL (día 1 patronal, día 2+ ARL)</option>
+                  <option value="incapacidad_general_eps">Incapacidad General EPS (2 días patronal, día 3+ EPS)</option>
+                  <option value="incapacidad_eps">Incapacidad EPS (100% EPS si tiene 1 mes aportes)</option>
+                  <option value="accidente_trabajo">Accidente de Trabajo (100% ARL)</option>
+                </Input>
+                {errors.payment_rule && (
+                  <FormFeedback>{errors.payment_rule}</FormFeedback>
+                )}
+                <small className="text-muted">
+                  Seleccione la regla de pago que aplica a este tipo de novedad
+                </small>
+              </FormGroup>
+            </Col>
+            <Col md="6">
               <FormGroup>
                 <Label for="notes">Notas:</Label>
                 <Input

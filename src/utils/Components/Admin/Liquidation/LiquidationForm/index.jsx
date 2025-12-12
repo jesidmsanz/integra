@@ -665,6 +665,11 @@ const LiquidationForm = () => {
           return esDelEmpleado && esDelTipoNovedad;
         });
 
+        // Si no hay novedades de este tipo, no mostrar nada
+        if (novedadesDelEmpleado.length === 0) {
+          return "";
+        }
+
         // Sumar los valores de todas las novedades filtradas
         const totalTipo = novedadesDelEmpleado.reduce((sum, novedad) => {
           const { valorNovedad } = calculateNovedadValue(novedad, row, type);
@@ -674,19 +679,70 @@ const LiquidationForm = () => {
         // Redondear a 2 decimales para coincidir con el backend
         const totalTipoRedondeado = Math.round(totalTipo * 100) / 100;
 
-        return totalTipoRedondeado ? formatCurrency(totalTipoRedondeado) : "";
+        // Si hay novedades, mostrar el valor (incluso si es 0)
+        return formatCurrency(totalTipoRedondeado);
       },
       sortable: true,
       width: "100px",
     })),
     {
-      name: "Total",
+      name: "Total Empleador",
       cell: (row) => {
         const employeeValues = calculatedValues[row.id];
-        return formatCurrency(employeeValues?.total || 0);
+        // El total del empleador es el net_amount MENOS las novedades que paga ARL y EPS
+        // porque esas NO las paga el empleador
+        const totalARL = employeeValues?.total_arl || 0;
+        const totalEPS = employeeValues?.total_eps || 0;
+        const netAmount = employeeValues?.total || 0;
+        
+        // Total Empleador = net_amount - (costos ARL + costos EPS)
+        // Porque esos costos los asumen ARL/EPS, no el empleador
+        const totalEmpleador = netAmount - (totalARL + totalEPS);
+        
+        // Debug: mostrar valores en consola si hay costos ARL/EPS
+        if ((totalARL > 0 || totalEPS > 0) && row.id) {
+          console.log(`💰 Total Empleador para ${row.fullname}:`, {
+            netAmount,
+            totalARL,
+            totalEPS,
+            totalEmpleador
+          });
+        }
+        
+        return formatCurrency(totalEmpleador);
       },
       sortable: true,
       width: "150px",
+    },
+    {
+      name: "ARL",
+      cell: (row) => {
+        const employeeValues = calculatedValues[row.id];
+        const totalARL = employeeValues?.total_arl || 0;
+        return formatCurrency(totalARL);
+      },
+      sortable: true,
+      width: "120px",
+    },
+    {
+      name: "EPS",
+      cell: (row) => {
+        const employeeValues = calculatedValues[row.id];
+        const totalEPS = employeeValues?.total_eps || 0;
+        return formatCurrency(totalEPS);
+      },
+      sortable: true,
+      width: "120px",
+    },
+    {
+      name: "Total",
+      cell: (row) => {
+        const employeeValues = calculatedValues[row.id];
+        const netAmount = employeeValues?.total || 0;
+        return formatCurrency(netAmount);
+      },
+      sortable: true,
+      width: "120px",
     },
     {
       name: "Estado Novedades",
@@ -812,6 +868,18 @@ const LiquidationForm = () => {
 
       if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
         setTypeNews(response.data);
+        // Debug: mostrar tipos de novedad con reglas de pago
+        const tiposConRegla = response.data.filter(t => t.payment_rule && t.payment_rule !== 'normal');
+        if (tiposConRegla.length > 0) {
+          console.log('📋 Tipos de novedad con reglas de pago especiales:', tiposConRegla.map(t => ({
+            id: t.id,
+            code: t.code,
+            name: t.name,
+            payment_rule: t.payment_rule
+          })));
+        } else {
+          console.log('⚠️ No hay tipos de novedad con reglas de pago especiales configuradas');
+        }
       } else {
         console.log("⚠️ No se encontraron tipos de novedades");
         setTypeNews([]);
@@ -1114,8 +1182,18 @@ const LiquidationForm = () => {
         ? formatCurrency(pensionDiscount) 
         : "No aplica este corte";
       
-      // Usar el total ya calculado de calculatedValues
-      baseData["Total"] = formatCurrency(employeeValues.total || 0);
+      // El total del empleador es el net_amount MENOS las novedades que paga ARL y EPS
+      const totalARL = employeeValues?.total_arl || 0;
+      const totalEPS = employeeValues?.total_eps || 0;
+      const netAmount = employeeValues?.total || 0;
+      
+      // Total Empleador = net_amount - (costos ARL + costos EPS)
+      const totalEmpleador = netAmount - (totalARL + totalEPS);
+      
+      baseData["Total Empleador"] = formatCurrency(totalEmpleador);
+      baseData["ARL"] = formatCurrency(totalARL);
+      baseData["EPS"] = formatCurrency(totalEPS);
+      baseData["Total"] = formatCurrency(netAmount);
 
       return baseData;
     });
@@ -1204,6 +1282,20 @@ const LiquidationForm = () => {
     try {
       setSaving(true);
 
+      // Obtener salario mínimo una vez para todas las liquidaciones desde las normativas
+      let salarioMinimo = null;
+      try {
+        const normativaSalarioMinimo = await getNormativaVigente('salario_minimo', form.startDate);
+        if (normativaSalarioMinimo && normativaSalarioMinimo.valor) {
+          salarioMinimo = parseFloat(normativaSalarioMinimo.valor);
+          console.log(`✅ Salario mínimo obtenido de normativas: ${salarioMinimo}`);
+        } else {
+          console.warn('⚠️ No se encontró normativa de salario mínimo para la fecha:', form.startDate);
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo salario mínimo desde normativas:', error);
+      }
+
       // Preparar los datos de empleados para la liquidación
       const employees_data = filteredData.map((employee) => {
         const employeeValues = calculatedValues[employee.id] || { total: 0 };
@@ -1229,7 +1321,7 @@ const LiquidationForm = () => {
           const tipoNovedad = typeNews.find(
             (type) => type.id === news.typeNewsId
           );
-          const { valorNovedad, totalHoras, totalDias } = calculateNovedadValue(
+          const { valorNovedad, totalHoras, totalDias, valorPatronal, valorARL, valorEPS } = calculateNovedadValue(
             news,
             employee,
             tipoNovedad
@@ -1241,13 +1333,32 @@ const LiquidationForm = () => {
             hours: totalHoras,
             days: totalDias,
             amount: valorNovedad,
+            valor_patronal: valorPatronal || 0,
+            valor_arl: valorARL || 0,
+            valor_eps: valorEPS || 0,
           };
         });
 
-        // Calcular totales de novedades y descuentos proporcionales
+        // USAR DIRECTAMENTE TODOS LOS VALORES YA CALCULADOS EN calculateAllValues
+        // NO RECALCULAR NADA - usar los valores que se muestran en la tabla
+        const totalPatronal = employeeValues?.total_patronal || 0;
+        const totalARL = employeeValues?.total_arl || 0;
+        const totalEPS = employeeValues?.total_eps || 0;
+        const totalDevengado = employeeValues?.total_earnings || 0;
+        const totalDeducciones = employeeValues?.total_discounts || 0;
+        const netAmount = employeeValues?.total || 0;
+        const baseSeguridadSocial = employeeValues?.base_security_social || 0;
+        const healthDiscount = employeeValues?.health_discount || 0;
+        const pensionDiscount = employeeValues?.pension_discount || 0;
+        const absenceDiscounts = employeeValues?.absence_discounts || 0;
+        const salarioBaseProporcional = employeeValues?.basic_salary_proportional || basicSalaryForPeriod;
+        const mobilityAssistance = employeeValues?.mobility_assistance_final || 0;
+        
+        // Solo necesitamos calcular news_data para guardar las novedades individuales
+        // NO necesitamos recalcular totales porque ya están en calculatedValues
         let totalNovedades = 0;
         let descuentosProporcionales = 0;
-        let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
+        let valorPrestacionales = 0; // Solo para el cálculo de news_data
 
         news_data.forEach((news) => {
           const tipoNovedad = typeNews.find(type => type.id === news.type_news_id);
@@ -1374,81 +1485,7 @@ const LiquidationForm = () => {
           }
         });
 
-        // Calcular descuentos por ausentismo
-        const absenceDiscounts = calculateAbsenceDiscounts(
-          employee,
-          form.startDate,
-          form.endDate
-        );
-
-        // Obtener auxilio de movilidad
-        const mobilityAssistance = employeeValues.mobility_assistance_final !== undefined 
-          ? employeeValues.mobility_assistance_final 
-          : 0;
-
-        // USAR EL VALOR YA CALCULADO EN calculateAllValues (que considera salario proporcional y días trabajados)
-        // Este valor ya está calculado correctamente con todas las proporciones y novedades
-        const baseSeguridadSocial = employeeValues.base_security_social !== undefined 
-          ? employeeValues.base_security_social 
-          : calculateBaseSeguridadSocial(
-              basicSalaryForPeriod, 
-              valorPrestacionales, 
-              mobilityAssistance
-            );
-
-        // Calcular si el auxilio de movilidad excede el 40% del salario base
-        const cuarentaPorcientoSalario = basicSalaryForPeriod * 0.4;
-        const auxilioExcede40Porciento = mobilityAssistance > cuarentaPorcientoSalario;
-
-        // Calcular descuentos de salud y pensión (4% cada uno de la base de seguridad social)
-        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
-        const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
         const socialSecurityDiscounts = healthDiscount + pensionDiscount;
-        
-        console.log("🔍 Debug descuentos:", {
-          employee: employee.fullname,
-          paymentMethod: form.paymentMethod,
-          corte1: form.corte1,
-          corte2: form.corte2,
-          isSecondCut,
-          shouldApply,
-          basicSalaryForPeriod,
-          valorPrestacionales,
-          baseSeguridadSocial,
-          healthDiscount,
-          pensionDiscount,
-          totalNovedades
-        });
-
-        // Separar novedades positivas y negativas (EXACTAMENTE IGUAL QUE EN LA TABLA DEL DASHBOARD)
-        let totalNovedadesPositivas = 0;
-        let totalNovedadesNegativas = 0;
-        news_data.forEach((news) => {
-          const amount = Number(news.amount) || 0;
-          if (amount >= 0) {
-            totalNovedadesPositivas += amount;
-          } else {
-            totalNovedadesNegativas += amount;
-          }
-        });
-
-        // Calcular totales EXACTAMENTE IGUAL QUE EN LA TABLA DEL DASHBOARD
-        // En la tabla: totalDevengado = salarioBaseProporcional + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas
-        // Usar el salario base proporcional (que considera días trabajados) del calculatedValues
-        const salarioBaseProporcional = employeeValues.basic_salary_proportional !== undefined
-          ? employeeValues.basic_salary_proportional
-          : basicSalaryForPeriod;
-        
-        // El auxilio de movilidad SIEMPRE se suma al devengado (según la tabla del dashboard)
-        const totalDevengado = salarioBaseProporcional + transportationAssistance + mobilityAssistance + totalNovedadesPositivas;
-        
-        // Las deducciones incluyen: seguridad social + ausentismo + novedades negativas (en valor absoluto)
-        const totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
-        
-        // El neto es devengado menos deducciones
-        const netAmount = totalDevengado - totalDeducciones;
 
         return {
           employee_id: employee.id,
@@ -1466,6 +1503,9 @@ const LiquidationForm = () => {
           absence_discounts: absenceDiscounts,
           proportional_discounts: descuentosProporcionales,
           net_amount: netAmount, // Guardar net_amount calculado igual que la tabla
+          total_patronal: totalPatronal, // Total costo patronal (empleador)
+          total_arl: totalARL, // Total costo ARL
+          total_eps: totalEPS, // Total costo EPS
           news_data: news_data,
         };
       });
@@ -1772,10 +1812,126 @@ const LiquidationForm = () => {
       // Si NO es descuento, mantener el valor positivo (suma)
     }
     
+    // Inicializar valores de costos separados
+    let valorPatronal = 0;
+    let valorARL = 0;
+    let valorEPS = 0;
+    
+    // Aplicar reglas de pago según payment_rule
+    const paymentRule = tipoNovedad.payment_rule || 'normal';
+    
+    // Debug: mostrar información de la novedad
+    if (paymentRule !== 'normal') {
+      console.log(`🔍 Novedad con regla especial:`, {
+        tipoNovedad: tipoNovedad.name || tipoNovedad.code,
+        paymentRule,
+        calculateperhour: tipoNovedad.calculateperhour,
+        employee: employee.fullname
+      });
+    }
+    
+    if (paymentRule !== 'normal' && !tipoNovedad.calculateperhour) {
+      // Calcular días: siempre contar ambos días (inicio y fin)
+      // Ejemplo: 01/10 a 10/10 = 10 días (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+      const dias = fechaFin.diff(fechaInicio, "days") + 1;
+      
+      const salarioDiario = Number(employee.basicmonthlysalary) / 30;
+      const fechaInicioContrato = moment.utc(employee.contractstartdate);
+      const fechaInicioNovedad = moment.utc(novedad.startDate);
+      const mesesAportes = fechaInicioNovedad.diff(fechaInicioContrato, 'months', true);
+      const tieneUnMesAportes = mesesAportes >= 1;
+      
+      switch (paymentRule) {
+        case 'incapacidad_general_arl':
+          // Día 1: patronal, día 2+: ARL
+          if (dias === 1) {
+            // Solo día 1 patronal
+            valorPatronal = salarioDiario;
+            valorNovedad = valorPatronal; // Valor total = lo que paga el empleador
+          } else {
+            // Día 1 patronal, día 2+ ARL
+            valorPatronal = salarioDiario;
+            valorARL = (dias - 1) * salarioDiario;
+            valorNovedad = valorPatronal + valorARL; // Valor total = patronal + ARL
+          }
+          break;
+          
+        case 'incapacidad_general_eps':
+          // Días 1-2: patronal, día 3+: EPS (si tiene 1 mes aportes), sino todo patronal
+          // IMPORTANTE: Se paga al 66.67% del salario diario
+          if (dias <= 2) {
+            // Todo patronal
+            valorPatronal = dias * salarioDiario;
+            valorNovedad = valorPatronal;
+          } else {
+            // Días 1-2 patronal, día 3+ EPS (si tiene aportes)
+            if (tieneUnMesAportes) {
+              const diasPatronal = 2;
+              const diasEPS = dias - 2;
+              // Calcular valores base (100%)
+              const valorPatronalBase = diasPatronal * salarioDiario;
+              const valorEPSBase = diasEPS * salarioDiario;
+              
+              // Aplicar porcentaje del 66.67% si existe en el tipo de novedad
+              const percentage = tienePorcentaje ? parseFloat(tipoNovedad.percentage) : 100;
+              valorPatronal = valorPatronalBase * (percentage / 100);
+              valorEPS = valorEPSBase * (percentage / 100);
+              valorNovedad = valorPatronal + valorEPS; // Valor total = patronal + EPS
+            } else {
+              // Sin aportes: todo patronal
+              const percentage = tienePorcentaje ? parseFloat(tipoNovedad.percentage) : 100;
+              valorPatronal = dias * salarioDiario * (percentage / 100);
+              valorNovedad = valorPatronal;
+            }
+          }
+          break;
+          
+        case 'incapacidad_eps':
+          // 100% EPS si tiene 1 mes calendario de aportes
+          if (tieneUnMesAportes) {
+            // EPS asume el 100%, pero se muestra el valor total en la novedad
+            valorEPS = dias * salarioDiario;
+            valorNovedad = valorEPS; // Valor total = lo que paga EPS
+          } else {
+            // Sin aportes: todo patronal
+            valorPatronal = dias * salarioDiario;
+            valorNovedad = valorPatronal;
+          }
+          break;
+          
+        case 'accidente_trabajo':
+          // 100% ARL desde día 1, pero se muestra el valor total en la novedad
+          valorARL = dias * salarioDiario;
+          valorNovedad = valorARL; // Valor total = lo que paga ARL
+          break;
+      }
+      
+      // Aplicar porcentaje si existe (excepto para reglas que ya lo aplicaron)
+      if (tienePorcentaje && 
+          paymentRule !== 'accidente_trabajo' && 
+          paymentRule !== 'incapacidad_eps' &&
+          paymentRule !== 'incapacidad_general_eps') {
+        const percentage = parseFloat(tipoNovedad.percentage) || 100;
+        valorNovedad = valorNovedad * (percentage / 100);
+        valorPatronal = valorPatronal * (percentage / 100);
+        valorARL = valorARL * (percentage / 100);
+        valorEPS = valorEPS * (percentage / 100);
+      }
+    } else {
+      // Si es normal o se calcula por hora, todo es patronal
+      valorPatronal = valorNovedad;
+    }
+    
     // Asegurar redondeo final a 2 decimales (por si acaso)
     valorNovedad = Math.round(valorNovedad * 100) / 100;
+    valorPatronal = Math.round(valorPatronal * 100) / 100;
+    valorARL = Math.round(valorARL * 100) / 100;
+    valorEPS = Math.round(valorEPS * 100) / 100;
     
-    return { valorNovedad, totalHoras };
+    // Calcular total de días si no se calcula por hora
+    const totalDias = !tipoNovedad.calculateperhour ? fechaFin.diff(fechaInicio, "days") + 1 : 0;
+    
+    return { valorNovedad, totalHoras, totalDias, valorPatronal, valorARL, valorEPS };
   };
 
   // Función para calcular descuentos por ausentismo (días de descanso)
@@ -1856,13 +2012,33 @@ const LiquidationForm = () => {
       let diasAfectadosAuxilioTransporte = 0; // Días totales que afectan auxilio de transporte
       let diasAfectadosSalarioBase = 0; // Días totales que afectan el salario base (para calcular proporcional)
       let reemplazaSalarioBase = false; // Flag para indicar si alguna novedad reemplaza el salario base
+      let totalPatronal = 0; // Total costo patronal
+      let totalARL = 0; // Total costo ARL
+      let totalEPS = 0; // Total costo EPS
       
       if (employeeNews.length > 0) {
         employeeNews.forEach(news => {
           const type = typeNews.find(t => t.id === news.typeNewsId);
           if (!type) return;
 
-          const { valorNovedad, totalHoras } = calculateNovedadValue(news, employee, type);
+          const { valorNovedad, totalHoras, valorPatronal, valorARL, valorEPS } = calculateNovedadValue(news, employee, type);
+          
+          // Debug: mostrar valores calculados
+          if (valorARL > 0 || valorEPS > 0) {
+            console.log(`📊 Costos calculados para novedad:`, {
+              tipo: type.name || type.code,
+              paymentRule: type.payment_rule,
+              valorPatronal,
+              valorARL,
+              valorEPS,
+              employee: employee.fullname
+            });
+          }
+          
+          // Acumular costos separados
+          totalPatronal += valorPatronal || 0;
+          totalARL += valorARL || 0;
+          totalEPS += valorEPS || 0;
           
           // Guardar en novedades por tipo
           if (!newCalculatedValues[employee.id].novedades[type.id]) {
@@ -2071,6 +2247,24 @@ const LiquidationForm = () => {
       // Guardar el auxilio de transporte calculado
       newCalculatedValues[employee.id].transportation_assistance_final = auxilioTransporte;
 
+      // Calcular total de novedades positivas (solo las que suman, no las que restan)
+      let totalNovedadesPositivas = 0;
+      employeeNews.forEach((news) => {
+        const type = typeNews.find(t => t.id === news.typeNewsId);
+        if (!type) return;
+        
+        const { valorNovedad } = calculateNovedadValue(news, employee, type);
+        // Solo sumar novedades positivas (no descuentos)
+        if (valorNovedad > 0) {
+          totalNovedadesPositivas += valorNovedad;
+        }
+      });
+      totalNovedadesPositivas = Math.round(totalNovedadesPositivas * 100) / 100;
+
+      // CALCULAR TOTAL DEVENGADO (antes de descuentos): salario base + auxilios + novedades positivas
+      const totalEarnings = salarioBaseProporcional + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
+      newCalculatedValues[employee.id].total_earnings = Math.round(totalEarnings * 100) / 100;
+
       // Calcular base de seguridad social: salario base proporcional + novedades prestacionales + auxilio movilidad (si excede 40%)
       // El salario base proporcional ya incluye solo los días trabajados
       // Pasar el salario base completo para calcular correctamente el 40%
@@ -2114,6 +2308,21 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
       newCalculatedValues[employee.id].transportation_assistance_discount = Math.round(descuentoAuxilioTransporte * 100) / 100;
       newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
+      
+      // Guardar costos separados
+      newCalculatedValues[employee.id].total_patronal = Math.round(totalPatronal * 100) / 100;
+      newCalculatedValues[employee.id].total_arl = Math.round(totalARL * 100) / 100;
+      newCalculatedValues[employee.id].total_eps = Math.round(totalEPS * 100) / 100;
+      
+      // Debug: mostrar totales acumulados
+      if (totalARL > 0 || totalEPS > 0) {
+        console.log(`💼 Totales acumulados para ${employee.fullname}:`, {
+          totalPatronal: newCalculatedValues[employee.id].total_patronal,
+          totalARL: newCalculatedValues[employee.id].total_arl,
+          totalEPS: newCalculatedValues[employee.id].total_eps
+        });
+      }
+      newCalculatedValues[employee.id].total_deducciones = Math.round((absenceDiscounts + socialSecurityDiscounts) * 100) / 100;
       
       // Redondear totales a 2 decimales para coincidir con el backend
       newCalculatedValues[employee.id].total = Math.round(newCalculatedValues[employee.id].total * 100) / 100;

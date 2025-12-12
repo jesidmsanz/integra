@@ -158,6 +158,9 @@ function create(liquidationData) {
           absence_discounts: toDecimal(employee.absence_discounts),
           proportional_discounts: toDecimal(employee.proportional_discounts),
           net_amount: toDecimal(employee.net_amount),
+          total_patronal: toDecimal(employee.total_patronal || 0),
+          total_arl: toDecimal(employee.total_arl || 0),
+          total_eps: toDecimal(employee.total_eps || 0),
         });
 
         // Crear novedades para cada empleado y registrar trazabilidad

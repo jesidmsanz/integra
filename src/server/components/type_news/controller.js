@@ -71,9 +71,30 @@ function create(obj) {
 
 function update(_id, obj) {
   return new Promise(async (resolve, reject) => {
-    const { TypeNews } = await db();
-    const result = await TypeNews.update(_id, obj);
-    resolve(result);
+    try {
+      const { TypeNews } = await db();
+      const result = await TypeNews.update(_id, obj);
+      
+      if (result) {
+        // Asegurar que payment_rule esté presente
+        if (!result.payment_rule && obj.payment_rule) {
+          result.payment_rule = obj.payment_rule;
+        }
+        
+        // Crear un objeto limpio para asegurar que todos los campos estén presentes
+        const cleanResult = {
+          ...result,
+          payment_rule: result.payment_rule || obj.payment_rule || 'normal'
+        };
+        
+        resolve(cleanResult);
+      } else {
+        resolve(null);
+      }
+    } catch (error) {
+      console.error('❌ Error en controller.update:', error);
+      reject(error);
+    }
   });
 }
 

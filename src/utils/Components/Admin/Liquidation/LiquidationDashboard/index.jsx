@@ -290,13 +290,16 @@ const LiquidationsDashboard = () => {
           ...discountColumns,
           { key: 'total_devengado', width: 20 },
           { key: 'total_deducciones', width: 20 },
-          { key: 'total', width: 25 }
+          { key: 'total_empleador', width: 20 },
+          { key: 'total_arl', width: 18 },
+          { key: 'total_eps', width: 18 },
+          { key: 'total', width: 20 }
         ];
 
         worksheet.columns = finalColumns;
         
         
-        const totalColumns = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
+        const totalColumns = 10 + typeNews.length + 3 + 6; // base (10) + novedades + descuentos (3) + devengado + deducciones + total_empleador + arl + eps + total
         
         // Función para obtener letra de columna
         const getColumnLetter = (num) => {
@@ -445,6 +448,9 @@ const LiquidationsDashboard = () => {
           'AUSENTISMO',
           'TOTAL DEVENGADO',
           'TOTAL DEDUCCIONES',
+          'TOTAL EMPLEADOR',
+          'TOTAL ARL',
+          'TOTAL EPS',
           'TOTAL'
         ];
         
@@ -531,17 +537,64 @@ const LiquidationsDashboard = () => {
           // Columnas para totales
           const devengadoCol = 10 + typeNews.length + 4;
           const deduccionesCol = 10 + typeNews.length + 5;
-          const totalCol = 10 + typeNews.length + 6;
+          const totalEmpleadorCol = 10 + typeNews.length + 6;
+          const totalARLCol = 10 + typeNews.length + 7;
+          const totalEPSCol = 10 + typeNews.length + 8;
+          const totalCol = 10 + typeNews.length + 9;
           
           // USAR DIRECTAMENTE LOS VALORES GUARDADOS (ya calculados correctamente al guardar)
           // Estos valores ya fueron calculados exactamente igual que en la tabla
-          // Si no están guardados (liquidaciones antiguas), calcularlos
-          let totalDevengado = Number(detail.total_earnings) || 0;
-          let totalDeducciones = Number(detail.total_discounts) || 0;
-          let totalFinal = Number(detail.net_amount) || 0;
+          // Parsear correctamente los valores (pueden venir como string o number)
+          const parseDecimal = (value) => {
+            if (value === null || value === undefined || value === "") return 0;
+            if (typeof value === "number") return value;
+            if (typeof value === "string") {
+              // Remover cualquier formato (puntos, comas, espacios)
+              const cleanValue = value.replace(/[^\d.,-]/g, "").replace(",", ".");
+              const num = parseFloat(cleanValue);
+              return isNaN(num) ? 0 : num;
+            }
+            return 0;
+          };
           
-          // Fallback para liquidaciones antiguas que no tienen total_earnings
-          if (!totalDevengado || !totalDeducciones) {
+          // USAR net_amount DIRECTAMENTE - este es el valor correcto guardado
+          let totalFinal = parseDecimal(detail.net_amount);
+          
+          // Leer earnings y discounts directamente de la BD
+          let totalDevengado = parseDecimal(detail.total_earnings);
+          let totalDeducciones = parseDecimal(detail.total_discounts);
+          
+          // Si net_amount está guardado pero total_earnings está en 0, calcular desde net_amount + discounts
+          // Esto puede pasar si total_earnings no se guardó correctamente pero net_amount sí
+          if (totalFinal > 0 && totalDevengado === 0 && totalDeducciones > 0) {
+            // Calcular earnings desde net_amount + discounts
+            totalDevengado = totalFinal + totalDeducciones;
+          } else if (totalFinal > 0 && totalDevengado === 0 && totalDeducciones === 0) {
+            // Si ambos están en 0, intentar calcular desde las novedades (solo para liquidaciones antiguas)
+            // Pero esto no debería pasar en liquidaciones nuevas
+            totalDevengado = totalFinal;
+          }
+          
+          // Obtener valores de costos separados DIRECTAMENTE DE LA BD (como se guardaron)
+          let totalARL = parseDecimal(detail.total_arl);
+          let totalEPS = parseDecimal(detail.total_eps);
+          
+          // IMPORTANTE: Si net_amount está guardado, usarlo DIRECTAMENTE (no recalcular nunca)
+          // Solo calcular devengado y deducciones si faltan, pero NUNCA recalcular totalFinal
+          if (totalFinal > 0) {
+            // net_amount está guardado - usarlo directamente
+            // Solo calcular devengado y deducciones si faltan
+            if (!totalDevengado || totalDevengado === 0) {
+              // Si no hay total_earnings, calcularlo desde net_amount + discounts
+              totalDeducciones = parseDecimal(detail.total_discounts) || 0;
+              totalDevengado = totalFinal + totalDeducciones;
+            }
+            if (!totalDeducciones || totalDeducciones === 0) {
+              totalDeducciones = parseDecimal(detail.total_discounts) || 0;
+            }
+          } else {
+            // Fallback SOLO para liquidaciones antiguas que no tienen net_amount guardado
+            const salarioParaCalculo = Number(detail.basic_salary_proportional) || salarioBase;
             // Calcular desde las novedades
             let totalNovedadesPositivas = 0;
             let totalNovedadesNegativas = 0;
@@ -553,20 +606,34 @@ const LiquidationsDashboard = () => {
               });
             }
             const socialSecurityDiscounts = healthDiscount + pensionDiscount;
-            // Usar basic_salary_proportional si existe, sino usar basic_salary
-            const salarioParaCalculo = Number(detail.basic_salary_proportional) || salarioBase;
             totalDevengado = salarioParaCalculo + auxilioTransporteFinal + auxilioMovilidadFinal + totalNovedadesPositivas;
             totalDeducciones = (socialSecurityDiscounts + absenceDiscounts) + Math.abs(totalNovedadesNegativas);
             totalFinal = totalDevengado - totalDeducciones;
           }
           
-          // Asignar columnas de totales
+          // Si no hay valores guardados de ARL/EPS, calcular desde novedades (solo para liquidaciones antiguas)
+          if (totalARL === 0 && totalEPS === 0 && detail.novedades) {
+            detail.novedades.forEach(novedad => {
+              totalARL += Number(novedad.valor_arl) || 0;
+              totalEPS += Number(novedad.valor_eps) || 0;
+            });
+          }
+          
+          // Total del empleador = net_amount - (costos ARL + costos EPS)
+          // Esta es la misma lógica que se usa en la tabla principal
+          // USAR totalFinal que es el net_amount guardado
+          const totalEmpleador = totalFinal - (totalARL + totalEPS);
+          
+          // Asignar columnas de totales (USAR VALORES GUARDADOS DIRECTAMENTE)
           row.getCell(devengadoCol).value = totalDevengado;
           row.getCell(deduccionesCol).value = totalDeducciones;
+          row.getCell(totalEmpleadorCol).value = totalEmpleador;
+          row.getCell(totalARLCol).value = totalARL;
+          row.getCell(totalEPSCol).value = totalEPS;
           row.getCell(totalCol).value = totalFinal;
 
           // Aplicar estilos a toda la fila COMPACTOS
-          const totalCols = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
+          const totalCols = 10 + typeNews.length + 3 + 6; // base (10) + novedades + descuentos (3) + devengado + deducciones + total_empleador + arl + eps + total
           for (let col = 1; col <= totalCols; col++) {
             const cell = row.getCell(col);
             cell.font = {
@@ -605,7 +672,15 @@ const LiquidationsDashboard = () => {
               cell.numFmt = '"$"#,##0';
             } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
               cell.numFmt = '"$"#,##0';
-            } else if (col === 10 + typeNews.length + 6) { // TOTAL
+            } else if (col === 10 + typeNews.length + 6) { // TOTAL EMPLEADOR
+              cell.numFmt = '"$"#,##0';
+            } else if (col === 10 + typeNews.length + 7) { // ARL
+              cell.numFmt = '"$"#,##0.00';
+            } else if (col === 10 + typeNews.length + 8) { // EPS
+              cell.numFmt = '"$"#,##0.00';
+            } else if (col === 10 + typeNews.length + 9) { // TOTAL
+              cell.numFmt = '"$"#,##0.00';
+            } else if (col === 10 + typeNews.length + 9) { // TOTAL
               cell.numFmt = '"$"#,##0';
             }
           }
@@ -715,16 +790,62 @@ const LiquidationsDashboard = () => {
         totalRowObj.getCell(pensionColTotal).value = totalPension;
         totalRowObj.getCell(ausentismoColTotal).value = totalAusentismo;
         
-        // Totales Devengado, Deducciones y Neto (SIN FÓRMULAS)
+        // Calcular totales de costos separados
+        let totalPatronalGeneral = 0;
+        let totalARLGeneral = 0;
+        let totalEPSGeneral = 0;
+        // Función para parsear decimales correctamente
+        const parseDecimal = (value) => {
+          if (value === null || value === undefined || value === "") return 0;
+          if (typeof value === "number") return value;
+          if (typeof value === "string") {
+            const cleanValue = value.replace(/[^\d.,-]/g, "").replace(",", ".");
+            const num = parseFloat(cleanValue);
+            return isNaN(num) ? 0 : num;
+          }
+          return 0;
+        };
+        
+        liquidationData.liquidation_details.forEach(detail => {
+          totalPatronalGeneral += parseDecimal(detail.total_patronal);
+          totalARLGeneral += parseDecimal(detail.total_arl);
+          totalEPSGeneral += parseDecimal(detail.total_eps);
+        });
+        
+        // Calcular totales de salarios y auxilios para el total del empleador
+        let totalSalariosAuxilios = 0;
+        liquidationData.liquidation_details.forEach(detail => {
+          const salario = Number(detail.basic_salary_proportional) || Number(detail.basic_salary) || 0;
+          const transporte = Number(detail.transportation_assistance) || 0;
+          const movilidad = Number(detail.mobility_assistance) || 0;
+          totalSalariosAuxilios += salario + transporte + movilidad;
+        });
+        
+        // Totales Devengado, Deducciones, Total Empleador, ARL, EPS y Total (SIN FÓRMULAS)
         const devengadoCol = 10 + typeNews.length + 4;
         const deduccionesCol = 10 + typeNews.length + 5;
-        const totalCol = 10 + typeNews.length + 6;
+        const totalEmpleadorCol = 10 + typeNews.length + 6;
+        const totalARLCol = 10 + typeNews.length + 7;
+        const totalEPSCol = 10 + typeNews.length + 8;
+        const totalCol = 10 + typeNews.length + 9;
+        
+        // Calcular total general (net_amount total)
+        const totalGeneral = totalDevengadoGeneral - totalDeduccionesGeneral;
+        
+        // Total del empleador general = total general - (costos ARL + costos EPS)
+        // Esta es la misma lógica que se usa en las filas individuales
+        const totalEmpleadorGeneral = totalGeneral - (totalARLGeneral + totalEPSGeneral);
+        
         totalRowObj.getCell(devengadoCol).value = totalDevengadoGeneral;
         totalRowObj.getCell(deduccionesCol).value = totalDeduccionesGeneral;
-        totalRowObj.getCell(totalCol).value = totalNeto;
+        totalRowObj.getCell(totalEmpleadorCol).value = totalEmpleadorGeneral;
+        totalRowObj.getCell(totalARLCol).value = totalARLGeneral;
+        totalRowObj.getCell(totalEPSCol).value = totalEPSGeneral;
+        totalRowObj.getCell(totalCol).value = totalGeneral;
+        totalRowObj.getCell(totalCol).value = totalGeneral;
 
         // Estilo de la fila de totales COMPACTA
-        const totalCols = 10 + typeNews.length + 3 + 3; // base (10) + novedades + descuentos (3) + devengado + deducciones + total
+        const totalCols = 10 + typeNews.length + 3 + 6; // base (10) + novedades + descuentos (3) + devengado + deducciones + total_empleador + arl + eps + total
         for (let col = 1; col <= totalCols; col++) {
           const cell = totalRowObj.getCell(col);
           cell.font = {
@@ -764,7 +885,13 @@ const LiquidationsDashboard = () => {
             cell.numFmt = '"$"#,##0';
           } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
             cell.numFmt = '"$"#,##0';
-          } else if (col === 10 + typeNews.length + 6) { // TOTAL
+          } else if (col === 10 + typeNews.length + 6) { // TOTAL EMPLEADOR
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 10 + typeNews.length + 7) { // ARL
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 10 + typeNews.length + 8) { // EPS
+            cell.numFmt = '"$"#,##0';
+          } else if (col === 10 + typeNews.length + 9) { // TOTAL
             cell.numFmt = '"$"#,##0';
           }
         }

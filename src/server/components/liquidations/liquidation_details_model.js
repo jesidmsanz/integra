@@ -108,6 +108,24 @@ module.exports = function (config) {
         defaultValue: 0,
         comment: "Valor neto a pagar",
       },
+      total_patronal: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true,
+        defaultValue: 0,
+        comment: "Total costo patronal (empleador)",
+      },
+      total_arl: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true,
+        defaultValue: 0,
+        comment: "Total costo ARL",
+      },
+      total_eps: {
+        type: Sequelize.DECIMAL(15, 2),
+        allowNull: true,
+        defaultValue: 0,
+        comment: "Total costo EPS",
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: true,

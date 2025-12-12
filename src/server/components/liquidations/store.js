@@ -60,6 +60,9 @@ module.exports = function setupLiquidations(Model, db, sequelize) {
               'absence_discounts', ld.absence_discounts,
               'proportional_discounts', ld.proportional_discounts,
               'net_amount', ld.net_amount,
+              'total_patronal', ld.total_patronal,
+              'total_arl', ld.total_arl,
+              'total_eps', ld.total_eps,
               'novedades', COALESCE(
                 (
                   SELECT json_agg(
