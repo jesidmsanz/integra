@@ -561,14 +561,18 @@ const LiquidationsDashboard = () => {
           let totalFinal = parseDecimal(detail.net_amount);
           
           // Leer earnings y discounts directamente de la BD
+          // NOTA: El SQL devuelve 'total_deductions' pero la BD tiene 'total_discounts'
           let totalDevengado = parseDecimal(detail.total_earnings);
-          let totalDeducciones = parseDecimal(detail.total_discounts);
+          let totalDeducciones = parseDecimal(detail.total_deductions || detail.total_discounts);
           
           // Si net_amount está guardado pero total_earnings está en 0, calcular desde net_amount + discounts
           // Esto puede pasar si total_earnings no se guardó correctamente pero net_amount sí
           if (totalFinal > 0 && totalDevengado === 0 && totalDeducciones > 0) {
             // Calcular earnings desde net_amount + discounts
             totalDevengado = totalFinal + totalDeducciones;
+          } else if (totalFinal > 0 && totalDevengado > 0 && totalDeducciones === 0) {
+            // Si total_earnings está guardado pero total_discounts está en 0, calcular desde earnings - net_amount
+            totalDeducciones = totalDevengado - totalFinal;
           } else if (totalFinal > 0 && totalDevengado === 0 && totalDeducciones === 0) {
             // Si ambos están en 0, intentar calcular desde las novedades (solo para liquidaciones antiguas)
             // Pero esto no debería pasar en liquidaciones nuevas
@@ -669,7 +673,7 @@ const LiquidationsDashboard = () => {
             } else if (col >= 10 + typeNews.length + 1 && col <= 10 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
               cell.numFmt = '"$"#,##0';
             } else if (col === 10 + typeNews.length + 4) { // DEVENGADO
-              cell.numFmt = '"$"#,##0';
+              cell.numFmt = '"$"#,##0.00';
             } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
               cell.numFmt = '"$"#,##0';
             } else if (col === 10 + typeNews.length + 6) { // TOTAL EMPLEADOR
@@ -882,7 +886,7 @@ const LiquidationsDashboard = () => {
           } else if (col >= 10 + typeNews.length + 1 && col <= 10 + typeNews.length + 3) { // DESCUENTOS (SALUD, PENSIÓN, AUSENTISMO)
             cell.numFmt = '"$"#,##0';
           } else if (col === 10 + typeNews.length + 4) { // DEVENGADO
-            cell.numFmt = '"$"#,##0';
+            cell.numFmt = '"$"#,##0.00';
           } else if (col === 10 + typeNews.length + 5) { // DEDUCCIONES
             cell.numFmt = '"$"#,##0';
           } else if (col === 10 + typeNews.length + 6) { // TOTAL EMPLEADOR

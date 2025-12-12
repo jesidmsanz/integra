@@ -2298,9 +2298,6 @@ const LiquidationForm = () => {
       const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
       const socialSecurityDiscounts = healthDiscount + pensionDiscount;
 
-      // Aplicar todos los descuentos
-      newCalculatedValues[employee.id].total -= (absenceDiscounts + socialSecurityDiscounts);
-      
       // Guardar descuentos por separado para mostrar en la interfaz
       newCalculatedValues[employee.id].health_discount = healthDiscount;
       newCalculatedValues[employee.id].pension_discount = pensionDiscount;
@@ -2308,6 +2305,12 @@ const LiquidationForm = () => {
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
       newCalculatedValues[employee.id].transportation_assistance_discount = Math.round(descuentoAuxilioTransporte * 100) / 100;
       newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
+      
+      // CALCULAR EL TOTAL (net_amount) CORRECTAMENTE: total_earnings - total_discounts
+      // El total es el total de todo, sin importar quién paga (ARL, EPS o Empleador)
+      // Las columnas ARL, EPS y Empleador solo muestran cómo se reparte ese total
+      const totalDiscounts = newCalculatedValues[employee.id].total_discounts;
+      newCalculatedValues[employee.id].total = Math.round((totalEarnings - totalDiscounts) * 100) / 100;
       
       // Guardar costos separados
       newCalculatedValues[employee.id].total_patronal = Math.round(totalPatronal * 100) / 100;
