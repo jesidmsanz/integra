@@ -1931,18 +1931,6 @@ const LiquidationForm = () => {
       } catch (error) {
         affectsData = {};
       }
-
-      // Si afecta al salario base y el porcentaje es 100%, retornar 0 para display
-      if (tienePorcentaje) {
-        const percentage = parseFloat(tipoNovedad.percentage);
-        if (
-          (affectsData.prestacionales === true ||
-            affectsData.prestacionales === "true") &&
-          percentage === 100
-        ) {
-          return { valorNovedad: 0, totalHoras: 0 };
-        }
-      }
     }
 
     // NUEVA LÓGICA: Usar el campo isDiscount para determinar si suma o resta
