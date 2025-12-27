@@ -34,10 +34,10 @@ import {
 import AddNews from "./AddNews";
 import PeriodValidator from "../PeriodValidator";
 import moment from "moment";
-import { 
-  getHorasBaseMensuales, 
-  getNormativaVigente, 
-  calcularValorHora 
+import {
+  getHorasBaseMensuales,
+  getNormativaVigente,
+  calcularValorHora,
 } from "@/utils/helpers/normativasHelper";
 import normativasApi from "@/utils/api/normativasApi";
 
@@ -47,14 +47,16 @@ const initialState = {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    return `${year}-${String(month).padStart(2, '0')}-01`;
+    return `${year}-${String(month).padStart(2, "0")}-01`;
   })(),
   endDate: (() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
     const lastDay = new Date(year, month, 0).getDate();
-    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return `${year}-${String(month).padStart(2, "0")}-${String(
+      lastDay
+    ).padStart(2, "0")}`;
   })(),
   paymentMethod: "Mensual", // Mensual por defecto
   corte1: true, // Corte 1 seleccionado por defecto
@@ -80,9 +82,13 @@ const LiquidationForm = () => {
   const [saving, setSaving] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [periodValidation, setPeriodValidation] = useState({ isValid: true, conflictingPeriods: [] });
+  const [periodValidation, setPeriodValidation] = useState({
+    isValid: true,
+    conflictingPeriods: [],
+  });
   const [showMobilityModal, setShowMobilityModal] = useState(false);
-  const [selectedEmployeeForMobility, setSelectedEmployeeForMobility] = useState(null);
+  const [selectedEmployeeForMobility, setSelectedEmployeeForMobility] =
+    useState(null);
   const [mobilityValue, setMobilityValue] = useState("");
   const [horasBaseMensuales, setHorasBaseMensuales] = useState(220); // Valor por defecto
   const [normativasCache, setNormativasCache] = useState({}); // Cache de normativas por ID
@@ -97,30 +103,37 @@ const LiquidationForm = () => {
   };
 
   // Función helper para calcular base de seguridad social con auxilio de movilidad
-  const calculateBaseSeguridadSocial = (salarioBaseCalculado, valorPrestacionales, auxilioMovilidad, salarioBaseCompleto = null) => {
+  const calculateBaseSeguridadSocial = (
+    salarioBaseCalculado,
+    valorPrestacionales,
+    auxilioMovilidad,
+    salarioBaseCompleto = null
+  ) => {
     // Si el salario base es 0 (fue reemplazado por una novedad), no sumar el auxilio de movilidad
     if (salarioBaseCalculado === 0) {
       return valorPrestacionales;
     }
-    
-    // Usar el salario base completo para calcular el 40% (si está disponible), 
+
+    // Usar el salario base completo para calcular el 40% (si está disponible),
     // de lo contrario usar el salario base calculado (proporcional)
-    const salarioParaComparar = salarioBaseCompleto !== null ? salarioBaseCompleto : salarioBaseCalculado;
+    const salarioParaComparar =
+      salarioBaseCompleto !== null ? salarioBaseCompleto : salarioBaseCalculado;
     const cuarentaPorcientoSalario = salarioParaComparar * 0.4;
-    const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
-    
+    const auxilioExcede40Porciento =
+      auxilioMovilidad > cuarentaPorcientoSalario;
+
     // Si excede el 40%, se suma TODO el auxilio de movilidad a la base de seguridad social
-    const valorPrestacionalesConMovilidad = auxilioExcede40Porciento 
-      ? valorPrestacionales + auxilioMovilidad 
+    const valorPrestacionalesConMovilidad = auxilioExcede40Porciento
+      ? valorPrestacionales + auxilioMovilidad
       : valorPrestacionales;
-    
+
     return salarioBaseCalculado + valorPrestacionalesConMovilidad;
   };
 
   // Función para validar y ajustar fechas según el corte seleccionado
   const validateAndAdjustDates = (startDate, endDate, corte1, corte2) => {
     if (!startDate || !endDate) return { startDate, endDate };
-    
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     const startDay = start.getDate();
@@ -129,7 +142,7 @@ const LiquidationForm = () => {
     const startYear = start.getFullYear();
     const endMonth = end.getMonth();
     const endYear = end.getFullYear();
-    
+
     // Si es corte 1 (1-15), ajustar fechas si es necesario
     if (corte1 && !corte2) {
       if (startDay > 15) {
@@ -141,7 +154,7 @@ const LiquidationForm = () => {
         end.setDate(15);
       }
     }
-    
+
     // Si es corte 2 (16-30), ajustar fechas si es necesario
     if (corte2 && !corte1) {
       // Asegurar que ambas fechas estén en el mismo mes
@@ -150,7 +163,7 @@ const LiquidationForm = () => {
         end.setFullYear(startYear);
         end.setMonth(startMonth);
       }
-      
+
       if (startDay < 16) {
         // Si la fecha de inicio está antes del día 16, ajustar al día 16
         start.setDate(16);
@@ -159,22 +172,26 @@ const LiquidationForm = () => {
         // Si la fecha de fin está antes del día 16, ajustar al día 16
         end.setDate(16);
       }
-      
+
       // Asegurar que no exceda el último día del mes
-      const lastDayOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+      const lastDayOfMonth = new Date(
+        start.getFullYear(),
+        start.getMonth() + 1,
+        0
+      ).getDate();
       if (endDay > lastDayOfMonth) {
         end.setDate(lastDayOfMonth);
       }
-      
+
       // Asegurar que la fecha de fin no sea anterior a la fecha de inicio
       if (end < start) {
         end.setTime(start.getTime());
       }
     }
-    
+
     return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
     };
   };
 
@@ -182,14 +199,16 @@ const LiquidationForm = () => {
   const getValidDateRange = (corte1, corte2, year, month) => {
     if (corte1 && !corte2) {
       return {
-        min: `${year}-${String(month).padStart(2, '0')}-01`,
-        max: `${year}-${String(month).padStart(2, '0')}-15`
+        min: `${year}-${String(month).padStart(2, "0")}-01`,
+        max: `${year}-${String(month).padStart(2, "0")}-15`,
       };
     } else if (corte2 && !corte1) {
       const lastDayOfMonth = new Date(year, month, 0).getDate();
       return {
-        min: `${year}-${String(month).padStart(2, '0')}-16`,
-        max: `${year}-${String(month).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`
+        min: `${year}-${String(month).padStart(2, "0")}-16`,
+        max: `${year}-${String(month).padStart(2, "0")}-${String(
+          lastDayOfMonth
+        ).padStart(2, "0")}`,
       };
     }
     return null;
@@ -197,49 +216,96 @@ const LiquidationForm = () => {
 
   // Función para validar fechas antes de guardar
   const validateDates = (startDate, endDate, paymentMethod, corte1, corte2) => {
-    if (!startDate || !endDate) return { isValid: false, message: "Debe seleccionar fecha de inicio y fin" };
-    
+    if (!startDate || !endDate)
+      return {
+        isValid: false,
+        message: "Debe seleccionar fecha de inicio y fin",
+      };
+
     // Usar UTC para evitar problemas de zona horaria
-    const start = new Date(startDate + 'T00:00:00.000Z');
-    const end = new Date(endDate + 'T00:00:00.000Z');
+    const start = new Date(startDate + "T00:00:00.000Z");
+    const end = new Date(endDate + "T00:00:00.000Z");
     const startYear = start.getUTCFullYear();
     const startMonth = start.getUTCMonth();
     const startDay = start.getUTCDate();
     const endYear = end.getUTCFullYear();
     const endMonth = end.getUTCMonth();
     const endDay = end.getUTCDate();
-    
+
     // Verificar que estén en el mismo mes
     if (startYear !== endYear || startMonth !== endMonth) {
-      return { isValid: false, message: "Seleccione el período correcto - las fechas deben estar en el mismo mes" };
+      return {
+        isValid: false,
+        message:
+          "Seleccione el período correcto - las fechas deben estar en el mismo mes",
+      };
     }
-    
+
     if (paymentMethod === "Mensual") {
       // Mensual: debe ser del 1 al último día del mes
-      const lastDayOfMonth = new Date(startYear, startMonth + 1, 0).getUTCDate();
-      if (startDay < 1 || startDay > lastDayOfMonth || endDay < 1 || endDay > lastDayOfMonth) {
-        return { isValid: false, message: "Período de liquidación: 1 al " + lastDayOfMonth + " del mismo mes" };
+      const lastDayOfMonth = new Date(
+        startYear,
+        startMonth + 1,
+        0
+      ).getUTCDate();
+      if (
+        startDay < 1 ||
+        startDay > lastDayOfMonth ||
+        endDay < 1 ||
+        endDay > lastDayOfMonth
+      ) {
+        return {
+          isValid: false,
+          message:
+            "Período de liquidación: 1 al " + lastDayOfMonth + " del mismo mes",
+        };
       }
     } else if (paymentMethod === "Quincenal") {
       if (corte1 && !corte2) {
         // Corte 1: del 1 al 15
         if (startDay < 1 || startDay > 15 || endDay < 1 || endDay > 15) {
-          return { isValid: false, message: "Período de liquidación: 1 al 15 del mismo mes" };
+          return {
+            isValid: false,
+            message: "Período de liquidación: 1 al 15 del mismo mes",
+          };
         }
       } else if (corte2 && !corte1) {
         // Corte 2: del 16 al 30 (o último día si es menor a 30)
-        const lastDayOfMonth = new Date(startYear, startMonth + 1, 0).getUTCDate();
+        const lastDayOfMonth = new Date(
+          startYear,
+          startMonth + 1,
+          0
+        ).getUTCDate();
         const maxDay = Math.min(30, lastDayOfMonth);
-        console.log("🔍 Debug Corte 2:", { startDay, endDay, maxDay, lastDayOfMonth, startDate, endDate });
-        if (startDay < 16 || startDay > maxDay || endDay < 16 || endDay > maxDay) {
+        console.log("🔍 Debug Corte 2:", {
+          startDay,
+          endDay,
+          maxDay,
+          lastDayOfMonth,
+          startDate,
+          endDate,
+        });
+        if (
+          startDay < 16 ||
+          startDay > maxDay ||
+          endDay < 16 ||
+          endDay > maxDay
+        ) {
           console.log("❌ Validación falló:", { startDay, endDay, maxDay });
-          return { isValid: false, message: "Período de liquidación: 16 al " + maxDay + " del mismo mes" };
+          return {
+            isValid: false,
+            message:
+              "Período de liquidación: 16 al " + maxDay + " del mismo mes",
+          };
         }
       } else {
-        return { isValid: false, message: "Debe seleccionar un corte (1-15 o 16-30)" };
+        return {
+          isValid: false,
+          message: "Debe seleccionar un corte (1-15 o 16-30)",
+        };
       }
     }
-    
+
     return { isValid: true, message: "" };
   };
 
@@ -265,12 +331,12 @@ const LiquidationForm = () => {
     if (paymentMethod === "Mensual" || !paymentMethod) {
       return true;
     }
-    
+
     // Para períodos quincenales: solo aplicar en el segundo corte (16-30)
     if (paymentMethod === "Quincenal") {
       return isSecondCut; // Solo en el segundo corte
     }
-    
+
     return true; // Por defecto aplicar descuentos
   };
 
@@ -392,46 +458,62 @@ const LiquidationForm = () => {
       name: "Salario Base + Conceptos",
       cell: (row) => {
         const salarioBase = Number(row.basicmonthlysalary) || 0;
-        const salarioBaseCalculado = form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
-        
+        const salarioBaseCalculado =
+          form.paymentMethod === "Quincenal" ? salarioBase / 2 : salarioBase;
+
         // Verificar si alguna novedad reemplaza el salario base
         let reemplazaSalarioBase = false;
         let valorPrestacionales = 0;
         let diasAfectadosSalarioBase = 0; // Días totales que afectan el salario base
-        const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === row.id);
-        
+        const employeeNews = filteredEmployeeNews.filter(
+          (news) => news.employeeId === row.id
+        );
+
         employeeNews.forEach((news) => {
-          const tipoNovedad = typeNews.find(type => type.id === news.typeNewsId);
+          const tipoNovedad = typeNews.find(
+            (type) => type.id === news.typeNewsId
+          );
           if (tipoNovedad) {
-            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+            const esDescuento =
+              tipoNovedad.isDiscount === true ||
+              tipoNovedad.isDiscount === "true";
             let affectsData = {};
-            
+
             if (tipoNovedad.affects) {
               try {
-                affectsData = typeof tipoNovedad.affects === "string" 
-                  ? JSON.parse(tipoNovedad.affects) 
-                  : tipoNovedad.affects || {};
+                affectsData =
+                  typeof tipoNovedad.affects === "string"
+                    ? JSON.parse(tipoNovedad.affects)
+                    : tipoNovedad.affects || {};
               } catch (error) {
                 affectsData = {};
               }
             }
-            
+
             // Si la novedad afecta salario base, reemplaza el salario base completo
             // Y automáticamente afecta auxilio de transporte y movilidad (el empleado no trabajó)
-            if (affectsData.baseSalary === true || affectsData.baseSalary === "true") {
+            if (
+              affectsData.baseSalary === true ||
+              affectsData.baseSalary === "true"
+            ) {
               reemplazaSalarioBase = true;
               // Calcular días desde las fechas
               const fechaInicio = moment.utc(news.startDate);
               const fechaFin = moment.utc(news.endDate);
               const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
               diasAfectadosSalarioBase += diasNovedad; // Acumular días afectados
-              
-              const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+
+              const salarioDiario =
+                salarioBaseCalculado /
+                (form.paymentMethod === "Quincenal" ? 15 : 30);
               const salarioPorDias = salarioDiario * diasNovedad;
-              
-              const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
-              const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
-              
+
+              const tieneCantidad =
+                tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+              const tienePorcentaje =
+                tipoNovedad.percentage &&
+                parseFloat(tipoNovedad.percentage) > 0;
+
               let valorSalario = 0;
               if (tieneCantidad) {
                 valorSalario = parseFloat(tipoNovedad.amount);
@@ -439,36 +521,50 @@ const LiquidationForm = () => {
                 const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
                 valorSalario = salarioPorDias * (porcentaje / 100);
               }
-              
+
               valorPrestacionales += valorSalario;
-              
+
               // Si afecta salario base, automáticamente afecta auxilio de transporte y movilidad
               // porque el empleado no trabajó esos días (no se acumulan aquí, se hace en calculateAllValues)
             }
-            
+
             // Si es prestacionales y no es calculada por hora
             if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
-              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+              if (
+                affectsData.prestacionales === true ||
+                affectsData.prestacionales === "true"
+              ) {
                 // Solo procesar si NO es baseSalary (ya se procesó arriba)
-                if (!(affectsData.baseSalary === true || affectsData.baseSalary === "true")) {
+                if (
+                  !(
+                    affectsData.baseSalary === true ||
+                    affectsData.baseSalary === "true"
+                  )
+                ) {
                   // Calcular días desde las fechas
                   const fechaInicio = moment.utc(news.startDate);
                   const fechaFin = moment.utc(news.endDate);
                   const diasNovedad = fechaFin.diff(fechaInicio, "days") + 1;
-                  const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+                  const salarioDiario =
+                    salarioBaseCalculado /
+                    (form.paymentMethod === "Quincenal" ? 15 : 30);
                   const salarioPorDias = salarioDiario * diasNovedad;
-                  
-                  const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
-                  const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
-                  
+
+                  const tieneCantidad =
+                    tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                  const tienePorcentaje =
+                    tipoNovedad.percentage &&
+                    parseFloat(tipoNovedad.percentage) > 0;
+
                   let valorSalario = 0;
                   if (tieneCantidad) {
                     valorSalario = parseFloat(tipoNovedad.amount);
                   } else if (tienePorcentaje) {
-                    const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
+                    const porcentaje =
+                      parseFloat(tipoNovedad.percentage) || 100;
                     valorSalario = salarioPorDias * (porcentaje / 100);
                   }
-                  
+
                   if (esDescuento) {
                     valorPrestacionales -= valorSalario;
                   } else {
@@ -478,8 +574,15 @@ const LiquidationForm = () => {
               }
             } else if (tipoNovedad.calculateperhour) {
               // Si es calculada por hora y afecta prestacionales
-              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
-                const { valorNovedad } = calculateNovedadValue(news, row, tipoNovedad);
+              if (
+                affectsData.prestacionales === true ||
+                affectsData.prestacionales === "true"
+              ) {
+                const { valorNovedad } = calculateNovedadValue(
+                  news,
+                  row,
+                  tipoNovedad
+                );
                 if (esDescuento) {
                   valorPrestacionales -= valorNovedad;
                 } else {
@@ -489,14 +592,14 @@ const LiquidationForm = () => {
             }
           }
         });
-        
+
         // Calcular salario base proporcional por días trabajados
         let salarioBaseProporcional = 0;
         if (reemplazaSalarioBase) {
           // Si hay novedades que afectan el salario base, calcular proporcional
           const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
           const diasTrabajadosSalario = diasPeriodo - diasAfectadosSalarioBase;
-          
+
           if (diasTrabajadosSalario > 0) {
             const salarioDiario = salarioBaseCalculado / diasPeriodo;
             salarioBaseProporcional = salarioDiario * diasTrabajadosSalario;
@@ -505,24 +608,25 @@ const LiquidationForm = () => {
           // Si no hay novedades que afecten el salario base, usar el salario base completo
           salarioBaseProporcional = salarioBaseCalculado;
         }
-        
+
         const employeeValues = calculatedValues[row.id] || {};
         // Usar el auxilio de movilidad calculado (ya incluye el cálculo proporcional)
-        let auxilioMovilidad = employeeValues.mobility_assistance_final !== undefined 
-          ? employeeValues.mobility_assistance_final 
-          : 0;
-        
+        let auxilioMovilidad =
+          employeeValues.mobility_assistance_final !== undefined
+            ? employeeValues.mobility_assistance_final
+            : 0;
+
         // Calcular base de seguridad social: salario base proporcional + valor prestacionales + auxilio movilidad (si excede 40%)
         // El salario base proporcional ya incluye solo los días trabajados
         // El auxilio de movilidad ya está calculado proporcionalmente en calculateAllValues
         // Pasar el salario base completo para calcular correctamente el 40%
         const baseSeguridadSocial = calculateBaseSeguridadSocial(
-          salarioBaseProporcional, 
-          valorPrestacionales, 
+          salarioBaseProporcional,
+          valorPrestacionales,
           auxilioMovilidad,
           salarioBaseCalculado // Pasar el salario base completo para comparar el 40%
         );
-        
+
         // Debug temporal
         if (row.id === 1042439932 || row.documentnumber === "1042439932") {
           console.log("🔍 Debug Salario Base + Conceptos:", {
@@ -535,16 +639,16 @@ const LiquidationForm = () => {
             valorPrestacionales: valorPrestacionales,
             auxilioMovilidad: auxilioMovilidad,
             baseSeguridadSocial: baseSeguridadSocial,
-            novedades: employeeNews.map(n => ({
+            novedades: employeeNews.map((n) => ({
               id: n.id,
-              tipo: typeNews.find(t => t.id === n.typeNewsId)?.name,
+              tipo: typeNews.find((t) => t.id === n.typeNewsId)?.name,
               startDate: n.startDate,
               endDate: n.endDate,
-              affects: typeNews.find(t => t.id === n.typeNewsId)?.affects
-            }))
+              affects: typeNews.find((t) => t.id === n.typeNewsId)?.affects,
+            })),
           });
         }
-        
+
         return formatCurrency(baseSeguridadSocial);
       },
       sortable: true,
@@ -558,24 +662,28 @@ const LiquidationForm = () => {
           row,
           form.paymentMethod
         );
-        const descuento = employeeValues.transportation_assistance_discount || 0;
-        const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
-          ? employeeValues.transportation_assistance_final 
-          : auxilioCalculado;
-        
+        const descuento =
+          employeeValues.transportation_assistance_discount || 0;
+        const auxilioFinal =
+          employeeValues.transportation_assistance_final !== undefined
+            ? employeeValues.transportation_assistance_final
+            : auxilioCalculado;
+
         if (auxilioFinal <= 0) {
           return "No aplica";
         }
-        
+
         if (descuento > 0) {
           return (
             <div>
               <div>{formatCurrency(auxilioFinal)}</div>
-              <small className="text-danger">(-{formatCurrency(descuento)})</small>
+              <small className="text-danger">
+                (-{formatCurrency(descuento)})
+              </small>
             </div>
           );
         }
-        
+
         return formatCurrency(auxilioFinal);
       },
       sortable: true,
@@ -585,13 +693,18 @@ const LiquidationForm = () => {
       name: "Auxilio de Movilidad",
       cell: (row) => {
         const employeeValues = calculatedValues[row.id] || {};
-        const auxilio = employeeValues.mobility_assistance_final !== undefined 
-          ? employeeValues.mobility_assistance_final 
-          : 0;
-        
+        const auxilio =
+          employeeValues.mobility_assistance_final !== undefined
+            ? employeeValues.mobility_assistance_final
+            : 0;
+
         return (
           <span
-            style={{ cursor: "pointer", color: "#007bff", textDecoration: "underline" }}
+            style={{
+              cursor: "pointer",
+              color: "#007bff",
+              textDecoration: "underline",
+            }}
             onClick={() => {
               setSelectedEmployeeForMobility(row);
               setMobilityValue(auxilio.toString());
@@ -611,14 +724,20 @@ const LiquidationForm = () => {
         // Usar los valores ya calculados de calculatedValues para ser consistente
         const employeeValues = calculatedValues[row.id] || {};
         const descuentoSalud = employeeValues.health_discount || 0;
-        
+
         // Determinar si es el segundo corte para quincenales
-        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-        
+        const isSecondCut =
+          form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+
         // Aplicar lógica de descuentos
-        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        
-        return shouldApply ? formatCurrency(descuentoSalud) : "No aplica este corte";
+        const shouldApply = shouldApplyHealthPensionDiscounts(
+          form.paymentMethod,
+          isSecondCut
+        );
+
+        return shouldApply
+          ? formatCurrency(descuentoSalud)
+          : "No aplica este corte";
       },
       sortable: true,
       width: "150px",
@@ -629,14 +748,20 @@ const LiquidationForm = () => {
         // Usar los valores ya calculados de calculatedValues para ser consistente con Salud (4%)
         const employeeValues = calculatedValues[row.id] || {};
         const descuentoPension = employeeValues.pension_discount || 0;
-        
+
         // Determinar si es el segundo corte para quincenales
-        const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-        
+        const isSecondCut =
+          form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+
         // Aplicar lógica de descuentos
-        const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-        
-        return shouldApply ? formatCurrency(descuentoPension) : "No aplica este corte";
+        const shouldApply = shouldApplyHealthPensionDiscounts(
+          form.paymentMethod,
+          isSecondCut
+        );
+
+        return shouldApply
+          ? formatCurrency(descuentoPension)
+          : "No aplica este corte";
       },
       sortable: true,
       width: "150px",
@@ -675,7 +800,7 @@ const LiquidationForm = () => {
           const { valorNovedad } = calculateNovedadValue(novedad, row, type);
           return sum + valorNovedad;
         }, 0);
-        
+
         // Redondear a 2 decimales para coincidir con el backend
         const totalTipoRedondeado = Math.round(totalTipo * 100) / 100;
 
@@ -694,21 +819,21 @@ const LiquidationForm = () => {
         const totalARL = employeeValues?.total_arl || 0;
         const totalEPS = employeeValues?.total_eps || 0;
         const netAmount = employeeValues?.total || 0;
-        
+
         // Total Empleador = net_amount - (costos ARL + costos EPS)
         // Porque esos costos los asumen ARL/EPS, no el empleador
         const totalEmpleador = netAmount - (totalARL + totalEPS);
-        
+
         // Debug: mostrar valores en consola si hay costos ARL/EPS
         if ((totalARL > 0 || totalEPS > 0) && row.id) {
           console.log(`💰 Total Empleador para ${row.fullname}:`, {
             netAmount,
             totalARL,
             totalEPS,
-            totalEmpleador
+            totalEmpleador,
           });
         }
-        
+
         return formatCurrency(totalEmpleador);
       },
       sortable: true,
@@ -750,24 +875,32 @@ const LiquidationForm = () => {
         if (!row.hasNews) {
           return <span className="badge bg-success">Sin novedades</span>;
         }
-        
+
         if (row.hasLiquidatedNews && row.hasPendingNews) {
           return (
             <div>
-              <span className="badge bg-warning me-1">{row.pendingNewsCount} pendientes</span>
-              <span className="badge bg-danger">{row.liquidatedNewsCount} liquidadas</span>
+              <span className="badge bg-warning me-1">
+                {row.pendingNewsCount} pendientes
+              </span>
+              <span className="badge bg-danger">
+                {row.liquidatedNewsCount} liquidadas
+              </span>
             </div>
           );
         }
-        
+
         if (row.hasLiquidatedNews) {
           return <span className="badge bg-danger">Ya liquidadas</span>;
         }
-        
+
         if (row.hasPendingNews) {
-          return <span className="badge bg-warning">{row.pendingNewsCount} pendientes</span>;
+          return (
+            <span className="badge bg-warning">
+              {row.pendingNewsCount} pendientes
+            </span>
+          );
         }
-        
+
         return <span className="badge bg-secondary">Sin estado</span>;
       },
       width: "150px",
@@ -781,20 +914,20 @@ const LiquidationForm = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     setForm((prevForm) => {
       const newForm = {
         ...prevForm,
         [name]: type === "checkbox" ? checked : value,
       };
-      
+
       // Si se está cambiando un corte, limpiar el otro
       if (name === "corte1" && checked) {
         newForm.corte2 = false;
       } else if (name === "corte2" && checked) {
         newForm.corte1 = false;
       }
-      
+
       return newForm;
     });
   };
@@ -832,10 +965,10 @@ const LiquidationForm = () => {
 
         // Si es quincenal y es corte 2: cargar todas las novedades del mes completo (1-30)
         if (form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1) {
-          const monthStart = moment.utc(form.startDate).startOf('month');
-          const monthEnd = moment.utc(form.startDate).endOf('month');
-          startDate = monthStart.format('YYYY-MM-DD');
-          endDate = monthEnd.format('YYYY-MM-DD');
+          const monthStart = moment.utc(form.startDate).startOf("month");
+          const monthEnd = moment.utc(form.startDate).endOf("month");
+          startDate = monthStart.format("YYYY-MM-DD");
+          endDate = monthEnd.format("YYYY-MM-DD");
         }
 
         const response = await employeeNewsApi.getPendingByPeriod(
@@ -866,19 +999,31 @@ const LiquidationForm = () => {
     try {
       const response = await typeNewsApi.list(1, 1000); // Cargar todos los tipos
 
-      if (response && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      if (
+        response &&
+        response.data &&
+        Array.isArray(response.data) &&
+        response.data.length > 0
+      ) {
         setTypeNews(response.data);
         // Debug: mostrar tipos de novedad con reglas de pago
-        const tiposConRegla = response.data.filter(t => t.payment_rule && t.payment_rule !== 'normal');
+        const tiposConRegla = response.data.filter(
+          (t) => t.payment_rule && t.payment_rule !== "normal"
+        );
         if (tiposConRegla.length > 0) {
-          console.log('📋 Tipos de novedad con reglas de pago especiales:', tiposConRegla.map(t => ({
-            id: t.id,
-            code: t.code,
-            name: t.name,
-            payment_rule: t.payment_rule
-          })));
+          console.log(
+            "📋 Tipos de novedad con reglas de pago especiales:",
+            tiposConRegla.map((t) => ({
+              id: t.id,
+              code: t.code,
+              name: t.name,
+              payment_rule: t.payment_rule,
+            }))
+          );
         } else {
-          console.log('⚠️ No hay tipos de novedad con reglas de pago especiales configuradas');
+          console.log(
+            "⚠️ No hay tipos de novedad con reglas de pago especiales configuradas"
+          );
         }
       } else {
         console.log("⚠️ No se encontraron tipos de novedades");
@@ -902,7 +1047,9 @@ const LiquidationForm = () => {
         await loadTypeNews();
         await loadEmployees();
         // Cargar horas base mensuales vigentes
-        const horasBase = await getHorasBaseMensuales(form.startDate || new Date());
+        const horasBase = await getHorasBaseMensuales(
+          form.startDate || new Date()
+        );
         setHorasBaseMensuales(horasBase);
         // No cargar novedades aquí - se cargarán cuando se seleccione una empresa
       } catch (error) {
@@ -953,8 +1100,12 @@ const LiquidationForm = () => {
         });
 
         const hasNews = employeeNewsList.length > 0;
-        const hasLiquidatedNews = employeeNewsList.some((news) => news.liquidation_status === 'liquidated');
-        const hasPendingNews = employeeNewsList.some((news) => news.liquidation_status === 'pending');
+        const hasLiquidatedNews = employeeNewsList.some(
+          (news) => news.liquidation_status === "liquidated"
+        );
+        const hasPendingNews = employeeNewsList.some(
+          (news) => news.liquidation_status === "pending"
+        );
 
         return {
           ...emp,
@@ -962,8 +1113,12 @@ const LiquidationForm = () => {
           hasLiquidatedNews,
           hasPendingNews,
           newsCount: employeeNewsList.length,
-          pendingNewsCount: employeeNewsList.filter(news => news.liquidation_status === 'pending').length,
-          liquidatedNewsCount: employeeNewsList.filter(news => news.liquidation_status === 'liquidated').length,
+          pendingNewsCount: employeeNewsList.filter(
+            (news) => news.liquidation_status === "pending"
+          ).length,
+          liquidatedNewsCount: employeeNewsList.filter(
+            (news) => news.liquidation_status === "liquidated"
+          ).length,
         };
       });
 
@@ -972,13 +1127,13 @@ const LiquidationForm = () => {
       if (form.newsStatus) {
         finalEmployees = employeesWithNews.filter((emp) => {
           switch (form.newsStatus) {
-            case 'pending':
+            case "pending":
               return emp.hasPendingNews && !emp.hasLiquidatedNews;
-            case 'liquidated':
+            case "liquidated":
               return emp.hasLiquidatedNews && !emp.hasPendingNews;
-            case 'mixed':
+            case "mixed":
               return emp.hasPendingNews && emp.hasLiquidatedNews;
-            case 'none':
+            case "none":
               return !emp.hasNews;
             default:
               return true;
@@ -1044,21 +1199,33 @@ const LiquidationForm = () => {
     if (form.startDate && form.endDate && form.companyId) {
       loadEmployeeNews();
     }
-  }, [form.startDate, form.endDate, form.companyId, form.paymentMethod, form.corte1, form.corte2]);
+  }, [
+    form.startDate,
+    form.endDate,
+    form.companyId,
+    form.paymentMethod,
+    form.corte1,
+    form.corte2,
+  ]);
 
   // Precargar normativas de tipos de horas para el cache
   useEffect(() => {
     const precargarNormativas = async () => {
       try {
         const response = await normativasApi.list({
-          tipo: 'tipo_hora_laboral',
-          activa: 'true'
+          tipo: "tipo_hora_laboral",
+          activa: "true",
         });
-        
+
         // La respuesta viene como { data: { error: '', body: [...] } } según response.js
         let tiposHoras = [];
-        
-        if (response && response.data && response.data.body && Array.isArray(response.data.body)) {
+
+        if (
+          response &&
+          response.data &&
+          response.data.body &&
+          Array.isArray(response.data.body)
+        ) {
           tiposHoras = response.data.body;
         } else if (response && response.body && Array.isArray(response.body)) {
           tiposHoras = response.body;
@@ -1067,23 +1234,27 @@ const LiquidationForm = () => {
         } else if (response && response.data && Array.isArray(response.data)) {
           tiposHoras = response.data;
         }
-        
+
         if (tiposHoras && tiposHoras.length > 0) {
           const cache = {};
-          tiposHoras.forEach(normativa => {
+          tiposHoras.forEach((normativa) => {
             if (normativa && normativa.id) {
               cache[normativa.id] = normativa;
             }
           });
           setNormativasCache(cache);
-          console.log(`✅ Precargadas ${Object.keys(cache).length} normativas de tipos de horas`);
+          console.log(
+            `✅ Precargadas ${
+              Object.keys(cache).length
+            } normativas de tipos de horas`
+          );
         }
       } catch (error) {
         console.error("Error precargando normativas:", error);
         setNormativasCache({});
       }
     };
-    
+
     precargarNormativas();
   }, [form.startDate]);
 
@@ -1104,14 +1275,14 @@ const LiquidationForm = () => {
     );
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!filteredData.length) {
       toast.warning("No hay datos para exportar");
       return;
     }
 
     // Asegurar que los valores estén calculados antes de exportar
-    calculateAllValues();
+    await calculateAllValues();
 
     // Crear un libro de Excel
     const wb = XLSX.utils.book_new();
@@ -1133,26 +1304,31 @@ const LiquidationForm = () => {
             employee,
             form.paymentMethod
           );
-          const descuento = employeeValues.transportation_assistance_discount || 0;
-          const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
-            ? employeeValues.transportation_assistance_final 
-            : auxilioCalculado;
-          
+          const descuento =
+            employeeValues.transportation_assistance_discount || 0;
+          const auxilioFinal =
+            employeeValues.transportation_assistance_final !== undefined
+              ? employeeValues.transportation_assistance_final
+              : auxilioCalculado;
+
           if (auxilioFinal <= 0) {
             return "No aplica";
           }
-          
+
           if (descuento > 0) {
-            return `${formatCurrency(auxilioFinal)} (Descuento: ${formatCurrency(descuento)})`;
+            return `${formatCurrency(
+              auxilioFinal
+            )} (Descuento: ${formatCurrency(descuento)})`;
           }
-          
+
           return formatCurrency(auxilioFinal);
         })(),
         "Auxilio de Movilidad": (() => {
           const employeeValues = valoresCalculados[employee.id] || {};
-          const auxilio = employeeValues.mobility_assistance_final !== undefined 
-            ? employeeValues.mobility_assistance_final 
-            : 0;
+          const auxilio =
+            employeeValues.mobility_assistance_final !== undefined
+              ? employeeValues.mobility_assistance_final
+              : 0;
           return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
         })(),
         "Descuento Salud (4%)": "", // Se actualizará más abajo con el valor de calculatedValues
@@ -1166,30 +1342,33 @@ const LiquidationForm = () => {
       typeNews.forEach((type) => {
         const novedadData = employeeValues.novedades?.[type.id];
         const valorNovedad = novedadData?.valor || 0;
-        baseData[type.code] = valorNovedad > 0 ? formatCurrency(valorNovedad) : "";
+        baseData[type.code] =
+          valorNovedad > 0 ? formatCurrency(valorNovedad) : "";
       });
 
       // Usar los valores calculados directamente de calculatedValues
       const healthDiscount = employeeValues.health_discount || 0;
       const pensionDiscount = employeeValues.pension_discount || 0;
       const absenceDiscounts = employeeValues.absence_discounts || 0;
-      
+
       // Actualizar los descuentos en baseData usando los valores calculados
-      baseData["Descuento Salud (4%)"] = healthDiscount > 0 
-        ? formatCurrency(healthDiscount) 
-        : "No aplica este corte";
-      baseData["Descuento Pensión (4%)"] = pensionDiscount > 0 
-        ? formatCurrency(pensionDiscount) 
-        : "No aplica este corte";
-      
+      baseData["Descuento Salud (4%)"] =
+        healthDiscount > 0
+          ? formatCurrency(healthDiscount)
+          : "No aplica este corte";
+      baseData["Descuento Pensión (4%)"] =
+        pensionDiscount > 0
+          ? formatCurrency(pensionDiscount)
+          : "No aplica este corte";
+
       // El total del empleador es el net_amount MENOS las novedades que paga ARL y EPS
       const totalARL = employeeValues?.total_arl || 0;
       const totalEPS = employeeValues?.total_eps || 0;
       const netAmount = employeeValues?.total || 0;
-      
+
       // Total Empleador = net_amount - (costos ARL + costos EPS)
       const totalEmpleador = netAmount - (totalARL + totalEPS);
-      
+
       baseData["Total Empleador"] = formatCurrency(totalEmpleador);
       baseData["ARL"] = formatCurrency(totalARL);
       baseData["EPS"] = formatCurrency(totalEPS);
@@ -1214,22 +1393,25 @@ const LiquidationForm = () => {
     try {
       console.log("🔄 Verificando si el período ya está liquidado...");
       console.log("📊 Parámetros:", { companyId, startDate, endDate });
-      
+
       // Verificar si hay liquidaciones en el período seleccionado
       const liquidations = await liquidationsApi.list(1, 100);
       const liquidationsList = liquidations.body || liquidations.data || [];
 
       const periodExists = liquidationsList.some((liquidation) => {
         if (liquidation.company_id !== companyId) return false;
-        
+
         // Convertir fechas para comparación
-        const liquidationStart = liquidation.period_start || (liquidation.period + '-01');
-        const liquidationEnd = liquidation.period_end || (liquidation.period + '-31');
-        
+        const liquidationStart =
+          liquidation.period_start || liquidation.period + "-01";
+        const liquidationEnd =
+          liquidation.period_end || liquidation.period + "-31";
+
         // Verificar solapamiento de períodos
         return (
-          (startDate <= liquidationEnd && endDate >= liquidationStart) &&
-          liquidation.status !== 'cancelled'
+          startDate <= liquidationEnd &&
+          endDate >= liquidationStart &&
+          liquidation.status !== "cancelled"
         );
       });
 
@@ -1258,7 +1440,13 @@ const LiquidationForm = () => {
     }
 
     // Validar fechas según la frecuencia
-    const validation = validateDates(form.startDate, form.endDate, form.paymentMethod, form.corte1, form.corte2);
+    const validation = validateDates(
+      form.startDate,
+      form.endDate,
+      form.paymentMethod,
+      form.corte1,
+      form.corte2
+    );
     if (!validation.isValid) {
       toast.error(validation.message);
       return;
@@ -1285,15 +1473,26 @@ const LiquidationForm = () => {
       // Obtener salario mínimo una vez para todas las liquidaciones desde las normativas
       let salarioMinimo = null;
       try {
-        const normativaSalarioMinimo = await getNormativaVigente('salario_minimo', form.startDate);
+        const normativaSalarioMinimo = await getNormativaVigente(
+          "salario_minimo",
+          form.startDate
+        );
         if (normativaSalarioMinimo && normativaSalarioMinimo.valor) {
           salarioMinimo = parseFloat(normativaSalarioMinimo.valor);
-          console.log(`✅ Salario mínimo obtenido de normativas: ${salarioMinimo}`);
+          console.log(
+            `✅ Salario mínimo obtenido de normativas: ${salarioMinimo}`
+          );
         } else {
-          console.warn('⚠️ No se encontró normativa de salario mínimo para la fecha:', form.startDate);
+          console.warn(
+            "⚠️ No se encontró normativa de salario mínimo para la fecha:",
+            form.startDate
+          );
         }
       } catch (error) {
-        console.error('❌ Error obteniendo salario mínimo desde normativas:', error);
+        console.error(
+          "❌ Error obteniendo salario mínimo desde normativas:",
+          error
+        );
       }
 
       // Preparar los datos de empleados para la liquidación
@@ -1303,14 +1502,16 @@ const LiquidationForm = () => {
         // GUARDAR EL SALARIO BASE MENSUAL COMPLETO (como se muestra en la tabla)
         // En la tabla se muestra: row.basicmonthlysalary (el salario mensual completo)
         const basicSalary = Number(employee.basicmonthlysalary) || 0;
-        
+
         // Para cálculos internos, usar el salario del período
-        const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+        const basicSalaryForPeriod =
+          form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
 
         // USAR EL VALOR YA CALCULADO EN calculateAllValues (que considera proporciones y días trabajados)
-        const transportationAssistance = employeeValues.transportation_assistance_final !== undefined 
-          ? employeeValues.transportation_assistance_final 
-          : calculateTransportationAssistance(employee, form.paymentMethod);
+        const transportationAssistance =
+          employeeValues.transportation_assistance_final !== undefined
+            ? employeeValues.transportation_assistance_final
+            : calculateTransportationAssistance(employee, form.paymentMethod);
 
         // Calcular novedades del empleado
         const employeeNews = filteredEmployeeNews.filter(
@@ -1321,11 +1522,14 @@ const LiquidationForm = () => {
           const tipoNovedad = typeNews.find(
             (type) => type.id === news.typeNewsId
           );
-          const { valorNovedad, totalHoras, totalDias, valorPatronal, valorARL, valorEPS } = calculateNovedadValue(
-            news,
-            employee,
-            tipoNovedad
-          );
+          const {
+            valorNovedad,
+            totalHoras,
+            totalDias,
+            valorPatronal,
+            valorARL,
+            valorEPS,
+          } = calculateNovedadValue(news, employee, tipoNovedad);
 
           return {
             employee_news_id: news.id,
@@ -1351,9 +1555,11 @@ const LiquidationForm = () => {
         const healthDiscount = employeeValues?.health_discount || 0;
         const pensionDiscount = employeeValues?.pension_discount || 0;
         const absenceDiscounts = employeeValues?.absence_discounts || 0;
-        const salarioBaseProporcional = employeeValues?.basic_salary_proportional || basicSalaryForPeriod;
-        const mobilityAssistance = employeeValues?.mobility_assistance_final || 0;
-        
+        const salarioBaseProporcional =
+          employeeValues?.basic_salary_proportional || basicSalaryForPeriod;
+        const mobilityAssistance =
+          employeeValues?.mobility_assistance_final || 0;
+
         // Solo necesitamos calcular news_data para guardar las novedades individuales
         // NO necesitamos recalcular totales porque ya están en calculatedValues
         let totalNovedades = 0;
@@ -1361,33 +1567,48 @@ const LiquidationForm = () => {
         let valorPrestacionales = 0; // Solo para el cálculo de news_data
 
         news_data.forEach((news) => {
-          const tipoNovedad = typeNews.find(type => type.id === news.type_news_id);
-          
+          const tipoNovedad = typeNews.find(
+            (type) => type.id === news.type_news_id
+          );
+
           if (tipoNovedad) {
-            const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
-            
+            const esDescuento =
+              tipoNovedad.isDiscount === true ||
+              tipoNovedad.isDiscount === "true";
+
             // Si tiene affects configurado, usar lógica específica
             if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
               let affectsData;
               try {
-                affectsData = typeof tipoNovedad.affects === "string" 
-                  ? JSON.parse(tipoNovedad.affects) 
-                  : tipoNovedad.affects || {};
+                affectsData =
+                  typeof tipoNovedad.affects === "string"
+                    ? JSON.parse(tipoNovedad.affects)
+                    : tipoNovedad.affects || {};
               } catch (error) {
                 affectsData = {};
               }
 
               const diasNovedad = news.days || 1;
-              const basicSalaryForPeriod = form.paymentMethod === "Quincenal" ? basicSalary / 2 : basicSalary;
+              const basicSalaryForPeriod =
+                form.paymentMethod === "Quincenal"
+                  ? basicSalary / 2
+                  : basicSalary;
 
               // AUXILIO DE TRANSPORTE
-              if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
-                const auxilioPeriodo = calculateTransportationAssistance(employee, form.paymentMethod);
+              if (
+                affectsData.transportationassistance === true ||
+                affectsData.transportationassistance === "true"
+              ) {
+                const auxilioPeriodo = calculateTransportationAssistance(
+                  employee,
+                  form.paymentMethod
+                );
                 // Calcular días del período según método de pago
-                const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+                const diasPeriodo =
+                  form.paymentMethod === "Quincenal" ? 15 : 30;
                 const auxilioDiario = auxilioPeriodo / diasPeriodo; // Calcular auxilio diario según período
                 const valorAuxilio = auxilioDiario * diasNovedad; // Descontar solo los días de la novedad
-                
+
                 if (esDescuento) {
                   descuentosProporcionales += valorAuxilio;
                 } else {
@@ -1396,8 +1617,12 @@ const LiquidationForm = () => {
               }
 
               // AUXILIO DE MOVILIDAD
-              if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
-                const auxilioMovilidad = Number(employee.mobilityassistance) || 0;
+              if (
+                affectsData.mobilityassistance === true ||
+                affectsData.mobilityassistance === "true"
+              ) {
+                const auxilioMovilidad =
+                  Number(employee.mobilityassistance) || 0;
                 if (auxilioMovilidad > 0) {
                   if (esDescuento) {
                     descuentosProporcionales += auxilioMovilidad;
@@ -1408,14 +1633,22 @@ const LiquidationForm = () => {
               }
 
               // PRESTACIONALES
-              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
-                const salarioDiario = basicSalaryForPeriod / (form.paymentMethod === "Quincenal" ? 15 : 30);
+              if (
+                affectsData.prestacionales === true ||
+                affectsData.prestacionales === "true"
+              ) {
+                const salarioDiario =
+                  basicSalaryForPeriod /
+                  (form.paymentMethod === "Quincenal" ? 15 : 30);
                 const salarioPorDias = salarioDiario * diasNovedad;
-                
+
                 // Determinar si se usa cantidad o porcentaje
-                const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
-                const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
-                
+                const tieneCantidad =
+                  tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+                const tienePorcentaje =
+                  tipoNovedad.percentage &&
+                  parseFloat(tipoNovedad.percentage) > 0;
+
                 let valorSalario = 0;
                 if (tieneCantidad) {
                   const cantidadFija = parseFloat(tipoNovedad.amount);
@@ -1424,7 +1657,7 @@ const LiquidationForm = () => {
                   const porcentaje = parseFloat(tipoNovedad.percentage) || 100;
                   valorSalario = salarioPorDias * (porcentaje / 100);
                 }
-                
+
                 if (esDescuento) {
                   descuentosProporcionales += valorSalario;
                   valorPrestacionales -= valorSalario;
@@ -1438,9 +1671,10 @@ const LiquidationForm = () => {
               let affectsData = {};
               if (tipoNovedad.affects) {
                 try {
-                  affectsData = typeof tipoNovedad.affects === "string" 
-                    ? JSON.parse(tipoNovedad.affects) 
-                    : tipoNovedad.affects || {};
+                  affectsData =
+                    typeof tipoNovedad.affects === "string"
+                      ? JSON.parse(tipoNovedad.affects)
+                      : tipoNovedad.affects || {};
                 } catch (error) {
                   console.error("Error parseando affects:", error);
                   affectsData = {};
@@ -1453,11 +1687,14 @@ const LiquidationForm = () => {
                 affectsData,
                 prestacionales: affectsData.prestacionales,
                 newsAmount: news.amount,
-                esDescuento
+                esDescuento,
               });
 
               // Si afecta prestacionales, sumar el valor a la base de seguridad social
-              if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+              if (
+                affectsData.prestacionales === true ||
+                affectsData.prestacionales === "true"
+              ) {
                 console.log("✅ Sumando a prestacionales:", news.amount);
                 if (esDescuento) {
                   valorPrestacionales -= news.amount;
@@ -1624,8 +1861,8 @@ const LiquidationForm = () => {
 
       // Si es quincenal y es corte 2: incluir todas las novedades del mes completo (1-30)
       if (form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1) {
-        filterStart = moment.utc(form.startDate).startOf('month');
-        filterEnd = moment.utc(form.startDate).endOf('month');
+        filterStart = moment.utc(form.startDate).startOf("month");
+        filterEnd = moment.utc(form.startDate).endOf("month");
       }
 
       // Verificar si está dentro del rango de fechas
@@ -1650,9 +1887,19 @@ const LiquidationForm = () => {
   // useEffect simplificado para cálculos
   useEffect(() => {
     if (typeNews.length > 0 && employees.length > 0) {
-      calculateAllValues();
+      calculateAllValues().catch((error) => {
+        console.error("Error calculando valores:", error);
+      });
     }
-  }, [typeNews, employees, filteredEmployeeNews, form.companyId, form.startDate, form.endDate, form.paymentMethod]);
+  }, [
+    typeNews,
+    employees,
+    filteredEmployeeNews,
+    form.companyId,
+    form.startDate,
+    form.endDate,
+    form.paymentMethod,
+  ]);
 
   // Función para calcular el valor de una novedad
   const calculateNovedadValue = (novedad, employee, tipoNovedad) => {
@@ -1668,16 +1915,19 @@ const LiquidationForm = () => {
     const fechaFin = moment.utc(novedad.endDate);
 
     // Determinar si se usa cantidad o porcentaje
-    const tieneCantidad = tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
-    const tienePorcentaje = tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
+    const tieneCantidad =
+      tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0;
+    const tienePorcentaje =
+      tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0;
 
     // LÓGICA SIMPLIFICADA: Si la novedad tiene "affects" y NO se calcula por hora
     if (tipoNovedad.affects && !tipoNovedad.calculateperhour) {
       let affectsData;
       try {
-        affectsData = typeof tipoNovedad.affects === "string" 
-          ? JSON.parse(tipoNovedad.affects) 
-          : tipoNovedad.affects || {};
+        affectsData =
+          typeof tipoNovedad.affects === "string"
+            ? JSON.parse(tipoNovedad.affects)
+            : tipoNovedad.affects || {};
       } catch (error) {
         affectsData = {};
       }
@@ -1686,7 +1936,8 @@ const LiquidationForm = () => {
       if (tienePorcentaje) {
         const percentage = parseFloat(tipoNovedad.percentage);
         if (
-          (affectsData.prestacionales === true || affectsData.prestacionales === "true") &&
+          (affectsData.prestacionales === true ||
+            affectsData.prestacionales === "true") &&
           percentage === 100
         ) {
           return { valorNovedad: 0, totalHoras: 0 };
@@ -1695,7 +1946,8 @@ const LiquidationForm = () => {
     }
 
     // NUEVA LÓGICA: Usar el campo isDiscount para determinar si suma o resta
-    const esDescuento = tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
+    const esDescuento =
+      tipoNovedad.isDiscount === true || tipoNovedad.isDiscount === "true";
 
     if (tipoNovedad.calculateperhour) {
       // Si la novedad es del mismo día
@@ -1741,15 +1993,17 @@ const LiquidationForm = () => {
       // NUEVA LÓGICA PARAMETRIZADA: Si la novedad tiene hour_type_id, usar normativas
       if (novedad.hourTypeId || novedad.hour_type_id) {
         const hourTypeId = novedad.hourTypeId || novedad.hour_type_id;
-        
+
         // Obtener normativa del tipo de hora desde cache
         const tipoHoraNormativa = normativasCache[hourTypeId];
-        
+
         if (tipoHoraNormativa && tipoHoraNormativa.multiplicador) {
           // Usar la nueva fórmula parametrizada: (salario * multiplicador) / horas_base * horas
           const salarioMensual = Number(employee.basicmonthlysalary) || 0;
-          const multiplicador = parseFloat(tipoHoraNormativa.multiplicador) || 1;
-          const valorHora = (salarioMensual * multiplicador) / horasBaseMensuales;
+          const multiplicador =
+            parseFloat(tipoHoraNormativa.multiplicador) || 1;
+          const valorHora =
+            (salarioMensual * multiplicador) / horasBaseMensuales;
           valorNovedad = totalHoras * valorHora;
           // Redondear a 2 decimales para coincidir con el backend
           valorNovedad = Math.round(valorNovedad * 100) / 100;
@@ -1762,7 +2016,8 @@ const LiquidationForm = () => {
             valorNovedad = Math.round(valorNovedad * 100) / 100;
           } else if (tienePorcentaje) {
             const valorHoraExtra =
-              Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+              Number(employee.hourlyrate) *
+              (Number(tipoNovedad.percentage) / 100);
             valorNovedad = totalHoras * valorHoraExtra;
             // Redondear a 2 decimales para coincidir con el backend
             valorNovedad = Math.round(valorNovedad * 100) / 100;
@@ -1777,13 +2032,14 @@ const LiquidationForm = () => {
           valorNovedad = Math.round(valorNovedad * 100) / 100;
         } else if (tienePorcentaje) {
           const valorHoraExtra =
-            Number(employee.hourlyrate) * (Number(tipoNovedad.percentage) / 100);
+            Number(employee.hourlyrate) *
+            (Number(tipoNovedad.percentage) / 100);
           valorNovedad = totalHoras * valorHoraExtra;
           // Redondear a 2 decimales para coincidir con el backend
           valorNovedad = Math.round(valorNovedad * 100) / 100;
         }
       }
-      
+
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
       if (esDescuento) {
         valorNovedad = -Math.abs(valorNovedad);
@@ -1791,7 +2047,7 @@ const LiquidationForm = () => {
       // Si NO es descuento, mantener el valor positivo (suma)
     } else {
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
-      
+
       // Si tiene cantidad, usar cantidad directamente (valor total, no por día); si no, usar porcentaje
       if (tieneCantidad) {
         const cantidadFija = parseFloat(tipoNovedad.amount);
@@ -1804,45 +2060,49 @@ const LiquidationForm = () => {
         // Redondear a 2 decimales para coincidir con el backend
         valorNovedad = Math.round(valorNovedad * 100) / 100;
       }
-      
+
       // Aplicar lógica de descuento: si es descuento, el valor será negativo
       if (esDescuento) {
         valorNovedad = -Math.abs(valorNovedad);
       }
       // Si NO es descuento, mantener el valor positivo (suma)
     }
-    
+
     // Inicializar valores de costos separados
     let valorPatronal = 0;
     let valorARL = 0;
     let valorEPS = 0;
-    
+
     // Aplicar reglas de pago según payment_rule
-    const paymentRule = tipoNovedad.payment_rule || 'normal';
-    
+    const paymentRule = tipoNovedad.payment_rule || "normal";
+
     // Debug: mostrar información de la novedad
-    if (paymentRule !== 'normal') {
+    if (paymentRule !== "normal") {
       console.log(`🔍 Novedad con regla especial:`, {
         tipoNovedad: tipoNovedad.name || tipoNovedad.code,
         paymentRule,
         calculateperhour: tipoNovedad.calculateperhour,
-        employee: employee.fullname
+        employee: employee.fullname,
       });
     }
-    
-    if (paymentRule !== 'normal' && !tipoNovedad.calculateperhour) {
+
+    if (paymentRule !== "normal" && !tipoNovedad.calculateperhour) {
       // Calcular días: siempre contar ambos días (inicio y fin)
       // Ejemplo: 01/10 a 10/10 = 10 días (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
       const dias = fechaFin.diff(fechaInicio, "days") + 1;
-      
+
       const salarioDiario = Number(employee.basicmonthlysalary) / 30;
       const fechaInicioContrato = moment.utc(employee.contractstartdate);
       const fechaInicioNovedad = moment.utc(novedad.startDate);
-      const mesesAportes = fechaInicioNovedad.diff(fechaInicioContrato, 'months', true);
+      const mesesAportes = fechaInicioNovedad.diff(
+        fechaInicioContrato,
+        "months",
+        true
+      );
       const tieneUnMesAportes = mesesAportes >= 1;
-      
+
       switch (paymentRule) {
-        case 'incapacidad_general_arl':
+        case "incapacidad_general_arl":
           // Día 1: patronal, día 2+: ARL
           if (dias === 1) {
             // Solo día 1 patronal
@@ -1855,8 +2115,8 @@ const LiquidationForm = () => {
             valorNovedad = valorPatronal + valorARL; // Valor total = patronal + ARL
           }
           break;
-          
-        case 'incapacidad_general_eps':
+
+        case "incapacidad_general_eps":
           // Días 1-2: patronal, día 3+: EPS (si tiene 1 mes aportes), sino todo patronal
           // IMPORTANTE: Se paga al 66.67% del salario diario
           if (dias <= 2) {
@@ -1871,22 +2131,26 @@ const LiquidationForm = () => {
               // Calcular valores base (100%)
               const valorPatronalBase = diasPatronal * salarioDiario;
               const valorEPSBase = diasEPS * salarioDiario;
-              
+
               // Aplicar porcentaje del 66.67% si existe en el tipo de novedad
-              const percentage = tienePorcentaje ? parseFloat(tipoNovedad.percentage) : 100;
+              const percentage = tienePorcentaje
+                ? parseFloat(tipoNovedad.percentage)
+                : 100;
               valorPatronal = valorPatronalBase * (percentage / 100);
               valorEPS = valorEPSBase * (percentage / 100);
               valorNovedad = valorPatronal + valorEPS; // Valor total = patronal + EPS
             } else {
               // Sin aportes: todo patronal
-              const percentage = tienePorcentaje ? parseFloat(tipoNovedad.percentage) : 100;
+              const percentage = tienePorcentaje
+                ? parseFloat(tipoNovedad.percentage)
+                : 100;
               valorPatronal = dias * salarioDiario * (percentage / 100);
               valorNovedad = valorPatronal;
             }
           }
           break;
-          
-        case 'incapacidad_eps':
+
+        case "incapacidad_eps":
           // 100% EPS si tiene 1 mes calendario de aportes
           if (tieneUnMesAportes) {
             // EPS asume el 100%, pero se muestra el valor total en la novedad
@@ -1898,19 +2162,21 @@ const LiquidationForm = () => {
             valorNovedad = valorPatronal;
           }
           break;
-          
-        case 'accidente_trabajo':
+
+        case "accidente_trabajo":
           // 100% ARL desde día 1, pero se muestra el valor total en la novedad
           valorARL = dias * salarioDiario;
           valorNovedad = valorARL; // Valor total = lo que paga ARL
           break;
       }
-      
+
       // Aplicar porcentaje si existe (excepto para reglas que ya lo aplicaron)
-      if (tienePorcentaje && 
-          paymentRule !== 'accidente_trabajo' && 
-          paymentRule !== 'incapacidad_eps' &&
-          paymentRule !== 'incapacidad_general_eps') {
+      if (
+        tienePorcentaje &&
+        paymentRule !== "accidente_trabajo" &&
+        paymentRule !== "incapacidad_eps" &&
+        paymentRule !== "incapacidad_general_eps"
+      ) {
         const percentage = parseFloat(tipoNovedad.percentage) || 100;
         valorNovedad = valorNovedad * (percentage / 100);
         valorPatronal = valorPatronal * (percentage / 100);
@@ -1921,17 +2187,26 @@ const LiquidationForm = () => {
       // Si es normal o se calcula por hora, todo es patronal
       valorPatronal = valorNovedad;
     }
-    
+
     // Asegurar redondeo final a 2 decimales (por si acaso)
     valorNovedad = Math.round(valorNovedad * 100) / 100;
     valorPatronal = Math.round(valorPatronal * 100) / 100;
     valorARL = Math.round(valorARL * 100) / 100;
     valorEPS = Math.round(valorEPS * 100) / 100;
-    
+
     // Calcular total de días si no se calcula por hora
-    const totalDias = !tipoNovedad.calculateperhour ? fechaFin.diff(fechaInicio, "days") + 1 : 0;
-    
-    return { valorNovedad, totalHoras, totalDias, valorPatronal, valorARL, valorEPS };
+    const totalDias = !tipoNovedad.calculateperhour
+      ? fechaFin.diff(fechaInicio, "days") + 1
+      : 0;
+
+    return {
+      valorNovedad,
+      totalHoras,
+      totalDias,
+      valorPatronal,
+      valorARL,
+      valorEPS,
+    };
   };
 
   // Función para calcular descuentos por ausentismo (días de descanso)
@@ -1979,8 +2254,22 @@ const LiquidationForm = () => {
   };
 
   // Función optimizada para calcular todos los valores
-  const calculateAllValues = (preservedMobilityValues = null) => {
+  const calculateAllValues = async (preservedMobilityValues = null) => {
     const newCalculatedValues = {};
+
+    // Obtener salario mínimo vigente para validar auxilio de transporte
+    let salarioMinimo = null;
+    try {
+      const normativaSalarioMinimo = await getNormativaVigente(
+        "salario_minimo",
+        form.startDate
+      );
+      if (normativaSalarioMinimo && normativaSalarioMinimo.valor) {
+        salarioMinimo = parseFloat(normativaSalarioMinimo.valor);
+      }
+    } catch (error) {
+      console.error("Error obteniendo salario mínimo:", error);
+    }
 
     employees.forEach((employee) => {
       newCalculatedValues[employee.id] = {
@@ -2006,7 +2295,9 @@ const LiquidationForm = () => {
       let descuentoAuxilioTransporte = 0;
 
       // Procesar novedades del empleado
-      const employeeNews = filteredEmployeeNews.filter(news => news.employeeId === employee.id);
+      const employeeNews = filteredEmployeeNews.filter(
+        (news) => news.employeeId === employee.id
+      );
       let valorPrestacionales = 0; // Suma de novedades que afectan prestacionales
       let diasAfectadosAuxilioMovilidad = 0; // Días totales que afectan auxilio de movilidad
       let diasAfectadosAuxilioTransporte = 0; // Días totales que afectan auxilio de transporte
@@ -2015,14 +2306,20 @@ const LiquidationForm = () => {
       let totalPatronal = 0; // Total costo patronal
       let totalARL = 0; // Total costo ARL
       let totalEPS = 0; // Total costo EPS
-      
+
       if (employeeNews.length > 0) {
-        employeeNews.forEach(news => {
-          const type = typeNews.find(t => t.id === news.typeNewsId);
+        employeeNews.forEach((news) => {
+          const type = typeNews.find((t) => t.id === news.typeNewsId);
           if (!type) return;
 
-          const { valorNovedad, totalHoras, valorPatronal, valorARL, valorEPS } = calculateNovedadValue(news, employee, type);
-          
+          const {
+            valorNovedad,
+            totalHoras,
+            valorPatronal,
+            valorARL,
+            valorEPS,
+          } = calculateNovedadValue(news, employee, type);
+
           // Debug: mostrar valores calculados
           if (valorARL > 0 || valorEPS > 0) {
             console.log(`📊 Costos calculados para novedad:`, {
@@ -2031,53 +2328,71 @@ const LiquidationForm = () => {
               valorPatronal,
               valorARL,
               valorEPS,
-              employee: employee.fullname
+              employee: employee.fullname,
             });
           }
-          
+
           // Acumular costos separados
           totalPatronal += valorPatronal || 0;
           totalARL += valorARL || 0;
           totalEPS += valorEPS || 0;
-          
+
           // Guardar en novedades por tipo
           if (!newCalculatedValues[employee.id].novedades[type.id]) {
             newCalculatedValues[employee.id].novedades[type.id] = {
               valor: 0,
               horas: 0,
-              novedades: []
+              novedades: [],
             };
           }
-          
-          newCalculatedValues[employee.id].novedades[type.id].valor += valorNovedad;
+
+          newCalculatedValues[employee.id].novedades[type.id].valor +=
+            valorNovedad;
           // Redondear el valor acumulado de novedades a 2 decimales
-          newCalculatedValues[employee.id].novedades[type.id].valor = Math.round(newCalculatedValues[employee.id].novedades[type.id].valor * 100) / 100;
-          newCalculatedValues[employee.id].novedades[type.id].horas += totalHoras;
-          newCalculatedValues[employee.id].novedades[type.id].novedades.push(news);
+          newCalculatedValues[employee.id].novedades[type.id].valor =
+            Math.round(
+              newCalculatedValues[employee.id].novedades[type.id].valor * 100
+            ) / 100;
+          newCalculatedValues[employee.id].novedades[type.id].horas +=
+            totalHoras;
+          newCalculatedValues[employee.id].novedades[type.id].novedades.push(
+            news
+          );
 
           // LÓGICA HÍBRIDA: Usar isDiscount + affects para casos específicos
           if (type.affects && !type.calculateperhour) {
             // Si tiene affects configurado, aplicar lógica específica
-            const affectsData = typeof type.affects === "string" 
-              ? JSON.parse(type.affects) 
-              : type.affects || {};
+            const affectsData =
+              typeof type.affects === "string"
+                ? JSON.parse(type.affects)
+                : type.affects || {};
 
-            const diasNovedad = moment.utc(news.endDate).diff(moment.utc(news.startDate), "days") + 1;
-            const esDescuento = type.isDiscount === true || type.isDiscount === "true";
+            const diasNovedad =
+              moment
+                .utc(news.endDate)
+                .diff(moment.utc(news.startDate), "days") + 1;
+            const esDescuento =
+              type.isDiscount === true || type.isDiscount === "true";
 
             // SALARIO BASE: Si está marcado, la novedad reemplaza el salario base
-            if (affectsData.baseSalary === true || affectsData.baseSalary === "true") {
+            if (
+              affectsData.baseSalary === true ||
+              affectsData.baseSalary === "true"
+            ) {
               reemplazaSalarioBase = true; // Marcar que hay una novedad que reemplaza el salario base
               // Acumular días afectados del salario base
               diasAfectadosSalarioBase += diasNovedad;
-              
-              const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+
+              const salarioDiario =
+                salarioBaseCalculado /
+                (form.paymentMethod === "Quincenal" ? 15 : 30);
               const salarioPorDias = salarioDiario * diasNovedad;
-              
+
               // Determinar si se usa cantidad o porcentaje
               const tieneCantidad = type.amount && parseFloat(type.amount) > 0;
-              const tienePorcentaje = type.percentage && parseFloat(type.percentage) > 0;
-              
+              const tienePorcentaje =
+                type.percentage && parseFloat(type.percentage) > 0;
+
               let valorSalario = 0;
               if (tieneCantidad) {
                 const cantidadFija = parseFloat(type.amount);
@@ -2086,11 +2401,11 @@ const LiquidationForm = () => {
                 const porcentaje = parseFloat(type.percentage) || 100;
                 valorSalario = salarioPorDias * (porcentaje / 100);
               }
-              
+
               // Sumar el valor de la novedad (reemplaza el salario base por esos días)
               newCalculatedValues[employee.id].total += valorSalario;
               valorPrestacionales += valorSalario;
-              
+
               // Si afecta salario base, el empleado NO trabajó, por lo tanto NO tiene auxilio de movilidad ni transporte
               // Afectar automáticamente los días de auxilio de movilidad y transporte
               diasAfectadosAuxilioMovilidad += diasNovedad;
@@ -2099,30 +2414,53 @@ const LiquidationForm = () => {
 
             // AUXILIO DE TRANSPORTE
             // Si NO afecta baseSalary (ya se procesó arriba), procesar normalmente
-            if (!(affectsData.baseSalary === true || affectsData.baseSalary === "true")) {
-              if (affectsData.transportationassistance === true || affectsData.transportationassistance === "true") {
+            if (
+              !(
+                affectsData.baseSalary === true ||
+                affectsData.baseSalary === "true"
+              )
+            ) {
+              if (
+                affectsData.transportationassistance === true ||
+                affectsData.transportationassistance === "true"
+              ) {
                 // Acumular días afectados (no importa si es descuento o aumento)
                 diasAfectadosAuxilioTransporte += diasNovedad;
               }
 
               // AUXILIO DE MOVILIDAD
-              if (affectsData.mobilityassistance === true || affectsData.mobilityassistance === "true") {
+              if (
+                affectsData.mobilityassistance === true ||
+                affectsData.mobilityassistance === "true"
+              ) {
                 // Acumular días afectados (no importa si es descuento o aumento)
                 diasAfectadosAuxilioMovilidad += diasNovedad;
               }
             }
 
             // PRESTACIONALES
-            if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+            if (
+              affectsData.prestacionales === true ||
+              affectsData.prestacionales === "true"
+            ) {
               // Solo procesar si NO es baseSalary (ya se procesó arriba)
-              if (!(affectsData.baseSalary === true || affectsData.baseSalary === "true")) {
-                const salarioDiario = salarioBaseCalculado / (form.paymentMethod === "Quincenal" ? 15 : 30);
+              if (
+                !(
+                  affectsData.baseSalary === true ||
+                  affectsData.baseSalary === "true"
+                )
+              ) {
+                const salarioDiario =
+                  salarioBaseCalculado /
+                  (form.paymentMethod === "Quincenal" ? 15 : 30);
                 const salarioPorDias = salarioDiario * diasNovedad;
-                
+
                 // Determinar si se usa cantidad o porcentaje
-                const tieneCantidad = type.amount && parseFloat(type.amount) > 0;
-                const tienePorcentaje = type.percentage && parseFloat(type.percentage) > 0;
-                
+                const tieneCantidad =
+                  type.amount && parseFloat(type.amount) > 0;
+                const tienePorcentaje =
+                  type.percentage && parseFloat(type.percentage) > 0;
+
                 let valorSalario = 0;
                 if (tieneCantidad) {
                   const cantidadFija = parseFloat(type.amount);
@@ -2131,7 +2469,7 @@ const LiquidationForm = () => {
                   const porcentaje = parseFloat(type.percentage) || 100;
                   valorSalario = salarioPorDias * (porcentaje / 100);
                 }
-                
+
                 if (esDescuento) {
                   newCalculatedValues[employee.id].total -= valorSalario;
                   valorPrestacionales -= valorSalario;
@@ -2143,18 +2481,23 @@ const LiquidationForm = () => {
             }
           } else if (type.calculateperhour) {
             // Si es calculada por hora, verificar si afecta prestacionales
-            const esDescuento = type.isDiscount === true || type.isDiscount === "true";
+            const esDescuento =
+              type.isDiscount === true || type.isDiscount === "true";
             let affectsData;
             try {
-              affectsData = typeof type.affects === "string" 
-                ? JSON.parse(type.affects) 
-                : type.affects || {};
+              affectsData =
+                typeof type.affects === "string"
+                  ? JSON.parse(type.affects)
+                  : type.affects || {};
             } catch (error) {
               affectsData = {};
             }
 
             // Si afecta prestacionales, sumar el valor a la base de seguridad social
-            if (affectsData.prestacionales === true || affectsData.prestacionales === "true") {
+            if (
+              affectsData.prestacionales === true ||
+              affectsData.prestacionales === "true"
+            ) {
               if (esDescuento) {
                 valorPrestacionales -= valorNovedad;
               } else {
@@ -2174,7 +2517,7 @@ const LiquidationForm = () => {
       // Calcular y sumar el salario base proporcional a los días trabajados
       const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
       const diasTrabajadosSalario = diasPeriodo - diasAfectadosSalarioBase;
-      
+
       let salarioBaseProporcional = 0;
       if (diasTrabajadosSalario > 0) {
         // Calcular salario base proporcional a los días trabajados
@@ -2186,9 +2529,10 @@ const LiquidationForm = () => {
         salarioBaseProporcional = salarioBaseCalculado;
         newCalculatedValues[employee.id].total += salarioBaseProporcional;
       }
-      
+
       // Guardar el salario base proporcional para uso en el guardado
-      newCalculatedValues[employee.id].basic_salary_proportional = salarioBaseProporcional;
+      newCalculatedValues[employee.id].basic_salary_proportional =
+        salarioBaseProporcional;
 
       // CALCULAR DESCUENTOS POR AUSENTISMO (días de descanso)
       const absenceDiscounts = calculateAbsenceDiscounts(
@@ -2201,16 +2545,17 @@ const LiquidationForm = () => {
       // Si hay un valor preservado (modificado desde el modal), usar ese valor como base mensual
       const employeeValues = preservedMobilityValues?.[employee.id] || {};
       let auxilioMovilidad = 0;
-      
+
       // Determinar el valor base: si hay valor preservado, usar ese; si no, usar el del empleado
-      const auxilioMovilidadBase = employeeValues.mobility_assistance_final !== undefined
-        ? Number(employeeValues.mobility_assistance_final) || 0  // Valor modificado desde el modal (base mensual)
-        : Number(employee.mobilityassistance) || 0;  // Valor original del empleado
-      
+      const auxilioMovilidadBase =
+        employeeValues.mobility_assistance_final !== undefined
+          ? Number(employeeValues.mobility_assistance_final) || 0 // Valor modificado desde el modal (base mensual)
+          : Number(employee.mobilityassistance) || 0; // Valor original del empleado
+
       if (auxilioMovilidadBase > 0) {
         const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
         const diasTrabajados = diasPeriodo - diasAfectadosAuxilioMovilidad;
-        
+
         // Solo calcular si hay días trabajados (si todos los días están afectados, no hay auxilio)
         if (diasTrabajados > 0) {
           // Calcular auxilio proporcional: (auxilio mensual base / 30) * días trabajados
@@ -2219,18 +2564,28 @@ const LiquidationForm = () => {
           auxilioMovilidad = Math.round(auxilioMovilidad * 100) / 100;
         }
       }
-      
+
       // Guardar el auxilio de movilidad calculado
-      newCalculatedValues[employee.id].mobility_assistance_final = auxilioMovilidad;
+      newCalculatedValues[employee.id].mobility_assistance_final =
+        auxilioMovilidad;
 
       // Calcular auxilio de transporte proporcional a los días trabajados
-      const auxilioTransporteBase = Number(employee.transportationassistance) || 0;
+      const auxilioTransporteBase =
+        Number(employee.transportationassistance) || 0;
       let auxilioTransporte = 0;
-      
-      if (auxilioTransporteBase > 0) {
+
+      // VALIDACIÓN: El auxilio de transporte solo se paga a empleados que ganan MENOS de 2 SMLV
+      // Si el salario es >= 2 SMLV, NO se aplica auxilio de transporte
+      const salarioMensualEmpleado = Number(employee.basicmonthlysalary) || 0;
+      const dosSMLV = salarioMinimo ? salarioMinimo * 2 : null;
+      const debeAplicarAuxilioTransporte = dosSMLV
+        ? salarioMensualEmpleado < dosSMLV
+        : true;
+
+      if (auxilioTransporteBase > 0 && debeAplicarAuxilioTransporte) {
         const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
         const diasTrabajados = diasPeriodo - diasAfectadosAuxilioTransporte;
-        
+
         // Solo calcular si hay días trabajados (si todos los días están afectados, no hay auxilio)
         if (diasTrabajados > 0) {
           // Calcular auxilio proporcional: (auxilio diario) * días trabajados
@@ -2238,21 +2593,22 @@ const LiquidationForm = () => {
           auxilioTransporte = Math.round(auxilioTransporte * 100) / 100;
         }
       }
-      
+
       // Agregar el auxilio de transporte al total
       if (auxilioTransporte > 0) {
         newCalculatedValues[employee.id].total += auxilioTransporte;
       }
-      
+
       // Guardar el auxilio de transporte calculado
-      newCalculatedValues[employee.id].transportation_assistance_final = auxilioTransporte;
+      newCalculatedValues[employee.id].transportation_assistance_final =
+        auxilioTransporte;
 
       // Calcular total de novedades positivas (solo las que suman, no las que restan)
       let totalNovedadesPositivas = 0;
       employeeNews.forEach((news) => {
-        const type = typeNews.find(t => t.id === news.typeNewsId);
+        const type = typeNews.find((t) => t.id === news.typeNewsId);
         if (!type) return;
-        
+
         const { valorNovedad } = calculateNovedadValue(news, employee, type);
         // Solo sumar novedades positivas (no descuentos)
         if (valorNovedad > 0) {
@@ -2262,28 +2618,36 @@ const LiquidationForm = () => {
       totalNovedadesPositivas = Math.round(totalNovedadesPositivas * 100) / 100;
 
       // CALCULAR TOTAL DEVENGADO (antes de descuentos): salario base + auxilios + novedades positivas
-      const totalEarnings = salarioBaseProporcional + auxilioTransporte + auxilioMovilidad + totalNovedadesPositivas;
-      newCalculatedValues[employee.id].total_earnings = Math.round(totalEarnings * 100) / 100;
+      const totalEarnings =
+        salarioBaseProporcional +
+        auxilioTransporte +
+        auxilioMovilidad +
+        totalNovedadesPositivas;
+      newCalculatedValues[employee.id].total_earnings =
+        Math.round(totalEarnings * 100) / 100;
 
       // Calcular base de seguridad social: salario base proporcional + novedades prestacionales + auxilio movilidad (si excede 40%)
       // El salario base proporcional ya incluye solo los días trabajados
       // Pasar el salario base completo para calcular correctamente el 40%
       const baseSeguridadSocial = calculateBaseSeguridadSocial(
-        salarioBaseProporcional, 
-        valorPrestacionales, 
+        salarioBaseProporcional,
+        valorPrestacionales,
         auxilioMovilidad,
         salarioBaseCalculado // Pasar el salario base completo para comparar el 40%
       );
 
       // Guardar la base de seguridad social calculada para uso en otras partes
-      newCalculatedValues[employee.id].base_security_social = baseSeguridadSocial;
-      
+      newCalculatedValues[employee.id].base_security_social =
+        baseSeguridadSocial;
+
       // Guardar el salario base proporcional para uso en el guardado
-      newCalculatedValues[employee.id].basic_salary_proportional = salarioBaseProporcional;
+      newCalculatedValues[employee.id].basic_salary_proportional =
+        salarioBaseProporcional;
 
       // Calcular si el auxilio de movilidad excede el 40% del salario base
       const cuarentaPorcientoSalario = salarioBaseCalculado * 0.4;
-      const auxilioExcede40Porciento = auxilioMovilidad > cuarentaPorcientoSalario;
+      const auxilioExcede40Porciento =
+        auxilioMovilidad > cuarentaPorcientoSalario;
 
       // El auxilio de movilidad SIEMPRE se suma al devengado (el empleado lo recibe)
       // Si excede el 40%, también afecta la base de seguridad social (ya calculado arriba)
@@ -2291,52 +2655,83 @@ const LiquidationForm = () => {
         newCalculatedValues[employee.id].total += auxilioMovilidad;
       }
 
+      // VALIDACIÓN LEGAL: Si la base de seguridad social es menor al salario base completo,
+      // usar el salario base completo para calcular descuentos de salud y pensión
+      // (El descuento de seguridad social no puede ser inferior al salario del trabajador)
+      const baseParaDescuentos =
+        baseSeguridadSocial < salarioBaseCalculado
+          ? salarioBaseCalculado
+          : baseSeguridadSocial;
+      console.log("salarioBaseCalculado", salarioBaseCalculado);
       // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno de la base de seguridad social)
-      const isSecondCut = form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
-      const shouldApply = shouldApplyHealthPensionDiscounts(form.paymentMethod, isSecondCut);
-      const healthDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
-      const pensionDiscount = shouldApply ? baseSeguridadSocial * 0.04 : 0;
+      const isSecondCut =
+        form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;
+      const shouldApply = shouldApplyHealthPensionDiscounts(
+        form.paymentMethod,
+        isSecondCut
+      );
+      const healthDiscount = shouldApply ? baseParaDescuentos * 0.04 : 0;
+      const pensionDiscount = shouldApply ? baseParaDescuentos * 0.04 : 0;
       const socialSecurityDiscounts = healthDiscount + pensionDiscount;
 
       // Guardar descuentos por separado para mostrar en la interfaz
       newCalculatedValues[employee.id].health_discount = healthDiscount;
       newCalculatedValues[employee.id].pension_discount = pensionDiscount;
-      newCalculatedValues[employee.id].social_security_discounts = socialSecurityDiscounts;
+      newCalculatedValues[employee.id].social_security_discounts =
+        socialSecurityDiscounts;
       newCalculatedValues[employee.id].absence_discounts = absenceDiscounts;
-      newCalculatedValues[employee.id].transportation_assistance_discount = Math.round(descuentoAuxilioTransporte * 100) / 100;
-      newCalculatedValues[employee.id].total_discounts = absenceDiscounts + socialSecurityDiscounts;
-      
+      newCalculatedValues[employee.id].transportation_assistance_discount =
+        Math.round(descuentoAuxilioTransporte * 100) / 100;
+      newCalculatedValues[employee.id].total_discounts =
+        absenceDiscounts + socialSecurityDiscounts;
+
       // CALCULAR EL TOTAL (net_amount) CORRECTAMENTE: total_earnings - total_discounts
       // El total es el total de todo, sin importar quién paga (ARL, EPS o Empleador)
       // Las columnas ARL, EPS y Empleador solo muestran cómo se reparte ese total
       const totalDiscounts = newCalculatedValues[employee.id].total_discounts;
-      newCalculatedValues[employee.id].total = Math.round((totalEarnings - totalDiscounts) * 100) / 100;
-      
+      newCalculatedValues[employee.id].total =
+        Math.round((totalEarnings - totalDiscounts) * 100) / 100;
+
       // Guardar costos separados
-      newCalculatedValues[employee.id].total_patronal = Math.round(totalPatronal * 100) / 100;
-      newCalculatedValues[employee.id].total_arl = Math.round(totalARL * 100) / 100;
-      newCalculatedValues[employee.id].total_eps = Math.round(totalEPS * 100) / 100;
-      
+      newCalculatedValues[employee.id].total_patronal =
+        Math.round(totalPatronal * 100) / 100;
+      newCalculatedValues[employee.id].total_arl =
+        Math.round(totalARL * 100) / 100;
+      newCalculatedValues[employee.id].total_eps =
+        Math.round(totalEPS * 100) / 100;
+
       // Debug: mostrar totales acumulados
       if (totalARL > 0 || totalEPS > 0) {
         console.log(`💼 Totales acumulados para ${employee.fullname}:`, {
           totalPatronal: newCalculatedValues[employee.id].total_patronal,
           totalARL: newCalculatedValues[employee.id].total_arl,
-          totalEPS: newCalculatedValues[employee.id].total_eps
+          totalEPS: newCalculatedValues[employee.id].total_eps,
         });
       }
-      newCalculatedValues[employee.id].total_deducciones = Math.round((absenceDiscounts + socialSecurityDiscounts) * 100) / 100;
-      
+      newCalculatedValues[employee.id].total_deducciones =
+        Math.round((absenceDiscounts + socialSecurityDiscounts) * 100) / 100;
+
       // Redondear totales a 2 decimales para coincidir con el backend
-      newCalculatedValues[employee.id].total = Math.round(newCalculatedValues[employee.id].total * 100) / 100;
-      newCalculatedValues[employee.id].total_discounts = Math.round(newCalculatedValues[employee.id].total_discounts * 100) / 100;
-      newCalculatedValues[employee.id].health_discount = Math.round(newCalculatedValues[employee.id].health_discount * 100) / 100;
-      newCalculatedValues[employee.id].pension_discount = Math.round(newCalculatedValues[employee.id].pension_discount * 100) / 100;
-      newCalculatedValues[employee.id].social_security_discounts = Math.round(newCalculatedValues[employee.id].social_security_discounts * 100) / 100;
-      newCalculatedValues[employee.id].absence_discounts = Math.round(newCalculatedValues[employee.id].absence_discounts * 100) / 100;
-      
+      newCalculatedValues[employee.id].total =
+        Math.round(newCalculatedValues[employee.id].total * 100) / 100;
+      newCalculatedValues[employee.id].total_discounts =
+        Math.round(newCalculatedValues[employee.id].total_discounts * 100) /
+        100;
+      newCalculatedValues[employee.id].health_discount =
+        Math.round(newCalculatedValues[employee.id].health_discount * 100) /
+        100;
+      newCalculatedValues[employee.id].pension_discount =
+        Math.round(newCalculatedValues[employee.id].pension_discount * 100) /
+        100;
+      newCalculatedValues[employee.id].social_security_discounts =
+        Math.round(
+          newCalculatedValues[employee.id].social_security_discounts * 100
+        ) / 100;
+      newCalculatedValues[employee.id].absence_discounts =
+        Math.round(newCalculatedValues[employee.id].absence_discounts * 100) /
+        100;
     });
-    
+
     setCalculatedValues(newCalculatedValues);
   };
 
@@ -2414,21 +2809,33 @@ const LiquidationForm = () => {
                     value={form.startDate}
                   />
                   {form.paymentMethod === "Mensual" && (
-                    <small className="text-muted">Período: 1 al 30 del mismo mes</small>
+                    <small className="text-muted">
+                      Período: 1 al 30 del mismo mes
+                    </small>
                   )}
-                  {form.paymentMethod === "Quincenal" && form.corte1 && !form.corte2 && (
-                    <small className="text-muted">Período: 1 al 15 del mismo mes</small>
-                  )}
-                  {form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1 && (() => {
-                    const baseDate = form.startDate || form.endDate || new Date();
-                    const year = new Date(baseDate).getFullYear();
-                    const month = new Date(baseDate).getMonth() + 1;
-                    const lastDayOfMonth = new Date(year, month, 0).getDate();
-                    const maxDay = Math.min(30, lastDayOfMonth);
-                    return (
-                      <small className="text-muted">Período: 16 al {maxDay} del mismo mes</small>
-                    );
-                  })()}
+                  {form.paymentMethod === "Quincenal" &&
+                    form.corte1 &&
+                    !form.corte2 && (
+                      <small className="text-muted">
+                        Período: 1 al 15 del mismo mes
+                      </small>
+                    )}
+                  {form.paymentMethod === "Quincenal" &&
+                    form.corte2 &&
+                    !form.corte1 &&
+                    (() => {
+                      const baseDate =
+                        form.startDate || form.endDate || new Date();
+                      const year = new Date(baseDate).getFullYear();
+                      const month = new Date(baseDate).getMonth() + 1;
+                      const lastDayOfMonth = new Date(year, month, 0).getDate();
+                      const maxDay = Math.min(30, lastDayOfMonth);
+                      return (
+                        <small className="text-muted">
+                          Período: 16 al {maxDay} del mismo mes
+                        </small>
+                      );
+                    })()}
                 </FormGroup>
               </Col>
               <Col md="2">
@@ -2442,24 +2849,36 @@ const LiquidationForm = () => {
                     value={form.endDate}
                   />
                   {form.paymentMethod === "Mensual" && (
-                    <small className="text-muted">Período: 1 al 30 del mismo mes</small>
+                    <small className="text-muted">
+                      Período: 1 al 30 del mismo mes
+                    </small>
                   )}
-                  {form.paymentMethod === "Quincenal" && form.corte1 && !form.corte2 && (
-                    <small className="text-muted">Período: 1 al 15 del mismo mes</small>
-                  )}
-                  {form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1 && (() => {
-                    const baseDate = form.startDate || form.endDate || new Date();
-                    const year = new Date(baseDate).getFullYear();
-                    const month = new Date(baseDate).getMonth() + 1;
-                    const lastDayOfMonth = new Date(year, month, 0).getDate();
-                    const maxDay = Math.min(30, lastDayOfMonth);
-                    return (
-                      <small className="text-muted">Período: 16 al {maxDay} del mismo mes</small>
-                    );
-                  })()}
+                  {form.paymentMethod === "Quincenal" &&
+                    form.corte1 &&
+                    !form.corte2 && (
+                      <small className="text-muted">
+                        Período: 1 al 15 del mismo mes
+                      </small>
+                    )}
+                  {form.paymentMethod === "Quincenal" &&
+                    form.corte2 &&
+                    !form.corte1 &&
+                    (() => {
+                      const baseDate =
+                        form.startDate || form.endDate || new Date();
+                      const year = new Date(baseDate).getFullYear();
+                      const month = new Date(baseDate).getMonth() + 1;
+                      const lastDayOfMonth = new Date(year, month, 0).getDate();
+                      const maxDay = Math.min(30, lastDayOfMonth);
+                      return (
+                        <small className="text-muted">
+                          Período: 16 al {maxDay} del mismo mes
+                        </small>
+                      );
+                    })()}
                 </FormGroup>
               </Col>
-       
+
               {/* <Col md="2">
                 <FormGroup>
                   <Label for="newsStatus">Estado Novedades:</Label>
@@ -2558,7 +2977,11 @@ const LiquidationForm = () => {
                   <Button
                     color="primary"
                     onClick={saveLiquidation}
-                    disabled={!filteredData.length || saving || !periodValidation.isValid}
+                    disabled={
+                      !filteredData.length ||
+                      saving ||
+                      !periodValidation.isValid
+                    }
                     size="sm"
                   >
                     {saving ? (
@@ -2677,63 +3100,75 @@ const LiquidationForm = () => {
                 <div className="mb-3">
                   <strong>Auxilio de Transporte:</strong>{" "}
                   {(() => {
-                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    const employeeValues =
+                      calculatedValues[selectedEmployee.id] || {};
                     const auxilioCalculado = calculateTransportationAssistance(
                       selectedEmployee,
                       form.paymentMethod
                     );
-                    const descuento = employeeValues.transportation_assistance_discount || 0;
-                    const auxilioFinal = employeeValues.transportation_assistance_final !== undefined 
-                      ? employeeValues.transportation_assistance_final 
-                      : auxilioCalculado;
-                    
+                    const descuento =
+                      employeeValues.transportation_assistance_discount || 0;
+                    const auxilioFinal =
+                      employeeValues.transportation_assistance_final !==
+                      undefined
+                        ? employeeValues.transportation_assistance_final
+                        : auxilioCalculado;
+
                     if (auxilioFinal <= 0) {
                       return "No aplica";
                     }
-                    
+
                     if (descuento > 0) {
                       return (
                         <div>
                           <div>{formatCurrency(auxilioFinal)}</div>
                           <small className="text-danger">
-                            (Auxilio: {formatCurrency(auxilioCalculado)} - Descuento: {formatCurrency(descuento)})
+                            (Auxilio: {formatCurrency(auxilioCalculado)} -
+                            Descuento: {formatCurrency(descuento)})
                           </small>
                         </div>
                       );
                     }
-                    
+
                     return formatCurrency(auxilioFinal);
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Auxilio de Movilidad:</strong>{" "}
                   {(() => {
-                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
-                    const auxilio = employeeValues.mobility_assistance_final !== undefined 
-                      ? employeeValues.mobility_assistance_final 
-                      : 0;
+                    const employeeValues =
+                      calculatedValues[selectedEmployee.id] || {};
+                    const auxilio =
+                      employeeValues.mobility_assistance_final !== undefined
+                        ? employeeValues.mobility_assistance_final
+                        : 0;
                     return auxilio > 0 ? formatCurrency(auxilio) : "No aplica";
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Descuento Salud (4%):</strong>{" "}
                   {(() => {
-                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    const employeeValues =
+                      calculatedValues[selectedEmployee.id] || {};
                     return formatCurrency(employeeValues.health_discount || 0);
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Descuento Pensión (4%):</strong>{" "}
                   {(() => {
-                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
+                    const employeeValues =
+                      calculatedValues[selectedEmployee.id] || {};
                     return formatCurrency(employeeValues.pension_discount || 0);
                   })()}
                 </div>
                 <div className="mb-3">
                   <strong>Total Descuentos Seguridad Social:</strong>{" "}
                   {(() => {
-                    const employeeValues = calculatedValues[selectedEmployee.id] || {};
-                    return formatCurrency(employeeValues.social_security_discounts || 0);
+                    const employeeValues =
+                      calculatedValues[selectedEmployee.id] || {};
+                    return formatCurrency(
+                      employeeValues.social_security_discounts || 0
+                    );
                   })()}
                 </div>
                 <div className="mb-3">
@@ -2875,11 +3310,13 @@ const LiquidationForm = () => {
         }}
         centered
       >
-        <ModalHeader toggle={() => {
-          setShowMobilityModal(false);
-          setSelectedEmployeeForMobility(null);
-          setMobilityValue("");
-        }}>
+        <ModalHeader
+          toggle={() => {
+            setShowMobilityModal(false);
+            setSelectedEmployeeForMobility(null);
+            setMobilityValue("");
+          }}
+        >
           Editar Auxilio de Movilidad
         </ModalHeader>
         <ModalBody>
@@ -2894,7 +3331,7 @@ const LiquidationForm = () => {
                     border: "1px solid #ced4da",
                     borderRadius: "0.25rem",
                     color: "#212529",
-                    fontWeight: "500"
+                    fontWeight: "500",
                   }}
                 >
                   {selectedEmployeeForMobility.fullname}
@@ -2917,7 +3354,10 @@ const LiquidationForm = () => {
             </>
           )}
         </ModalBody>
-        <div className="modal-footer" style={{ padding: "1rem", borderTop: "1px solid #dee2e6" }}>
+        <div
+          className="modal-footer"
+          style={{ padding: "1rem", borderTop: "1px solid #dee2e6" }}
+        >
           <Button
             color="secondary"
             onClick={() => {
@@ -2939,7 +3379,7 @@ const LiquidationForm = () => {
                     mobility_assistance_final: value,
                   },
                 };
-                
+
                 // Actualizar calculatedValues y recalcular todo
                 setCalculatedValues((prev) => {
                   const updated = {
@@ -2950,8 +3390,8 @@ const LiquidationForm = () => {
                     },
                   };
                   // Recalcular pasando los valores preservados
-                  setTimeout(() => {
-                    calculateAllValues(preservedMobilityValues);
+                  setTimeout(async () => {
+                    await calculateAllValues(preservedMobilityValues);
                   }, 0);
                   return updated;
                 });
