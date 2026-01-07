@@ -16,7 +16,7 @@ const normativasApi = {
   list: async (filters = {}) => {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (filters.tipo && filters.tipo !== '') {
         queryParams.append('tipo', filters.tipo);
       }
@@ -31,7 +31,6 @@ const normativasApi = {
       }
 
       const url = `/normativas${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('🌐 Llamando API con URL:', url);
       const response = await fetchApi.get(url);
       return response.data;
     } catch (error) {
@@ -80,7 +79,7 @@ const normativasApi = {
     try {
       const queryParams = new URLSearchParams();
       if (fecha) queryParams.append('fecha', fecha);
-      
+
       const url = `/normativas/vigentes${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       const response = await fetchApi.get(url);
       return response.data;
@@ -96,7 +95,7 @@ const normativasApi = {
       const queryParams = new URLSearchParams();
       queryParams.append('tipo', tipo);
       if (fecha) queryParams.append('fecha', fecha);
-      
+
       const url = `/normativas/vigente?${queryParams.toString()}`;
       const response = await fetchApi.get(url);
       return response.data;

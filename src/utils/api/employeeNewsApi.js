@@ -17,8 +17,6 @@ const employeeNewsApi = {
       const url = params.toString() ? `${mainRoute}?${params.toString()}` : mainRoute;
       const response = await fetchApi.get(url);
 
-      console.log("🔍 Respuesta completa de fetchApi:", response);
-
       // Manejar diferentes estructuras de respuesta
       if (response.data && response.data.body) {
         // Si tiene body, usar la estructura del body
@@ -100,9 +98,9 @@ const employeeNewsApi = {
       console.log("ID:", id);
       console.log("obj:", obj);
       console.log("Es FormData:", obj instanceof FormData);
-      
+
       let config = {};
-      
+
       // Si es FormData (con archivo), configurar para multipart
       if (obj instanceof FormData) {
         config = {
@@ -119,11 +117,11 @@ const employeeNewsApi = {
           },
         };
         console.log("Usando JSON - config:", config);
-        
+
         // Solo para objetos normales, eliminar document si no existe
         if (!obj.document) delete obj.document;
       }
-      
+
       console.log("Config final:", config);
       console.log("Datos a enviar:", obj);
 
@@ -148,14 +146,10 @@ const employeeNewsApi = {
 
   getPendingByPeriod: async (startDate, endDate, companyId) => {
     try {
-      console.log("🔄 Obteniendo novedades pendientes por período...");
-      console.log("📅 Parámetros:", { startDate, endDate, companyId });
-      
       const response = await fetchApi.get(
         `${mainRoute}/pending-by-period?startDate=${startDate}&endDate=${endDate}&companyId=${companyId}`
       );
-      
-      console.log("📊 Respuesta de novedades pendientes:", response.data);
+
       return response.data.body || response.data || [];
     } catch (error) {
       console.error("Error al obtener novedades pendientes por período", error);
@@ -167,15 +161,13 @@ const employeeNewsApi = {
     try {
       console.log("🔄 Obteniendo novedades por estado de liquidación...");
       console.log("📊 Parámetros:", { status, companyId, startDate, endDate });
-      
+
       let url = `${mainRoute}/by-liquidation-status?status=${status}`;
       if (companyId) url += `&companyId=${companyId}`;
       if (startDate) url += `&startDate=${startDate}`;
       if (endDate) url += `&endDate=${endDate}`;
-      
+
       const response = await fetchApi.get(url);
-      
-      console.log("📊 Respuesta de novedades por estado:", response.data);
       return response.data.body || response.data || [];
     } catch (error) {
       console.error("Error al obtener novedades por estado de liquidación", error);
@@ -187,12 +179,12 @@ const employeeNewsApi = {
     try {
       console.log("🔄 Marcando novedades como liquidadas...");
       console.log("📊 Parámetros:", { employeeNewsIds, liquidationId });
-      
+
       const response = await fetchApi.put(`${mainRoute}/mark-as-liquidated`, {
         employeeNewsIds,
         liquidationId
       });
-      
+
       console.log("✅ Novedades marcadas como liquidadas");
       return response.data;
     } catch (error) {
@@ -205,11 +197,11 @@ const employeeNewsApi = {
     try {
       console.log("🔄 Restaurando novedades a pendientes...");
       console.log("📊 Parámetros:", { employeeNewsIds });
-      
+
       const response = await fetchApi.put(`${mainRoute}/restore-to-pending`, {
         employeeNewsIds
       });
-      
+
       console.log("✅ Novedades restauradas a pendientes");
       return response.data;
     } catch (error) {

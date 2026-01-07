@@ -25,7 +25,7 @@ const EmployeeNewsListContainer = () => {
     try {
       const response = await employeeNewsApi.list(page, rowsPerPage);
       console.log("API Response:", response);
-      
+
       // Verificar si la respuesta tiene la estructura esperada con paginación
       if (response && response.data && Array.isArray(response.data)) {
         setData(response.data);
@@ -176,7 +176,7 @@ const EmployeeNewsListContainer = () => {
         // Determinar el estado basado en el campo 'approved'
         let statusText = "";
         let statusClass = "";
-        
+
         if (row.approved === true) {
           statusText = "Aprobado";
           statusClass = "badge bg-success";
@@ -187,7 +187,7 @@ const EmployeeNewsListContainer = () => {
           statusText = "Pendiente";
           statusClass = "badge bg-warning";
         }
-        
+
         return (
           <span className={statusClass}>
             {statusText}
@@ -203,7 +203,7 @@ const EmployeeNewsListContainer = () => {
         const isActive = row.active === true;
         const statusText = isActive ? "Activa" : "Inactiva";
         const statusClass = isActive ? "badge bg-primary" : "badge bg-secondary";
-        
+
         return (
           <span className={statusClass}>
             {statusText}
@@ -267,7 +267,11 @@ const EmployeeNewsListContainer = () => {
               <CardBody>
                 <>
                   <div className="list-product-header">
-                    <EmployeeNewsListFilterHeader setViewForm={setViewForm} />
+                    <EmployeeNewsListFilterHeader
+                      setViewForm={setViewForm}
+                      setIsUpdate={setIsUpdate}
+                      setDataToUpdate={setDataToUpdate}
+                    />
                     <CollapseFilterData />
                   </div>
                   <div className="list-product">

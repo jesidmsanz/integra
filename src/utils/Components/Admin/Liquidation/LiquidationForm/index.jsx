@@ -601,7 +601,9 @@ const LiquidationForm = () => {
           const diasTrabajadosSalario = diasPeriodo - diasAfectadosSalarioBase;
 
           if (diasTrabajadosSalario > 0) {
-            const salarioDiario = salarioBaseCalculado / diasPeriodo;
+            // IMPORTANTE: El salario diario siempre se calcula dividiendo por 30 (mes calendario)
+            // independientemente de cuántos días trabajó el empleado
+            const salarioDiario = salarioBaseCalculado / 30;
             salarioBaseProporcional = salarioDiario * diasTrabajadosSalario;
           }
         } else {
@@ -626,28 +628,6 @@ const LiquidationForm = () => {
           auxilioMovilidad,
           salarioBaseCalculado // Pasar el salario base completo para comparar el 40%
         );
-
-        // Debug temporal
-        if (row.id === 1042439932 || row.documentnumber === "1042439932") {
-          console.log("🔍 Debug Salario Base + Conceptos:", {
-            empleado: row.fullname,
-            salarioBase: salarioBase,
-            salarioBaseCalculado: salarioBaseCalculado,
-            reemplazaSalarioBase: reemplazaSalarioBase,
-            diasAfectadosSalarioBase: diasAfectadosSalarioBase,
-            salarioBaseProporcional: salarioBaseProporcional,
-            valorPrestacionales: valorPrestacionales,
-            auxilioMovilidad: auxilioMovilidad,
-            baseSeguridadSocial: baseSeguridadSocial,
-            novedades: employeeNews.map((n) => ({
-              id: n.id,
-              tipo: typeNews.find((t) => t.id === n.typeNewsId)?.name,
-              startDate: n.startDate,
-              endDate: n.endDate,
-              affects: typeNews.find((t) => t.id === n.typeNewsId)?.affects,
-            })),
-          });
-        }
 
         return formatCurrency(baseSeguridadSocial);
       },
@@ -934,13 +914,15 @@ const LiquidationForm = () => {
 
   const loadEmployees = async () => {
     try {
-      const response = await employeesApi.listActive();
-      if (response.length) {
-        setEmployees(response);
-      }
+      // Pasar startDate si está disponible para filtrar empleados por fecha de finalización
+      const params = form.startDate ? { startDate: form.startDate } : {};
+      const response = await employeesApi.listActive(params);
+      // Siempre actualizar el estado, incluso si está vacío (para limpiar empleados vencidos)
+      setEmployees(response || []);
     } catch (error) {
       console.error("Error al cargar los empleados para liquidación:", error);
       toast.error("Error al cargar la lista de empleados");
+      setEmployees([]);
     }
   };
 
@@ -1010,21 +992,6 @@ const LiquidationForm = () => {
         const tiposConRegla = response.data.filter(
           (t) => t.payment_rule && t.payment_rule !== "normal"
         );
-        if (tiposConRegla.length > 0) {
-          console.log(
-            "📋 Tipos de novedad con reglas de pago especiales:",
-            tiposConRegla.map((t) => ({
-              id: t.id,
-              code: t.code,
-              name: t.name,
-              payment_rule: t.payment_rule,
-            }))
-          );
-        } else {
-          console.log(
-            "⚠️ No hay tipos de novedad con reglas de pago especiales configuradas"
-          );
-        }
       } else {
         console.log("⚠️ No se encontraron tipos de novedades");
         setTypeNews([]);
@@ -1060,20 +1027,24 @@ const LiquidationForm = () => {
     loadDataSequentially();
   }, []);
 
-  // Cargar horas base cuando cambie la fecha
+  // Cargar horas base y recargar empleados cuando cambie la fecha de inicio o fin
   useEffect(() => {
-    const loadHorasBase = async () => {
-      if (form.startDate) {
+    const loadData = async () => {
+      if (form.startDate && form.endDate) {
         try {
+          // Cargar horas base mensuales
           const horasBase = await getHorasBaseMensuales(form.startDate);
           setHorasBaseMensuales(horasBase);
+
+          // Recargar empleados con el filtro de fecha de finalización
+          await loadEmployees();
         } catch (error) {
-          console.error("Error cargando horas base:", error);
+          console.error("Error cargando datos:", error);
         }
       }
     };
-    loadHorasBase();
-  }, [form.startDate]);
+    loadData();
+  }, [form.startDate, form.endDate]);
 
   useEffect(() => {
     if (form.companyId) {
@@ -1243,11 +1214,6 @@ const LiquidationForm = () => {
             }
           });
           setNormativasCache(cache);
-          console.log(
-            `✅ Precargadas ${
-              Object.keys(cache).length
-            } normativas de tipos de horas`
-          );
         }
       } catch (error) {
         console.error("Error precargando normativas:", error);
@@ -2279,6 +2245,37 @@ const LiquidationForm = () => {
         salarioBaseCalculado = salarioBase;
       }
 
+      // VALIDACIÓN: Calcular días reales del período considerando fecha de fin de contrato
+      // Si el contrato termina dentro del período, liquidar solo hasta esa fecha
+      const fechaInicioPeriodo = moment.utc(form.startDate).startOf("day");
+      const fechaFinPeriodoForm = moment.utc(form.endDate).startOf("day");
+
+      // PRIMERO establecer días base según método de pago (15 o 30 días)
+      let diasPeriodoReales = metodoPagoEfectivo === "Quincenal" ? 15 : 30;
+
+      // SOLO si hay fin de contrato dentro del período, calcular días reales desde inicio hasta fin de contrato
+      if (
+        employee.contractenddate &&
+        employee.contractenddate !== null &&
+        employee.contractenddate !== ""
+      ) {
+        const fechaFinContrato = moment
+          .utc(employee.contractenddate)
+          .startOf("day");
+        // Verificar que la fecha sea válida
+        if (fechaFinContrato.isValid()) {
+          // Si el contrato termina dentro del período, calcular días reales hasta esa fecha
+          if (
+            fechaFinContrato.isSameOrAfter(fechaInicioPeriodo, "day") &&
+            fechaFinContrato.isSameOrBefore(fechaFinPeriodoForm, "day")
+          ) {
+            // Calcular días reales desde inicio del período hasta fin de contrato (inclusive)
+            diasPeriodoReales =
+              fechaFinContrato.diff(fechaInicioPeriodo, "days") + 1;
+          }
+        }
+      }
+
       // Inicializar descuento del auxilio de transporte
       let descuentoAuxilioTransporte = 0;
 
@@ -2371,9 +2368,9 @@ const LiquidationForm = () => {
               // Acumular días afectados del salario base
               diasAfectadosSalarioBase += diasNovedad;
 
-              const salarioDiario =
-                salarioBaseCalculado /
-                (form.paymentMethod === "Quincenal" ? 15 : 30);
+              // IMPORTANTE: El salario diario siempre se calcula dividiendo por 30 (mes calendario)
+              // independientemente de cuántos días trabajó el empleado
+              const salarioDiario = salarioBaseCalculado / 30;
               const salarioPorDias = salarioDiario * diasNovedad;
 
               // Determinar si se usa cantidad o porcentaje
@@ -2438,9 +2435,9 @@ const LiquidationForm = () => {
                   affectsData.baseSalary === "true"
                 )
               ) {
-                const salarioDiario =
-                  salarioBaseCalculado /
-                  (form.paymentMethod === "Quincenal" ? 15 : 30);
+                // IMPORTANTE: El salario diario siempre se calcula dividiendo por 30 (mes calendario)
+                // independientemente de cuántos días trabajó el empleado
+                const salarioDiario = salarioBaseCalculado / 30;
                 const salarioPorDias = salarioDiario * diasNovedad;
 
                 // Determinar si se usa cantidad o porcentaje
@@ -2503,13 +2500,16 @@ const LiquidationForm = () => {
       }
 
       // Calcular y sumar el salario base proporcional a los días trabajados
-      const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+      // Usar días reales del período (considerando fin de contrato si aplica)
+      const diasPeriodo = diasPeriodoReales;
       const diasTrabajadosSalario = diasPeriodo - diasAfectadosSalarioBase;
 
       let salarioBaseProporcional = 0;
       if (diasTrabajadosSalario > 0) {
         // Calcular salario base proporcional a los días trabajados
-        const salarioDiario = salarioBaseCalculado / diasPeriodo;
+        // IMPORTANTE: El salario diario siempre se calcula dividiendo por 30 (mes calendario)
+        // independientemente de cuántos días trabajó el empleado
+        const salarioDiario = salarioBaseCalculado / 30;
         salarioBaseProporcional = salarioDiario * diasTrabajadosSalario;
         newCalculatedValues[employee.id].total += salarioBaseProporcional;
       } else if (!reemplazaSalarioBase) {
@@ -2541,7 +2541,8 @@ const LiquidationForm = () => {
           : Number(employee.mobilityassistance) || 0; // Valor original del empleado
 
       if (auxilioMovilidadBase > 0) {
-        const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+        // Usar días reales del período (considerando fin de contrato si aplica)
+        const diasPeriodo = diasPeriodoReales;
         const diasTrabajados = diasPeriodo - diasAfectadosAuxilioMovilidad;
 
         // Solo calcular si hay días trabajados (si todos los días están afectados, no hay auxilio)
@@ -2571,7 +2572,8 @@ const LiquidationForm = () => {
         : true;
 
       if (auxilioTransporteBase > 0 && debeAplicarAuxilioTransporte) {
-        const diasPeriodo = form.paymentMethod === "Quincenal" ? 15 : 30;
+        // Usar días reales del período (considerando fin de contrato si aplica)
+        const diasPeriodo = diasPeriodoReales;
         const diasTrabajados = diasPeriodo - diasAfectadosAuxilioTransporte;
 
         // Solo calcular si hay días trabajados (si todos los días están afectados, no hay auxilio)
@@ -2650,7 +2652,6 @@ const LiquidationForm = () => {
         baseSeguridadSocial < salarioBaseCalculado
           ? salarioBaseCalculado
           : baseSeguridadSocial;
-      console.log("salarioBaseCalculado", salarioBaseCalculado);
       // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno de la base de seguridad social)
       const isSecondCut =
         form.paymentMethod === "Quincenal" && form.corte2 && !form.corte1;

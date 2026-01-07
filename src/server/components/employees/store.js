@@ -11,13 +11,22 @@ module.exports = function setupCountry(Model, db, sequelize) {
     return Model.count();
   }
 
-  function findAllActive() {
-    return sequelize.query(
-      ` select * from employees where employees.active = true`,
-      {
-        type: QueryTypes.SELECT,
-      }
-    );
+  function findAllActive(startDate = null) {
+    let query = `SELECT * FROM employees WHERE employees.active = true`;
+    // Si se proporciona startDate, filtrar por fecha de finalización de contrato
+    // Solo traer empleados que:
+    // 1. No tengan fecha de finalización (contrato indefinido)
+    // 2. O tengan fecha de finalización >= startDate (aún activos durante el período)
+    if (startDate) {
+      query += ` AND (employees.contractenddate IS NULL OR DATE(employees.contractenddate) >= DATE(:startDate))`;
+    }
+
+    const replacements = startDate ? { startDate } : {};
+
+    return sequelize.query(query, {
+      type: QueryTypes.SELECT,
+      replacements,
+    });
   }
 
   function findById(id) {

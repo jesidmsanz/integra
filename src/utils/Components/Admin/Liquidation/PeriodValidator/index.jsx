@@ -33,9 +33,6 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
   const validatePeriod = async () => {
     try {
       setLoading(true);
-      console.log("🔄 Validando período...");
-      console.log("📊 Parámetros:", { companyId, startDate, endDate, corte1, corte2 });
-
       // Obtener todas las liquidaciones
       const liquidations = await liquidationsApi.list(1, 100);
       const liquidationsList = liquidations.body || liquidations.data || [];
@@ -88,7 +85,7 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
 
       if (overlappingPeriods.length > 0) {
         setIsValid(false);
-        const cutInfo = currentFrequency === "Quincenal" 
+        const cutInfo = currentFrequency === "Quincenal"
           ? (corte1 ? " (Corte 1-15)" : corte2 ? " (Corte 16-30)" : "")
           : "";
         setErrorMessage(`El período seleccionado${cutInfo} se cruza con ${overlappingPeriods.length} liquidación(es) existente(s).`);
@@ -98,8 +95,6 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
         setErrorMessage('');
         onValidationChange && onValidationChange(true, []);
       }
-
-      console.log("📋 Período válido:", overlappingPeriods.length === 0);
     } catch (error) {
       console.error("❌ Error validando período:", error);
       setIsValid(false);
@@ -148,9 +143,9 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
                   <strong>Período no válido:</strong> {errorMessage}
                 </span>
               </div>
-              <Button 
-                size="sm" 
-                color="outline-primary" 
+              <Button
+                size="sm"
+                color="outline-primary"
                 onClick={validatePeriod}
                 disabled={loading}
                 className="btn-sm"
@@ -173,9 +168,9 @@ const PeriodValidator = ({ companyId, startDate, endDate, onValidationChange, co
                   ({moment(startDate).format('DD/MM/YYYY')} - {moment(endDate).format('DD/MM/YYYY')})
                 </span>
               </div>
-              <Button 
-                size="sm" 
-                color="outline-primary" 
+              <Button
+                size="sm"
+                color="outline-primary"
                 onClick={validatePeriod}
                 disabled={loading}
                 className="btn-sm"

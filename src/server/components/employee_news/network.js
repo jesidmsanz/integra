@@ -13,7 +13,7 @@ const apiURL = "/api/employee_news";
 handler.get(`${apiURL}/`, async function (req, res) {
   try {
     const { page, limit, employeeId } = req.query;
-    
+
     // Si hay parámetros de paginación, usar findAllPaginated
     if (page || limit) {
       const result = await controller.findAllPaginated(page, limit, employeeId);
@@ -45,13 +45,10 @@ handler.get(`${apiURL}/pending-by-period`, async function (req, res) {
   try {
     const { startDate, endDate, companyId } = req.query;
     
-    console.log("🔄 GET /api/employee_news/pending-by-period");
-    console.log("📅 Parámetros:", { startDate, endDate, companyId });
-    
     if (!startDate || !endDate || !companyId) {
       return response.error(req, res, "Faltan parámetros requeridos: startDate, endDate, companyId", 400);
     }
-    
+
     const result = await controller.getPendingByPeriod(startDate, endDate, companyId);
     response.success(req, res, result);
   } catch (error) {
@@ -63,14 +60,14 @@ handler.get(`${apiURL}/pending-by-period`, async function (req, res) {
 handler.get(`${apiURL}/by-liquidation-status`, async function (req, res) {
   try {
     const { status, companyId, startDate, endDate } = req.query;
-    
+
     console.log("🔄 GET /api/employee_news/by-liquidation-status");
     console.log("📊 Parámetros:", { status, companyId, startDate, endDate });
-    
+
     if (!status) {
       return response.error(req, res, "El parámetro 'status' es requerido", 400);
     }
-    
+
     const result = await controller.getByLiquidationStatus(status, companyId, startDate, endDate);
     response.success(req, res, result);
   } catch (error) {
@@ -82,18 +79,18 @@ handler.get(`${apiURL}/by-liquidation-status`, async function (req, res) {
 handler.put(`${apiURL}/mark-as-liquidated`, async function (req, res) {
   try {
     const { employeeNewsIds, liquidationId } = req.body;
-    
+
     console.log("🔄 PUT /api/employee_news/mark-as-liquidated");
     console.log("📊 Parámetros:", { employeeNewsIds, liquidationId });
-    
+
     if (!employeeNewsIds || !Array.isArray(employeeNewsIds) || employeeNewsIds.length === 0) {
       return response.error(req, res, "employeeNewsIds debe ser un array no vacío", 400);
     }
-    
+
     if (!liquidationId) {
       return response.error(req, res, "liquidationId es requerido", 400);
     }
-    
+
     const result = await controller.markAsLiquidated(employeeNewsIds, liquidationId);
     response.success(req, res, result);
   } catch (error) {
@@ -105,14 +102,14 @@ handler.put(`${apiURL}/mark-as-liquidated`, async function (req, res) {
 handler.put(`${apiURL}/restore-to-pending`, async function (req, res) {
   try {
     const { employeeNewsIds } = req.body;
-    
+
     console.log("🔄 PUT /api/employee_news/restore-to-pending");
     console.log("📊 Parámetros:", { employeeNewsIds });
-    
+
     if (!employeeNewsIds || !Array.isArray(employeeNewsIds) || employeeNewsIds.length === 0) {
       return response.error(req, res, "employeeNewsIds debe ser un array no vacío", 400);
     }
-    
+
     const result = await controller.restoreToPending(employeeNewsIds);
     response.success(req, res, result);
   } catch (error) {
@@ -180,7 +177,7 @@ handler.put(`${apiURL}/:id`, requestLogger, async function (req, res) {
     console.log("Llamando a controller.update...");
     const result = await controller.update(req.params.id, formData);
     console.log("Resultado del controller:", result);
-    
+
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR EN NETWORK: ", error);

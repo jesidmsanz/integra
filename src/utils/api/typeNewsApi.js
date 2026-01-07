@@ -15,8 +15,6 @@ const typeNewsApi = {
       const url = params.toString() ? `${mainRoute}?${params.toString()}` : mainRoute;
       const response = await fetchApi.get(url);
 
-      console.log("🔍 Respuesta completa de fetchApi:", response);
-
       // Manejar diferentes estructuras de respuesta
       if (response.data && response.data.body) {
         // Si tiene body, usar la estructura del body

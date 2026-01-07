@@ -2,8 +2,19 @@ import Link from "next/link";
 import { Filter } from "react-feather";
 import { useState } from "react";
 
-export const EmployeeNewsListFilterHeader = ({ setViewForm }) => {
+export const EmployeeNewsListFilterHeader = ({
+  setViewForm,
+  setIsUpdate,
+  setDataToUpdate,
+}) => {
   const [filterToggle, setFilterToggle] = useState(false);
+
+  const handleRegisterClick = () => {
+    // Resetear estados para crear nueva novedad
+    if (setIsUpdate) setIsUpdate(false);
+    if (setDataToUpdate) setDataToUpdate(null);
+    setViewForm(true);
+  };
 
   return (
     <div>
@@ -17,11 +28,7 @@ export const EmployeeNewsListFilterHeader = ({ setViewForm }) => {
           />
         </a>
       </div>
-      <Link
-        className="btn btn-primary"
-        onClick={() => setViewForm(true)}
-        href=""
-      >
+      <Link className="btn btn-primary" onClick={handleRegisterClick} href="">
         <i className="fa fa-plus" />
         Registrar Novedad
       </Link>

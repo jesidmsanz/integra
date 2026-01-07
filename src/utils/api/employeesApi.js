@@ -16,7 +16,11 @@ const list = async (initialData) => {
 
 const listActive = async (initialData) => {
   try {
-    const { data } = await fetchApi.get(`${mainRoute}/active`, initialData);
+    // Si initialData tiene startDate, pasarlo como query param
+    const params = initialData?.startDate
+      ? { startDate: initialData.startDate }
+      : {};
+    const { data } = await fetchApi.get(`${mainRoute}/active`, { params });
     return data.body;
   } catch (error) {
     return { error: true, message: getAxiosError(error) };

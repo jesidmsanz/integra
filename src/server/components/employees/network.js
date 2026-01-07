@@ -19,9 +19,11 @@ handler.get(`${apiURL}/`, async function (req, res) {
 });
 
 // GET: api/employees/active
+// Query params opcionales: startDate (para filtrar por fecha de finalización de contrato)
 handler.get(`${apiURL}/active`, async function (req, res) {
   try {
-    const result = await controller.findAllActive();
+    const startDate = req.query.startDate || null;
+    const result = await controller.findAllActive(startDate);
     response.success(req, res, result);
   } catch (error) {
     console.log("ERROR: ", error);
