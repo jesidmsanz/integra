@@ -33,7 +33,7 @@ const VolantesPago = () => {
   useEffect(() => {
     // Esperar a que la sesión esté completamente cargada
     if (status === 'loading') return;
-    
+
     // Validar permiso antes de cargar datos
     if (status === 'authenticated' && !hasPermission('payslip.view')) {
       toast.error('No tienes permiso para acceder a esta sección');
@@ -42,7 +42,7 @@ const VolantesPago = () => {
       }, 100);
       return;
     }
-    
+
     // Solo cargar datos si está autenticado y tiene permiso
     if (status === 'authenticated') {
       loadLiquidations();
@@ -54,7 +54,7 @@ const VolantesPago = () => {
     try {
       setLoading(true);
       const result = await liquidationsApi.list();
-      
+
       // Intentar diferentes estructuras de respuesta
       let liquidations = [];
       if (result && result.data && result.data.body && Array.isArray(result.data.body)) {
@@ -66,12 +66,12 @@ const VolantesPago = () => {
       } else if (Array.isArray(result)) {
         liquidations = result;
       }
-      
+
       // Filtrar solo liquidaciones aprobadas y pagadas para volantes de pago
-      const approvedLiquidations = liquidations.filter(liquidation => 
+      const approvedLiquidations = liquidations.filter(liquidation =>
         liquidation.status === 'approved' || liquidation.status === 'paid'
       );
-      
+
       setLiquidations(approvedLiquidations);
     } catch (error) {
       console.error('Error cargando liquidaciones:', error);
@@ -86,7 +86,7 @@ const VolantesPago = () => {
     try {
       setLoadingEmployees(true);
       const result = await liquidationsApi.getById(liquidationId);
-      
+
       // Intentar diferentes estructuras de respuesta
       let liquidationData = null;
       if (result && result.data && result.data.body) {
@@ -100,7 +100,7 @@ const VolantesPago = () => {
       } else {
         liquidationData = result;
       }
-      
+
       if (liquidationData && liquidationData.liquidation_details && Array.isArray(liquidationData.liquidation_details)) {
         // Extraer empleados de los detalles de la liquidación
         const employeesFromLiquidation = liquidationData.liquidation_details.map(detail => ({
@@ -123,7 +123,7 @@ const VolantesPago = () => {
     }
   };
 
-  const filteredEmployees = employees.filter(employee => 
+  const filteredEmployees = employees.filter(employee =>
     employee.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.documentnumber.includes(searchTerm)
   );
@@ -169,7 +169,7 @@ const VolantesPago = () => {
       } else {
       setPrintingPDFs(true);
       }
-      
+
       // Crear un elemento temporal para generar el PDF
       const tempElement = document.createElement('div');
       tempElement.style.position = 'absolute';
@@ -186,16 +186,16 @@ const VolantesPago = () => {
       tempElement.style.boxShadow = '0 0 20px rgba(0,0,0,0.1)';
       tempElement.style.borderRadius = '8px';
       tempElement.style.overflow = 'hidden';
-      
+
       // Obtener datos del empleado seleccionado
       const employee = employees.find(emp => emp.id === selectedEmployee);
-      
+
       // Generar el HTML del volante
       tempElement.innerHTML = await generatePaySlipHTML(selectedLiquidation, employee);
-      
+
       // Agregar al DOM temporalmente
       document.body.appendChild(tempElement);
-      
+
       // Generar PDF
       const canvas = await html2canvas(tempElement, {
         scale: 2,
@@ -206,7 +206,7 @@ const VolantesPago = () => {
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
+
       const imgWidth = 210;
       const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -244,7 +244,7 @@ const VolantesPago = () => {
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
         toast.success('PDF generado exitosamente');
       }
-      
+
     } catch (error) {
       console.error('Error generando PDF:', error);
       toast.error('Error al generar PDF');
@@ -279,7 +279,7 @@ const VolantesPago = () => {
       // Obtener datos reales de la liquidación para el empleado
       const liquidationData = await liquidationsApi.getById(liquidation.id);
       let liquidationDetails = null;
-      
+
       if (liquidationData.data) {
         liquidationDetails = liquidationData.data;
       } else if (liquidationData.body) {
@@ -287,25 +287,26 @@ const VolantesPago = () => {
       } else {
         liquidationDetails = liquidationData;
       }
-      
+
       // Buscar los detalles del empleado específico
       const employeeDetail = liquidationDetails?.liquidation_details?.find(
         detail => detail.employee_id === employee.id
       );
-      
+
       if (!employeeDetail) {
         console.error('❌ No se encontraron detalles de liquidación para el empleado:', employee.id);
         return '<div>Error: No se encontraron datos de liquidación para este empleado</div>';
       }
-      
+
       // Usar datos reales de la liquidación
-      const salary = Number(employeeDetail.basic_salary) || 0;
+      // IMPORTANTE: Usar basic_salary_proportional (salario proporcional) en lugar de basic_salary (salario completo)
+      const salary = Number(employeeDetail.basic_salary_proportional) || Number(employeeDetail.basic_salary) || 0;
       const transportAllowance = Number(employeeDetail.transportation_assistance) || 0;
       const mobilityAssistance = Number(employeeDetail.mobility_assistance) || 0;
       const healthFund = Number(employeeDetail.health_discount) || 0;
       const pensionFund = Number(employeeDetail.pension_discount) || 0;
       const absenceDiscounts = Number(employeeDetail.absence_discounts) || 0;
-      
+
       // Calcular total de novedades
       let totalNovedades = 0;
       if (employeeDetail.novedades && Array.isArray(employeeDetail.novedades)) {
@@ -314,12 +315,12 @@ const VolantesPago = () => {
           return sum + (Number(novedad.amount) || 0);
         }, 0);
       }
-      
+
       // Calcular totales
       const totalIngresos = salary + transportAllowance + mobilityAssistance + totalNovedades;
       const totalDeducciones = healthFund + pensionFund + absenceDiscounts;
       const netoPagar = totalIngresos - totalDeducciones;
-      
+
       console.log('🔍 Datos reales para PDF:', {
         employee: employee.fullname,
         salary,
@@ -342,7 +343,7 @@ const VolantesPago = () => {
           const bgColor = index % 2 === 0 ? 'white' : '#f8f9fa';
           const textColor = isPositive ? '#27ae60' : '#e74c3c';
           const sign = isPositive ? '+' : '';
-          
+
           novedadesRows += `
             <tr style="background-color: ${bgColor};">
               <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">${novedad.type_name || novedad.type_news_name || 'Novedad'}</td>
@@ -493,23 +494,23 @@ const VolantesPago = () => {
     }
 
     const selectedEmployeeData = employees.find(emp => emp.id === selectedEmployee);
-    
+
     if (!selectedEmployeeData || !selectedEmployeeData.email) {
       toast.error('El empleado seleccionado no tiene email');
       return;
     }
 
     setShowEmailModal(true);
-    
+
     try {
       setSendingEmails(true);
-      
+
       // Aquí se integraría con el servicio de correo
       const results = await liquidationsApi.sendBulkEmails(
-        selectedLiquidation.id, 
+        selectedLiquidation.id,
         [selectedEmployeeData]
       );
-      
+
       setEmailResults(results);
       toast.success('Correo enviado exitosamente');
     } catch (error) {
@@ -523,7 +524,7 @@ const VolantesPago = () => {
   return (
     <RootLayout>
       <Breadcrumbs pageTitle="Volantes de Pago" parent="Liquidación" />
-      
+
       <Container fluid>
         <Card>
           <CardBody>
@@ -555,7 +556,7 @@ const VolantesPago = () => {
                       setSelectedLiquidation(liquidation);
                       setSelectedEmployee(null); // Limpiar selección
                       setSearchTerm(''); // Limpiar búsqueda
-                      
+
                       if (liquidationId) {
                         await loadEmployeesFromLiquidation(liquidationId);
                       } else {
@@ -565,14 +566,14 @@ const VolantesPago = () => {
                     disabled={loading}
                   >
                     <option value="">
-                      {loading ? 'Cargando liquidaciones...' : 
-                       liquidations.length === 0 ? 'No hay liquidaciones aprobadas' : 
+                      {loading ? 'Cargando liquidaciones...' :
+                       liquidations.length === 0 ? 'No hay liquidaciones aprobadas' :
                        'Seleccione una liquidación'}
                     </option>
                     {liquidations.map(liquidation => (
                       <option key={liquidation.id} value={liquidation.id}>
                         {liquidation.period} - {liquidation.companyname} - {liquidation.status}
-                        {liquidation.start_date && liquidation.end_date && 
+                        {liquidation.start_date && liquidation.end_date &&
                           ` (${liquidation.start_date} a ${liquidation.end_date})`
                         }
                       </option>
@@ -610,7 +611,7 @@ const VolantesPago = () => {
                       {downloadingPDFs ? <Spinner size="sm" className="me-2" /> : <i className="fa fa-download me-2" />}
                       Descargar
                     </Button>
-                    
+
                     <Button
                       color="info"
                       size="sm"
@@ -620,7 +621,7 @@ const VolantesPago = () => {
                       {printingPDFs ? <Spinner size="sm" className="me-2" /> : <i className="fa fa-print me-2" />}
                       Imprimir
                     </Button>
-                    
+
                     <Button
                       color="primary"
                       size="sm"
@@ -655,8 +656,8 @@ const VolantesPago = () => {
                 {!selectedLiquidation ? (
                   <Alert color="info" className="text-center">
                     <i className="fa fa-info-circle me-2" />
-                    {liquidations.length === 0 ? 
-                      'No hay liquidaciones aprobadas para seleccionar' : 
+                    {liquidations.length === 0 ?
+                      'No hay liquidaciones aprobadas para seleccionar' :
                       'Seleccione una liquidación para ver los empleados'
                     }
                   </Alert>
@@ -793,8 +794,8 @@ const VolantesPago = () => {
       </Modal>
 
       {/* Modal para generar volante de pago profesional */}
-      <Modal 
-        isOpen={showPaySlipModal} 
+      <Modal
+        isOpen={showPaySlipModal}
         toggle={() => setShowPaySlipModal(false)}
         size="xl"
         style={{ maxWidth: '95vw' }}

@@ -218,7 +218,7 @@ class PDFGenerator {
     // Fondo gris para la información del empleado
     const infoY = doc.y;
     const infoHeight = 35;
-    
+
     doc.rect(50, infoY, doc.page.width - 100, infoHeight)
        .fill('#f8f9fa');
 
@@ -297,7 +297,7 @@ class PDFGenerator {
     // Header INGRESOS
     doc.rect(leftTableX, startY, tableWidth / 2, 25)
        .fill('#e9ecef');
-    
+
     doc.fillColor('black')
        .fontSize(11)
        .font('Helvetica-Bold')
@@ -306,42 +306,43 @@ class PDFGenerator {
     // Subheader INGRESOS
     doc.rect(leftTableX, startY + 25, tableWidth / 2, 18)
        .fill('#f8f9fa');
-    
+
     doc.fillColor('black')
        .fontSize(8)
        .font('Helvetica-Bold')
        .text("Concepto", leftTableX + 5, startY + 30)
-       .text("Cantidad", leftTableX + 120, startY + 30)
        .text("Valor", leftTableX + 180, startY + 30);
 
     // Datos INGRESOS
     let currentY = startY + 43;
     const rowHeight = 18;
 
-    // Sueldo
-    this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
-      "Sueldo", "15.00", this.formatCurrency(employeeDetail.basic_salary));
+    // Sueldo - Usar salario proporcional si está disponible
+    const salary = employeeDetail.basic_salary_proportional || employeeDetail.basic_salary || 0;
+    this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight,
+      "Sueldo", "15.00", this.formatCurrency(salary));
     currentY += rowHeight;
 
     // Auxilio de transporte
     if (employeeDetail.transportation_assistance > 0) {
-      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
+      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight,
         "Aux. de transporte", "15.00", this.formatCurrency(employeeDetail.transportation_assistance));
       currentY += rowHeight;
     }
 
     // Novedades
     if (employeeDetail.total_novedades > 0) {
-      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight, 
+      this.addTableRow(doc, leftTableX, currentY, tableWidth / 2, rowHeight,
         "Novedades", "1.00", this.formatCurrency(employeeDetail.total_novedades));
       currentY += rowHeight;
     }
 
-    // Total Ingresos
-    const totalIngresos = employeeDetail.basic_salary + employeeDetail.transportation_assistance + employeeDetail.total_novedades;
+    // Total Ingresos - Usar salario proporcional si está disponible
+    const salaryForTotal = employeeDetail.basic_salary_proportional || employeeDetail.basic_salary || 0;
+    const totalIngresos = salaryForTotal + employeeDetail.transportation_assistance + employeeDetail.total_novedades;
     doc.rect(leftTableX, currentY, tableWidth / 2, rowHeight)
        .fill('#dee2e6');
-    
+
     doc.fillColor('black')
        .fontSize(9)
        .font('Helvetica-Bold')
@@ -355,7 +356,7 @@ class PDFGenerator {
     // Header DEDUCCIONES
     doc.rect(rightTableX, startY, tableWidth / 2, 25)
        .fill('#e9ecef');
-    
+
     doc.fillColor('black')
        .fontSize(11)
        .font('Helvetica-Bold')
@@ -364,32 +365,31 @@ class PDFGenerator {
     // Subheader DEDUCCIONES
     doc.rect(rightTableX, startY + 25, tableWidth / 2, 18)
        .fill('#f8f9fa');
-    
+
     doc.fillColor('black')
        .fontSize(8)
        .font('Helvetica-Bold')
        .text("Concepto", rightTableX + 5, startY + 30)
-       .text("Cantidad", rightTableX + 120, startY + 30)
        .text("Valor", rightTableX + 180, startY + 30);
 
     // Datos DEDUCCIONES
     currentY = startY + 43;
 
-    // Salud (4% del salario básico)
-    const salud = employeeDetail.basic_salary * 0.04;
-    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+    // Salud - Usar el descuento ya calculado en lugar de calcularlo
+    const salud = employeeDetail.health_discount || 0;
+    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight,
       "Fondo de salud", "0", this.formatCurrency(salud));
     currentY += rowHeight;
 
-    // Pensión (4% del salario básico)
-    const pension = employeeDetail.basic_salary * 0.04;
-    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+    // Pensión - Usar el descuento ya calculado en lugar de calcularlo
+    const pension = employeeDetail.pension_discount || 0;
+    this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight,
       "Fondo de pensión", "0", this.formatCurrency(pension));
     currentY += rowHeight;
 
     // Descuentos adicionales
     if (employeeDetail.total_discounts > 0) {
-      this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight, 
+      this.addTableRow(doc, rightTableX, currentY, tableWidth / 2, rowHeight,
         "Otros descuentos", "1.00", this.formatCurrency(employeeDetail.total_discounts));
       currentY += rowHeight;
     }
@@ -398,7 +398,7 @@ class PDFGenerator {
     const totalDeducciones = salud + pension + employeeDetail.total_discounts;
     doc.rect(rightTableX, currentY, tableWidth / 2, rowHeight)
        .fill('#dee2e6');
-    
+
     doc.fillColor('black')
        .fontSize(9)
        .font('Helvetica-Bold')
@@ -408,10 +408,10 @@ class PDFGenerator {
     // NETO A PAGAR
     const netoAPagar = totalIngresos - totalDeducciones;
     const netoY = startY + tableHeight + 15;
-    
+
     doc.rect(leftTableX, netoY, tableWidth, 25)
        .fill('#6c757d');
-    
+
     doc.fillColor('white')
        .fontSize(12)
        .font('Helvetica-Bold')
@@ -427,12 +427,11 @@ class PDFGenerator {
     doc.rect(x, y, width, height)
        .stroke();
 
-    // Texto
+    // Texto - Solo mostrar Concepto y Valor (sin Cantidad)
     doc.fillColor('black')
        .fontSize(8)
        .font('Helvetica')
        .text(concepto, x + 5, y + 5)
-       .text(cantidad, x + 120, y + 5)
        .text(valor, x + 180, y + 5);
   }
 
