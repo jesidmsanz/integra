@@ -1265,7 +1265,7 @@ const LiquidationForm = () => {
         "Tipo de Contrato": employee.contracttype || "No disponible",
         "Salario Base": formatCurrency(employee.basicmonthlysalary),
         "Auxilio de Transporte": (() => {
-          const employeeValues = valoresCalculados[employee.id] || {};
+          const employeeValues = calculatedValues[employee.id] || {};
           const auxilioCalculado = calculateTransportationAssistance(
             employee,
             form.paymentMethod
@@ -1290,7 +1290,7 @@ const LiquidationForm = () => {
           return formatCurrency(auxilioFinal);
         })(),
         "Auxilio de Movilidad": (() => {
-          const employeeValues = valoresCalculados[employee.id] || {};
+          const employeeValues = calculatedValues[employee.id] || {};
           const auxilio =
             employeeValues.mobility_assistance_final !== undefined
               ? employeeValues.mobility_assistance_final
