@@ -1,29 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import RootLayout from '../layout';
-import { 
-  Container, 
-  Card, 
-  CardBody, 
-  Row, 
-  Col, 
-  Button, 
-  Table, 
-  Input, 
-  FormGroup, 
-  Label, 
-  Spinner, 
-  Alert, 
-  Modal, 
-  ModalHeader, 
-  ModalBody, 
+import React, { useState, useEffect } from "react";
+import RootLayout from "../layout";
+import {
+  Container,
+  Card,
+  CardBody,
+  Row,
+  Col,
+  Button,
+  Table,
+  Input,
+  FormGroup,
+  Label,
+  Spinner,
+  Alert,
+  Modal,
+  ModalHeader,
+  ModalBody,
   ModalFooter,
   Badge,
-  Form
-} from 'reactstrap';
-import { toast } from 'react-toastify';
-import Breadcrumbs from '@/utils/CommonComponent/Breadcrumb';
-import normativasApi from '@/utils/api/normativasApi';
-import moment from 'moment';
+  Form,
+} from "reactstrap";
+import { toast } from "react-toastify";
+import Breadcrumbs from "@/utils/CommonComponent/Breadcrumb";
+import normativasApi from "@/utils/api/normativasApi";
+import moment from "moment";
 
 const NormativasPage = () => {
   const [normativas, setNormativas] = useState([]);
@@ -32,44 +32,44 @@ const NormativasPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingNormativa, setEditingNormativa] = useState(null);
   const [filters, setFilters] = useState({
-    tipo: '',
-    activa: '',
-    search: ''
+    tipo: "",
+    activa: "",
+    search: "",
   });
 
   // Estados del formulario
   const [formData, setFormData] = useState({
-    nombre: '',
-    tipo: '',
-    valor: '',
-    unidad: 'pesos',
-    multiplicador: '',
-    codigo: '',
-    vigencia_desde: '',
-    vigencia_hasta: '',
-    descripcion: '',
-    activa: true
+    nombre: "",
+    tipo: "",
+    valor: "",
+    unidad: "pesos",
+    multiplicador: "",
+    codigo: "",
+    vigencia_desde: "",
+    vigencia_hasta: "",
+    descripcion: "",
+    activa: true,
   });
 
   const tiposNormativa = [
-    { value: 'salario_minimo', label: 'Salario Mínimo' },
-    { value: 'auxilio_transporte', label: 'Auxilio de Transporte' },
-    { value: 'hora_extra', label: 'Hora Extra' },
-    { value: 'recargo_nocturno', label: 'Recargo Nocturno' },
-    { value: 'recargo_domingo', label: 'Recargo Domingo' },
-    { value: 'vacaciones', label: 'Vacaciones' },
-    { value: 'cesantias', label: 'Cesantías' },
-    { value: 'prima', label: 'Prima' },
-    { value: 'horas_base_mensuales', label: 'Horas Base Mensuales' },
-    { value: 'tipo_hora_laboral', label: 'Tipo de Hora Laboral' },
-    { value: 'otro', label: 'Otro' }
+    { value: "salario_minimo", label: "Salario Mínimo" },
+    { value: "auxilio_transporte", label: "Auxilio de Transporte" },
+    { value: "hora_extra", label: "Hora Extra" },
+    { value: "recargo_nocturno", label: "Recargo Nocturno" },
+    { value: "recargo_domingo", label: "Recargo Domingo" },
+    { value: "vacaciones", label: "Vacaciones" },
+    { value: "cesantias", label: "Cesantías" },
+    { value: "prima", label: "Prima" },
+    { value: "horas_base_mensuales", label: "Horas Base Mensuales" },
+    { value: "tipo_hora_laboral", label: "Tipo de Hora Laboral" },
+    { value: "otro", label: "Otro" },
   ];
 
   const unidades = [
-    { value: 'pesos', label: 'Pesos ($)' },
-    { value: 'porcentaje', label: 'Porcentaje (%)' },
-    { value: 'horas', label: 'Horas' },
-    { value: 'dias', label: 'Días' }
+    { value: "pesos", label: "Pesos ($)" },
+    { value: "porcentaje", label: "Porcentaje (%)" },
+    { value: "horas", label: "Horas" },
+    { value: "dias", label: "Días" },
   ];
 
   useEffect(() => {
@@ -79,26 +79,31 @@ const NormativasPage = () => {
   const loadNormativas = async () => {
     try {
       setLoading(true);
-      
+
       // Limpiar filtros vacíos antes de enviar
       const cleanFilters = {};
-      if (filters.tipo && filters.tipo !== '') {
+      if (filters.tipo && filters.tipo !== "") {
         cleanFilters.tipo = filters.tipo;
       }
-      if (filters.activa && filters.activa !== '') {
+      if (filters.activa && filters.activa !== "") {
         cleanFilters.activa = filters.activa;
       }
-      if (filters.search && filters.search.trim() !== '') {
+      if (filters.search && filters.search.trim() !== "") {
         cleanFilters.search = filters.search.trim();
       }
-      
-      console.log('🔍 Filtros aplicados:', cleanFilters);
+
+      console.log("🔍 Filtros aplicados:", cleanFilters);
       const result = await normativasApi.list(cleanFilters);
-      
+
       // La respuesta viene como { data: { error: '', body: [...] } } según response.js
       let normativasData = [];
-      
-      if (result && result.data && result.data.body && Array.isArray(result.data.body)) {
+
+      if (
+        result &&
+        result.data &&
+        result.data.body &&
+        Array.isArray(result.data.body)
+      ) {
         normativasData = result.data.body;
       } else if (result && result.body && Array.isArray(result.body)) {
         normativasData = result.body;
@@ -107,12 +112,12 @@ const NormativasPage = () => {
       } else if (result && result.data && Array.isArray(result.data)) {
         normativasData = result.data;
       }
-      
-      console.log('📊 Normativas cargadas:', normativasData.length);
+
+      console.log("📊 Normativas cargadas:", normativasData.length);
       setNormativas(normativasData);
     } catch (error) {
-      console.error('Error cargando normativas:', error);
-      toast.error('Error al cargar horas extras');
+      console.error("Error cargando normativas:", error);
+      toast.error("Error al cargar horas extras");
       setNormativas([]);
     } finally {
       setLoading(false);
@@ -121,39 +126,44 @@ const NormativasPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
-    
+    const newValue = type === "checkbox" ? checked : value;
+
     // Log para debuggear cambios en activa
-    if (name === 'activa') {
-      console.log('🔄 Frontend: Cambio en activa:', checked, 'tipo:', typeof checked);
+    if (name === "activa") {
+      console.log(
+        "🔄 Frontend: Cambio en activa:",
+        checked,
+        "tipo:",
+        typeof checked,
+      );
     }
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: newValue
+      [name]: newValue,
     }));
   };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const resetForm = () => {
     setFormData({
-      nombre: '',
-      tipo: '',
-      valor: '',
-      unidad: 'pesos',
-      multiplicador: '',
-      codigo: '',
-      vigencia_desde: '',
-      vigencia_hasta: '',
-      descripcion: '',
-      activa: true
+      nombre: "",
+      tipo: "",
+      valor: "",
+      unidad: "pesos",
+      multiplicador: "",
+      codigo: "",
+      vigencia_desde: "",
+      vigencia_hasta: "",
+      descripcion: "",
+      activa: true,
     });
     setEditingNormativa(null);
   };
@@ -169,12 +179,14 @@ const NormativasPage = () => {
       tipo: normativa.tipo,
       valor: normativa.valor.toString(),
       unidad: normativa.unidad,
-      multiplicador: normativa.multiplicador ? normativa.multiplicador.toString() : '',
-      codigo: normativa.codigo || '',
+      multiplicador: normativa.multiplicador
+        ? normativa.multiplicador.toString()
+        : "",
+      codigo: normativa.codigo || "",
       vigencia_desde: normativa.vigencia_desde,
-      vigencia_hasta: normativa.vigencia_hasta || '',
-      descripcion: normativa.descripcion || '',
-      activa: Boolean(normativa.activa) // Asegurar que sea booleano
+      vigencia_hasta: normativa.vigencia_hasta || "",
+      descripcion: normativa.descripcion || "",
+      activa: Boolean(normativa.activa), // Asegurar que sea booleano
     });
     setEditingNormativa(normativa);
     setShowModal(true);
@@ -182,65 +194,85 @@ const NormativasPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setActionLoading(true);
-      
+
       // Preparar datos base
       const normativaData = {
         nombre: formData.nombre,
         tipo: formData.tipo,
         valor: parseFloat(formData.valor),
         unidad: formData.unidad,
-        multiplicador: formData.multiplicador ? parseFloat(formData.multiplicador) : null,
+        multiplicador: formData.multiplicador
+          ? parseFloat(formData.multiplicador)
+          : null,
         codigo: formData.codigo || null,
         vigencia_desde: formData.vigencia_desde,
         vigencia_hasta: formData.vigencia_hasta || null,
         descripcion: formData.descripcion || null,
-        activa: Boolean(formData.activa) // Asegurar que sea booleano
+        activa: Boolean(formData.activa), // Asegurar que sea booleano
       };
 
       if (editingNormativa) {
         // En actualización, no enviar created_by
-        console.log('📝 Frontend: Actualizando normativa:', editingNormativa.id, normativaData);
-        const response = await normativasApi.update(editingNormativa.id, normativaData);
-        console.log('📝 Frontend: Respuesta de actualización:', response);
-        toast.success('Hora extra actualizada exitosamente');
+        console.log(
+          "📝 Frontend: Actualizando normativa:",
+          editingNormativa.id,
+          normativaData,
+        );
+        const response = await normativasApi.update(
+          editingNormativa.id,
+          normativaData,
+        );
+        console.log("📝 Frontend: Respuesta de actualización:", response);
+        toast.success("Hora extra actualizada exitosamente");
       } else {
         // En creación, incluir created_by
         normativaData.created_by = 1; // TODO: Obtener del usuario autenticado
         await normativasApi.create(normativaData);
-        toast.success('Hora extra creada exitosamente');
+        toast.success("Hora extra creada exitosamente");
       }
 
       setShowModal(false);
       resetForm();
-      
+
       // Pequeño retraso para asegurar que la actualización se complete en la BD
       setTimeout(() => {
         loadNormativas();
       }, 100);
     } catch (error) {
-      console.error('Error guardando normativa:', error);
-        toast.error(error.response?.data?.error || error.message || 'Error al guardar hora extra');
+      console.error("Error guardando normativa:", error);
+      toast.error(
+        error.response?.data?.error ||
+          error.message ||
+          "Error al guardar hora extra",
+      );
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDelete = async (normativa) => {
-    if (!window.confirm(`¿Está seguro de eliminar la hora extra "${normativa.nombre}"?`)) {
+    if (
+      !window.confirm(
+        `¿Está seguro de eliminar la hora extra "${normativa.nombre}"?`,
+      )
+    ) {
       return;
     }
 
     try {
       setActionLoading(true);
       await normativasApi.delete(normativa.id);
-      toast.success('Hora extra eliminada exitosamente');
+      toast.success("Hora extra eliminada exitosamente");
       loadNormativas();
     } catch (error) {
-      console.error('Error eliminando normativa:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Error al eliminar hora extra';
+      console.error("Error eliminando normativa:", error);
+      const errorMessage =
+        error.response?.data?.error ||
+        error.message ||
+        "Error al eliminar hora extra";
       toast.error(errorMessage);
     } finally {
       setActionLoading(false);
@@ -248,38 +280,38 @@ const NormativasPage = () => {
   };
 
   const getTipoLabel = (tipo) => {
-    const tipoObj = tiposNormativa.find(t => t.value === tipo);
+    const tipoObj = tiposNormativa.find((t) => t.value === tipo);
     return tipoObj ? tipoObj.label : tipo;
   };
 
   const getUnidadLabel = (unidad) => {
-    const unidadObj = unidades.find(u => u.value === unidad);
+    const unidadObj = unidades.find((u) => u.value === unidad);
     return unidadObj ? unidadObj.label : unidad;
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
   const formatValue = (normativa) => {
     // Para tipos de hora laboral, el valor no es relevante (se usa el multiplicador)
-    if (normativa.tipo === 'tipo_hora_laboral') {
-      return '-';
+    if (normativa.tipo === "tipo_hora_laboral") {
+      return "-";
     }
-    
+
     // Si el valor es 0 o null, mostrar guion
     if (!normativa.valor || parseFloat(normativa.valor) === 0) {
-      return '-';
+      return "-";
     }
-    
-    if (normativa.unidad === 'pesos') {
+
+    if (normativa.unidad === "pesos") {
       return formatCurrency(normativa.valor);
-    } else if (normativa.unidad === 'porcentaje') {
+    } else if (normativa.unidad === "porcentaje") {
       return `${normativa.valor}%`;
     } else {
       return `${normativa.valor} ${getUnidadLabel(normativa.unidad)}`;
@@ -288,8 +320,12 @@ const NormativasPage = () => {
 
   return (
     <RootLayout>
-      <Breadcrumbs main="Horas Extras" parent="Administración" title="Gestión de Horas Extras" />
-      
+      <Breadcrumbs
+        main="Horas Extras"
+        parent="Administración"
+        title="Gestión de Horas Extras"
+      />
+
       <Container fluid>
         <Row>
           <Col>
@@ -315,7 +351,7 @@ const NormativasPage = () => {
                         onChange={handleFilterChange}
                       >
                         <option value="">Todos los tipos</option>
-                        {tiposNormativa.map(tipo => (
+                        {tiposNormativa.map((tipo) => (
                           <option key={tipo.value} value={tipo.value}>
                             {tipo.label}
                           </option>
@@ -392,13 +428,15 @@ const NormativasPage = () => {
                             </td>
                             <td>
                               {normativa.codigo ? (
-                                <Badge color="secondary">{normativa.codigo}</Badge>
+                                <Badge color="secondary">
+                                  {normativa.codigo}
+                                </Badge>
                               ) : (
                                 <span className="text-muted">-</span>
                               )}
                             </td>
                             <td>
-                              {normativa.tipo === 'tipo_hora_laboral' ? (
+                              {normativa.tipo === "tipo_hora_laboral" ? (
                                 <span className="text-muted">-</span>
                               ) : (
                                 <strong>{formatValue(normativa)}</strong>
@@ -407,35 +445,46 @@ const NormativasPage = () => {
                             <td>
                               {normativa.multiplicador ? (
                                 (() => {
-                                  const mult = parseFloat(normativa.multiplicador);
-                                  let texto = '';
+                                  const mult = parseFloat(
+                                    normativa.multiplicador,
+                                  );
+                                  let texto = "";
                                   if (mult === 1.0) {
-                                    texto = '0%';
+                                    texto = "0%";
                                   } else if (mult > 1.0) {
-                                    const porcentaje = ((mult - 1) * 100).toFixed(0);
-                                    texto = `+${porcentaje}%`;
+                                    const porcentaje = (mult * 100).toFixed(0);
+                                    texto = `${porcentaje}%`;
                                   } else {
                                     const porcentaje = (mult * 100).toFixed(0);
                                     texto = `${porcentaje}%`;
                                   }
-                                  return <span className="fw-bold">{texto}</span>;
+                                  return (
+                                    <span className="fw-bold">{texto}</span>
+                                  );
                                 })()
                               ) : (
                                 <span className="text-muted">-</span>
                               )}
                             </td>
                             <td>
-                              {moment(normativa.vigencia_desde).format('DD/MM/YYYY')}
+                              {moment(normativa.vigencia_desde).format(
+                                "DD/MM/YYYY",
+                              )}
                             </td>
                             <td>
-                              {normativa.vigencia_hasta 
-                                ? moment(normativa.vigencia_hasta).format('DD/MM/YYYY')
-                                : 'Indefinida'
-                              }
+                              {normativa.vigencia_hasta
+                                ? moment(normativa.vigencia_hasta).format(
+                                    "DD/MM/YYYY",
+                                  )
+                                : "Indefinida"}
                             </td>
                             <td>
-                              <Badge color={normativa.activa ? 'success' : 'secondary'}>
-                                {normativa.activa ? 'Activa' : 'Inactiva'}
+                              <Badge
+                                color={
+                                  normativa.activa ? "success" : "secondary"
+                                }
+                              >
+                                {normativa.activa ? "Activa" : "Inactiva"}
                               </Badge>
                             </td>
                             <td>
@@ -478,7 +527,7 @@ const NormativasPage = () => {
       {/* Modal para crear/editar normativa */}
       <Modal isOpen={showModal} toggle={() => setShowModal(false)} size="lg">
         <ModalHeader toggle={() => setShowModal(false)}>
-          {editingNormativa ? 'Editar Hora Extra' : 'Nueva Hora Extra'}
+          {editingNormativa ? "Editar Hora Extra" : "Nueva Hora Extra"}
         </ModalHeader>
         <Form onSubmit={handleSubmit}>
           <ModalBody>
@@ -507,7 +556,7 @@ const NormativasPage = () => {
                     required
                   >
                     <option value="">Seleccionar tipo</option>
-                    {tiposNormativa.map(tipo => (
+                    {tiposNormativa.map((tipo) => (
                       <option key={tipo.value} value={tipo.value}>
                         {tipo.label}
                       </option>
@@ -543,7 +592,7 @@ const NormativasPage = () => {
                     onChange={handleInputChange}
                     required
                   >
-                    {unidades.map(unidad => (
+                    {unidades.map((unidad) => (
                       <option key={unidad.value} value={unidad.value}>
                         {unidad.label}
                       </option>
@@ -570,7 +619,7 @@ const NormativasPage = () => {
               </Col>
             </Row>
 
-            {formData.tipo === 'tipo_hora_laboral' && (
+            {formData.tipo === "tipo_hora_laboral" && (
               <Row>
                 <Col md={12}>
                   <FormGroup>
@@ -580,12 +629,13 @@ const NormativasPage = () => {
                       name="codigo"
                       value={formData.codigo}
                       onChange={handleInputChange}
-                      required={formData.tipo === 'tipo_hora_laboral'}
+                      required={formData.tipo === "tipo_hora_laboral"}
                       maxLength={20}
                       placeholder="Ej: HED, HEN, RNO, HO"
                     />
                     <small className="text-muted">
-                      Código corto para identificar el tipo de hora (ej: HED = Hora Extra Diurna)
+                      Código corto para identificar el tipo de hora (ej: HED =
+                      Hora Extra Diurna)
                     </small>
                   </FormGroup>
                 </Col>
@@ -644,9 +694,7 @@ const NormativasPage = () => {
                     checked={formData.activa}
                     onChange={handleInputChange}
                   />
-                  <Label check>
-                    Hora extra activa
-                  </Label>
+                  <Label check>Hora extra activa</Label>
                 </FormGroup>
               </Col>
             </Row>
@@ -656,7 +704,7 @@ const NormativasPage = () => {
               Cancelar
             </Button>
             <Button color="primary" type="submit" disabled={actionLoading}>
-              {actionLoading ? <Spinner size="sm" /> : 'Guardar'}
+              {actionLoading ? <Spinner size="sm" /> : "Guardar"}
             </Button>
           </ModalFooter>
         </Form>
