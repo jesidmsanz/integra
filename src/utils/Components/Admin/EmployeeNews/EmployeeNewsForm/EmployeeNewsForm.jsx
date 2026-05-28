@@ -1034,16 +1034,13 @@ const EmployeeNewsForm = ({
                     {tiposHorasLaborales.map((tipoHora) => {
                       // Formatear multiplicador de forma más legible
                       let multiplicadorTexto = "";
-                      if (tipoHora.multiplicador) {
+                  if (tipoHora.multiplicador) {
                         const mult = parseFloat(tipoHora.multiplicador);
                         if (mult === 1.0) {
                           multiplicadorTexto = " (Sin recargo)";
-                        } else if (mult > 1.0) {
-                          const porcentaje = ((mult - 1) * 100).toFixed(0);
-                          multiplicadorTexto = ` (+${porcentaje}%)`;
                         } else {
                           const porcentaje = (mult * 100).toFixed(0);
-                          multiplicadorTexto = ` (Recargo ${porcentaje}%)`;
+                          multiplicadorTexto = ` (+${porcentaje}%)`;
                         }
                       }
 
