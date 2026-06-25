@@ -1369,8 +1369,13 @@ const LiquidationsDashboard = () => {
                                   }}
                                 >
                                   {(() => {
-                                    // DEVENGADO = SALARIO + TRANSPORTE + AUXILIO MOVILIDAD + NOVEDADES POSITIVAS
-                                    const salarioBase = Number(detail.basic_salary) || 0;
+                                    // DEVENGADO = SALARIO PROPORCIONAL + TRANSPORTE + AUXILIO MOVILIDAD + NOVEDADES POSITIVAS
+                                    // Usar basic_salary_proportional (días reales trabajados) para coincidir con la liquidación
+                                    const salarioProporcional = detail.basic_salary_proportional;
+                                    const salarioBase =
+                                      salarioProporcional != null && salarioProporcional !== ""
+                                        ? Number(salarioProporcional)
+                                        : Number(detail.basic_salary) ?? 0;
                                     const auxilioTransporte = Number(detail.transportation_assistance) || 0;
                                     const auxilioMovilidad = Number(detail.mobility_assistance) || 0;
                                     let novedadesPositivas = 0;
@@ -1407,17 +1412,14 @@ const LiquidationsDashboard = () => {
                                 >
                                   <strong>
                                     {(() => {
-                                      // CALCULAR NETO EXACTAMENTE IGUAL QUE EN LIQUIDACIÓN PRINCIPAL
-                                      // detail.basic_salary ahora es el salario mensual completo (como se muestra en la tabla)
-                                      // Pero para calcular el devengado, necesitamos el salario proporcional
-                                      // Usar base_security_social para inferir el salario proporcional, o calcular desde las novedades
-                                      const salarioBaseMensual = Number(detail.basic_salary) || 0;
-                                      
-                                      // Calcular salario proporcional desde base_security_social
-                                      // base_security_social = salario_proporcional + conceptos
-                                      // Si no hay conceptos adicionales, base_security_social ≈ salario_proporcional
-                                      // Para simplificar, usar el salario mensual completo (ya que las novedades se suman por separado)
-                                      const salarioBaseParaDevengado = salarioBaseMensual;
+                                      // CALCULAR NETO: usar salario proporcional (días trabajados) para coincidir
+                                      // con la liquidación original. basic_salary_proportional ya fue guardado
+                                      // con el valor correcto al momento de liquidar.
+                                      const salarioProporcionalNeto = detail.basic_salary_proportional;
+                                      const salarioBaseParaDevengado =
+                                        salarioProporcionalNeto != null && salarioProporcionalNeto !== ""
+                                          ? Number(salarioProporcionalNeto)
+                                          : Number(detail.basic_salary) ?? 0;
                                       
                                       const auxilioTransporte = Number(detail.transportation_assistance) || 0;
                                       const auxilioMovilidad = Number(detail.mobility_assistance) || 0;

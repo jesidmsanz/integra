@@ -298,9 +298,18 @@ const VolantesPago = () => {
         return '<div>Error: No se encontraron datos de liquidación para este empleado</div>';
       }
 
-      // Usar datos reales de la liquidación
-      // IMPORTANTE: Usar basic_salary_proportional (salario proporcional) en lugar de basic_salary (salario completo)
-      const salary = Number(employeeDetail.basic_salary_proportional) || Number(employeeDetail.basic_salary) || 0;
+      // Usar datos reales de la liquidación.
+      // Se usa el salario proporcional (días trabajados × salario/30).
+      // Se usa ?? y no || para que un proporcional de $0 (cero días trabajados) no caiga al mensual completo.
+      const salaryProporcional = employeeDetail.basic_salary_proportional;
+      const salary =
+        salaryProporcional != null && salaryProporcional !== ""
+          ? Number(salaryProporcional)
+          : Number(employeeDetail.basic_salary) ?? 0;
+      const salarioEsProporcional =
+        salaryProporcional != null &&
+        salaryProporcional !== "" &&
+        Number(salaryProporcional) !== Number(employeeDetail.basic_salary);
       const transportAllowance = Number(employeeDetail.transportation_assistance) || 0;
       const mobilityAssistance = Number(employeeDetail.mobility_assistance) || 0;
       const healthFund = Number(employeeDetail.health_discount) || 0;
@@ -387,7 +396,7 @@ const VolantesPago = () => {
               </div>
               <div style="text-align: right;">
                 <div style="margin-bottom: 6px; font-size: 12px; color: #34495e;"><strong>Cargo:</strong> ${employee.position || 'GERENTE OPERATIVO'}</div>
-                <div style="font-size: 12px; font-weight: bold; color: #27ae60;"><strong>Salario básico:</strong> ${formatCurrency(salary)}</div>
+                <div style="font-size: 12px; font-weight: bold; color: #27ae60;"><strong>${salarioEsProporcional ? 'Salario devengado (proporcional):' : 'Salario básico:'}</strong> ${formatCurrency(salary)}</div>
               </div>
             </div>
           </div>
@@ -406,7 +415,7 @@ const VolantesPago = () => {
                 </thead>
                 <tbody>
                   <tr style="background-color: white;">
-                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">Sueldo</td>
+                    <td style="padding: 10px 8px; border: 1px solid #bdc3c7; font-size: 11px; color: #2c3e50;">${salarioEsProporcional ? 'Sueldo (proporcional días trabajados)' : 'Sueldo'}</td>
                     <td style="padding: 10px 8px; border: 1px solid #bdc3c7; text-align: right; font-size: 11px; font-weight: bold; color: #27ae60;">${formatCurrency(salary)}</td>
                   </tr>
                   ${transportAllowance > 0 ? `

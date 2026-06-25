@@ -10,7 +10,10 @@
     "migrate:type-news": "node src/server/db/migrations/run_migration.js",
     "migrate:type-news:interactive": "node src/server/db/migrations/run_migration_interactive.js",
     "db:list": "node src/server/db/migrations/list_databases.js",
-    "fix:type-news-data": "node src/server/db/migrations/fix_existing_data.js"
+    "fix:type-news-data": "node src/server/db/migrations/fix_existing_data.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
@@ -76,6 +79,7 @@
     "yup": "^1.4.0"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "typescript": "5.6.2"
   }
 }

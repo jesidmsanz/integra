@@ -1,3 +1,12 @@
+import {
+  calcularSalarioProporcional,
+  calcularAuxilioTransporte,
+  calcularBaseSeguridadSocial,
+  calcularNovedadPorHora,
+  esIncapacidadQueReduceSalario,
+  esCombinacionCompatible,
+  COMPATIBILIDAD_NOVEDAD_HORA,
+} from "@/utils/payroll-engine";
 import Breadcrumbs from "@/utils/CommonComponent/Breadcrumb";
 import SVG from "@/utils/CommonComponent/SVG/Svg";
 import {
@@ -103,32 +112,8 @@ const LiquidationForm = () => {
   };
 
   // Función helper para calcular base de seguridad social con auxilio de movilidad
-  const calculateBaseSeguridadSocial = (
-    salarioBaseCalculado,
-    valorPrestacionales,
-    auxilioMovilidad,
-    salarioBaseCompleto = null
-  ) => {
-    // Si el salario base es 0 (fue reemplazado por una novedad), no sumar el auxilio de movilidad
-    if (salarioBaseCalculado === 0) {
-      return valorPrestacionales;
-    }
-
-    // Usar el salario base completo para calcular el 40% (si está disponible),
-    // de lo contrario usar el salario base calculado (proporcional)
-    const salarioParaComparar =
-      salarioBaseCompleto !== null ? salarioBaseCompleto : salarioBaseCalculado;
-    const cuarentaPorcientoSalario = salarioParaComparar * 0.4;
-    const auxilioExcede40Porciento =
-      auxilioMovilidad > cuarentaPorcientoSalario;
-
-    // Si excede el 40%, se suma TODO el auxilio de movilidad a la base de seguridad social
-    const valorPrestacionalesConMovilidad = auxilioExcede40Porciento
-      ? valorPrestacionales + auxilioMovilidad
-      : valorPrestacionales;
-
-    return salarioBaseCalculado + valorPrestacionalesConMovilidad;
-  };
+  // Funciones del motor de cálculo — importadas desde payroll-engine (fuente de verdad con tests)
+  const calculateBaseSeguridadSocial = calcularBaseSeguridadSocial;
 
   // Función para validar y ajustar fechas según el corte seleccionado
   const validateAndAdjustDates = (startDate, endDate, corte1, corte2) => {
@@ -310,20 +295,7 @@ const LiquidationForm = () => {
   };
 
   // Función para calcular el auxilio de transporte según el método de pago
-  const calculateTransportationAssistance = (employee, paymentMethod) => {
-    const auxilioBase = Number(employee.transportationassistance) || 0;
-
-    if (!auxilioBase) return 0;
-
-    const metodoPagoEfectivo = paymentMethod || employee.paymentmethod;
-
-    // LÓGICA SIMPLE: Valor del día × días del período
-    if (metodoPagoEfectivo === "Quincenal") {
-      return auxilioBase * 15; // 15 días
-    } else {
-      return auxilioBase * 30; // 30 días (mensual o por defecto)
-    }
-  };
+  const calculateTransportationAssistance = calcularAuxilioTransporte;
 
   // Función para determinar si se deben aplicar descuentos de salud y pensión
   const shouldApplyHealthPensionDiscounts = (paymentMethod, isSecondCut) => {
@@ -573,11 +545,16 @@ const LiquidationForm = () => {
                 }
               }
             } else if (tipoNovedad.calculateperhour) {
-              // Si es calculada por hora y afecta prestacionales
-              if (
+              // Si es calculada por hora y afecta prestacionales.
+              // Se detecta por flag explícito o por categoría (retrocompatibilidad).
+              const esPrestacionalPorFlagPreview =
                 affectsData.prestacionales === true ||
-                affectsData.prestacionales === "true"
-              ) {
+                affectsData.prestacionales === "true";
+              const esPrestacionalPorCategoriaPreview =
+                tipoNovedad.category === "Hora Extra" ||
+                tipoNovedad.category === "Recargo";
+
+              if (esPrestacionalPorFlagPreview || esPrestacionalPorCategoriaPreview) {
                 const { valorNovedad } = calculateNovedadValue(
                   news,
                   row,
@@ -1985,10 +1962,12 @@ const LiquidationForm = () => {
           // Redondear a 2 decimales para coincidir con el backend
           valorNovedad = Math.round(valorNovedad * 100) / 100;
         } else if (tienePorcentaje) {
-          const valorHoraExtra =
-            Number(employee.hourlyrate) *
-            (Number(tipoNovedad.percentage) / 100);
-          valorNovedad = totalHoras * valorHoraExtra;
+          // Fórmula unificada: (salario × factor) / horasBase — equivalente a la normativa.
+          // Se usa el salario actual en lugar del hourlyrate almacenado (que puede estar desactualizado).
+          const factor = Number(tipoNovedad.percentage) / 100;
+          const valorHoraCalculado =
+            (Number(employee.basicmonthlysalary) * factor) / horasBaseMensuales;
+          valorNovedad = totalHoras * valorHoraCalculado;
           // Redondear a 2 decimales para coincidir con el backend
           valorNovedad = Math.round(valorNovedad * 100) / 100;
         }
@@ -2397,6 +2376,31 @@ const LiquidationForm = () => {
               diasAfectadosAuxilioTransporte += diasNovedad;
             }
 
+            // INCAPACIDADES Y LICENCIAS: Reducir salario base para los días afectados.
+            // Una incapacidad nunca debe generar salario completo + valor de incapacidad en los mismos días.
+            // Se detectan por payment_rule especial (datos nuevos) o por categoría (datos legacy sin payment_rule).
+            // Nota legal: el auxilio de transporte se mantiene durante incapacidades (no se reduce).
+            // El auxilio de movilidad sí se paga proporcional a días laborados.
+            const REGLAS_INCAPACIDAD = [
+              "incapacidad_general_eps",
+              "incapacidad_general_arl",
+              "incapacidad_eps",
+              "accidente_trabajo",
+            ];
+            const esIncapacidadPorReglaPago = REGLAS_INCAPACIDAD.includes(type.payment_rule);
+            const esIncapacidadPorCategoria =
+              type.category === "Incapacidad" &&
+              (!type.payment_rule || type.payment_rule === "normal");
+
+            if (
+              (esIncapacidadPorReglaPago || esIncapacidadPorCategoria) &&
+              !(affectsData.baseSalary === true || affectsData.baseSalary === "true")
+            ) {
+              diasAfectadosSalarioBase += diasNovedad;
+              diasAfectadosAuxilioMovilidad += diasNovedad;
+              reemplazaSalarioBase = true;
+            }
+
             // AUXILIO DE TRANSPORTE
             // Si NO afecta baseSalary (ya se procesó arriba), procesar normalmente
             if (
@@ -2478,11 +2482,16 @@ const LiquidationForm = () => {
               affectsData = {};
             }
 
-            // Si afecta prestacionales, sumar el valor a la base de seguridad social
-            if (
+            // Horas extra y recargos son salario (Art. 127 CST) → suman a la base de seguridad social.
+            // Se detecta por affects.prestacionales (config explícita, datos nuevos) o
+            // por categoría del tipo de novedad (retrocompatibilidad con datos legacy que no tienen ese flag).
+            const esPrestacionalPorFlag =
               affectsData.prestacionales === true ||
-              affectsData.prestacionales === "true"
-            ) {
+              affectsData.prestacionales === "true";
+            const esPrestacionalPorCategoria =
+              type.category === "Hora Extra" || type.category === "Recargo";
+
+            if (esPrestacionalPorFlag || esPrestacionalPorCategoria) {
               if (esDescuento) {
                 valorPrestacionales -= valorNovedad;
               } else {
@@ -2629,6 +2638,8 @@ const LiquidationForm = () => {
       // Guardar la base de seguridad social calculada para uso en otras partes
       newCalculatedValues[employee.id].base_security_social =
         baseSeguridadSocial;
+      newCalculatedValues[employee.id].valor_prestacionales =
+        valorPrestacionales;
 
       // Guardar el salario base proporcional para uso en el guardado
       newCalculatedValues[employee.id].basic_salary_proportional =
@@ -2728,6 +2739,90 @@ const LiquidationForm = () => {
   // useEffect(() => {
   //   calculateAllValues();
   // }, [filteredEmployeeNews, employees, typeNews]);
+
+  // Construye la etiqueta de fórmula legible para una novedad en el modal de detalles
+  const buildFormula = (news, tipoNovedad, employee) => {
+    if (!tipoNovedad) return "—";
+
+    const fmt = (n) =>
+      new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        minimumFractionDigits: 0,
+      }).format(n);
+
+    const salario = Number(employee.basicmonthlysalary) || 0;
+
+    if (tipoNovedad.calculateperhour) {
+      const hourTypeId = news.hourTypeId || news.hour_type_id;
+      const normativa = hourTypeId ? normativasCache[hourTypeId] : null;
+
+      // Calcular horas. Las fechas pueden venir como YYYY-MM-DD o como ISO completo.
+      const fechaInicio = moment.utc(news.startDate);
+      const fechaFin = moment.utc(news.endDate || news.startDate);
+      if (!fechaInicio.isValid() || !fechaFin.isValid()) return "—";
+
+      const mismodia =
+        fechaInicio.format("YYYY-MM-DD") === fechaFin.format("YYYY-MM-DD");
+      let horas = 0;
+      if (mismodia && news.startTime && news.endTime) {
+        const [sh, sm] = news.startTime.split(":").map(Number);
+        const [eh, em] = news.endTime.split(":").map(Number);
+        horas = Math.ceil(eh + em / 60 - (sh + sm / 60));
+        if (horas < 0) horas += 24;
+      } else if (news.startTime && news.endTime) {
+        const [sh, sm] = news.startTime.split(":").map(Number);
+        const [eh, em] = news.endTime.split(":").map(Number);
+        const diff = fechaFin.diff(fechaInicio, "days");
+        horas = Math.ceil(
+          24 - (sh + sm / 60) + (eh + em / 60) + Math.max(0, diff - 1) * 24
+        );
+      }
+
+      if (normativa && normativa.multiplicador) {
+        const mult = parseFloat(normativa.multiplicador);
+        const valorHora = (salario * mult) / horasBaseMensuales;
+        return (
+          `(${fmt(salario)} × ${mult}) ÷ ${horasBaseMensuales}h × ${horas}h` +
+          ` = ${fmt(Math.round(horas * valorHora * 100) / 100)}` +
+          ` [${normativa.codigo || normativa.nombre || hourTypeId}]`
+        );
+      }
+
+      if (tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0) {
+        const factor = parseFloat(tipoNovedad.percentage) / 100;
+        const valorHora = (salario * factor) / horasBaseMensuales;
+        return (
+          `(${fmt(salario)} × ${tipoNovedad.percentage}%) ÷ ${horasBaseMensuales}h × ${horas}h` +
+          ` = ${fmt(Math.round(horas * valorHora * 100) / 100)}`
+        );
+      }
+
+      return `${horas}h × ${fmt(tipoNovedad.amount || 0)}/h`;
+    }
+
+    // Novedad por días
+    const inicio = moment.utc(news.startDate);
+    const fin = moment.utc(news.endDate || news.startDate);
+    if (!inicio.isValid() || !fin.isValid()) return "—";
+    const dias = fin.diff(inicio, "days") + 1;
+
+    if (tipoNovedad.percentage && parseFloat(tipoNovedad.percentage) > 0) {
+      const pct = parseFloat(tipoNovedad.percentage);
+      const valorDia = salario / 30;
+      const total = Math.round(dias * valorDia * (pct / 100) * 100) / 100;
+      return (
+        `${fmt(salario)} ÷ 30 × ${dias}d × ${pct}%` +
+        ` = ${fmt(total)}`
+      );
+    }
+
+    if (tipoNovedad.amount && parseFloat(tipoNovedad.amount) > 0) {
+      return `Valor fijo: ${fmt(parseFloat(tipoNovedad.amount))}`;
+    }
+
+    return "—";
+  };
 
   // Función para calcular el total en el modal de detalles
   const calcularTotalNovedades = (novedades, employee) => {
@@ -3181,7 +3276,8 @@ const LiquidationForm = () => {
                         <th>Hora Fin</th>
                         <th># Horas</th>
                         <th>Estado</th>
-                        <th>Valor de la Novedad</th>
+                        <th>Fórmula</th>
+                        <th>Valor</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3228,14 +3324,33 @@ const LiquidationForm = () => {
                                   ? "Activo"
                                   : "Inactivo"}
                               </td>
-                              <td>{formatCurrency(valorNovedad)}</td>
+                              <td>
+                                <small
+                                  className="text-muted"
+                                  style={{
+                                    fontSize: "0.75rem",
+                                    fontFamily: "monospace",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {buildFormula(news, tipoNovedad, selectedEmployee)}
+                                </small>
+                              </td>
+                              <td
+                                style={{
+                                  fontWeight: "bold",
+                                  color: valorNovedad >= 0 ? "#27ae60" : "#e74c3c",
+                                }}
+                              >
+                                {formatCurrency(valorNovedad)}
+                              </td>
                             </tr>
                           );
                         })}
                       {/* Fila de total de novedades */}
                       <tr>
                         <td
-                          colSpan={8}
+                          colSpan={9}
                           style={{ textAlign: "right", fontWeight: "bold" }}
                         >
                           Total Novedades:
@@ -3257,6 +3372,124 @@ const LiquidationForm = () => {
                 </div>
               </Col>
             </Row>
+
+            {/* ── RESUMEN DE LIQUIDACIÓN ── */}
+            {calculatedValues[selectedEmployee.id] && (
+              <Row className="mt-4">
+                <Col md="12">
+                  <h4 className="mb-3">Resumen de Liquidación</h4>
+                  <div
+                    style={{
+                      background: "#f8f9fa",
+                      border: "1px solid #dee2e6",
+                      borderRadius: "8px",
+                      padding: "1.25rem",
+                    }}
+                  >
+                    {(() => {
+                      const ev = calculatedValues[selectedEmployee.id];
+                      const salarioBase = ev.basic_salary_proportional || 0;
+                      const salarioCompleto = Number(selectedEmployee.basicmonthlysalary) || 0;
+                      const novedadesPos = filteredEmployeeNews
+                        .filter((n) => n.employeeId === selectedEmployee.id)
+                        .reduce((acc, n) => {
+                          const t = typeNews.find((x) => x.id === n.typeNewsId);
+                          const { valorNovedad } = calculateNovedadValue(n, selectedEmployee, t);
+                          return acc + (valorNovedad > 0 ? valorNovedad : 0);
+                        }, 0);
+                      const novedadesNeg = filteredEmployeeNews
+                        .filter((n) => n.employeeId === selectedEmployee.id)
+                        .reduce((acc, n) => {
+                          const t = typeNews.find((x) => x.id === n.typeNewsId);
+                          const { valorNovedad } = calculateNovedadValue(n, selectedEmployee, t);
+                          return acc + (valorNovedad < 0 ? valorNovedad : 0);
+                        }, 0);
+                      const auxTransporte = ev.transportation_assistance_final || 0;
+                      const auxMovilidad = ev.mobility_assistance_final || 0;
+                      const prestacionales = ev.valor_prestacionales || 0;
+                      const baseSS = ev.base_security_social || 0;
+                      const cuarentaPct = salarioCompleto * 0.4;
+                      const movilidadEnSS = auxMovilidad > cuarentaPct;
+                      const salud = ev.health_discount || 0;
+                      const pension = ev.pension_discount || 0;
+                      const neto = ev.total || 0;
+
+                      const Row2 = ({ label, value, color, bold, indent }) => (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            padding: "4px 0",
+                            paddingLeft: indent ? "1.5rem" : 0,
+                            fontWeight: bold ? "700" : "normal",
+                            color: color || "inherit",
+                            borderTop: bold ? "1px solid #dee2e6" : "none",
+                            marginTop: bold ? "6px" : 0,
+                          }}
+                        >
+                          <span>{label}</span>
+                          <span style={{ fontFamily: "monospace" }}>{value}</span>
+                        </div>
+                      );
+
+                      return (
+                        <div style={{ maxWidth: "520px" }}>
+                          {/* DEVENGADO */}
+                          <p className="mb-2" style={{ fontWeight: 600, color: "#2c3e50" }}>
+                            Devengado
+                          </p>
+                          <Row2 label="Salario base del período" value={formatCurrency(salarioBase)} indent />
+                          {novedadesPos > 0 && (
+                            <Row2 label="+ Novedades devengadas" value={`+ ${formatCurrency(novedadesPos)}`} color="#27ae60" indent />
+                          )}
+                          {novedadesNeg < 0 && (
+                            <Row2 label="- Descuentos por novedades" value={`- ${formatCurrency(Math.abs(novedadesNeg))}`} color="#e74c3c" indent />
+                          )}
+                          {auxTransporte > 0 && (
+                            <Row2 label="+ Auxilio de transporte" value={`+ ${formatCurrency(auxTransporte)}`} indent />
+                          )}
+                          {auxMovilidad > 0 && (
+                            <Row2 label="+ Auxilio de movilidad" value={`+ ${formatCurrency(auxMovilidad)}`} indent />
+                          )}
+                          <Row2
+                            label="= Total devengado"
+                            value={formatCurrency(salarioBase + novedadesPos + novedadesNeg + auxTransporte + auxMovilidad)}
+                            bold
+                            color="#27ae60"
+                          />
+
+                          {/* BASE SEGURIDAD SOCIAL */}
+                          <p className="mb-2 mt-4" style={{ fontWeight: 600, color: "#2c3e50" }}>
+                            Base seguridad social
+                          </p>
+                          <Row2 label="Salario base proporcional" value={formatCurrency(salarioBase)} indent />
+                          {prestacionales > 0 && (
+                            <Row2 label="+ Novedades prestacionales" value={`+ ${formatCurrency(prestacionales)}`} color="#27ae60" indent />
+                          )}
+                          <Row2
+                            label={`Aux. movilidad ${movilidadEnSS ? "(> 40% salario → se incluye)" : "(≤ 40% salario → no incluye)"}`}
+                            value={movilidadEnSS ? `+ ${formatCurrency(auxMovilidad)}` : "—"}
+                            color={movilidadEnSS ? "#27ae60" : "#6c757d"}
+                            indent
+                          />
+                          <Row2 label="= Base SS" value={formatCurrency(baseSS)} bold />
+                          <Row2 label="- Descuento Salud (4%)" value={`- ${formatCurrency(salud)}`} color="#e74c3c" indent />
+                          <Row2 label="- Descuento Pensión (4%)" value={`- ${formatCurrency(pension)}`} color="#e74c3c" indent />
+
+                          {/* NETO */}
+                          <Row2
+                            label="= NETO A PAGAR"
+                            value={formatCurrency(neto)}
+                            bold
+                            color="#2c3e50"
+                          />
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </Col>
+              </Row>
+            )}
           </ModalBody>
         </Modal>
       )}

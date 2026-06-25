@@ -11,6 +11,7 @@ import {
   Row,
   Col,
   FormFeedback,
+  Alert,
 } from "reactstrap";
 import {
   employeeNewsApi,
@@ -22,6 +23,30 @@ import {
 import { toast } from "react-toastify";
 import { getTiposHorasLaborales } from "@/utils/helpers/normativasHelper";
 import moment from "moment";
+
+/**
+ * Mapa de compatibilidad: código del tipo de novedad → códigos válidos de normativa de hora.
+ * Evita que el usuario elija, por ejemplo, "Recargo Dominical Compensado" con la normativa
+ * de "Hora Extra Diurna", que produce valores de liquidación incorrectos.
+ */
+const COMPATIBILIDAD_NOVEDAD_HORA = {
+  HED:  ["HED"],
+  HEN:  ["HEN"],
+  HEDF: ["HEDF", "HEDD"],
+  HENF: ["HENF", "HEDN"],
+  RNO:  ["RNO"],
+  RNFC: ["RNFC"],
+  RNF:  ["RNF"],
+  RDC:  ["RDC", "RDD"],
+  RD:   ["RD", "RDN"],
+  HO:   ["HO"],
+};
+
+const esCombinacionCompatible = (codigoNovedad, codigoHora) => {
+  const compatibles = COMPATIBILIDAD_NOVEDAD_HORA[codigoNovedad];
+  if (!compatibles) return true; // Sin regla conocida = no bloquear
+  return compatibles.includes(codigoHora);
+};
 
 const EmployeeNewsForm = ({
   isOpen,
@@ -59,6 +84,9 @@ const EmployeeNewsForm = ({
   const [existingDocument, setExistingDocument] = useState(null);
   const [isApproved, setIsApproved] = useState(false);
   const [tiposHorasLaborales, setTiposHorasLaborales] = useState([]);
+  const [allTiposHorasLaborales, setAllTiposHorasLaborales] = useState([]);
+  const [showAllHourTypes, setShowAllHourTypes] = useState(false);
+  const [incompatibilidadAviso, setIncompatibilidadAviso] = useState("");
   const [selectedTypeNews, setSelectedTypeNews] = useState(null);
   const [existingNews, setExistingNews] = useState([]);
   const [overlapError, setOverlapError] = useState("");
@@ -440,7 +468,7 @@ const EmployeeNewsForm = ({
     }
   };
 
-  // Cargar tipos de horas laborales cuando cambia el tipo de novedad
+  // Cargar y filtrar tipos de horas laborales cuando cambia el tipo de novedad
   useEffect(() => {
     const loadTiposHoras = async () => {
       if (formData.typeNewsId) {
@@ -448,24 +476,46 @@ const EmployeeNewsForm = ({
           (t) => t.id === parseInt(formData.typeNewsId)
         );
         setSelectedTypeNews(selectedType);
+        setIncompatibilidadAviso("");
+        setShowAllHourTypes(false);
 
         if (selectedType && selectedType.calculateperhour) {
           try {
-            const tipos = await getTiposHorasLaborales(
+            const todos = await getTiposHorasLaborales(
               formData.startDate || new Date()
             );
-            setTiposHorasLaborales(tipos);
+            setAllTiposHorasLaborales(todos);
+
+            // Filtrar solo los tipos compatibles con el código de la novedad
+            const codigosCompatibles = COMPATIBILIDAD_NOVEDAD_HORA[selectedType.code];
+            if (codigosCompatibles && codigosCompatibles.length > 0) {
+              const filtrados = todos.filter(
+                (t) => codigosCompatibles.includes(t.codigo)
+              );
+              setTiposHorasLaborales(filtrados.length > 0 ? filtrados : todos);
+              if (filtrados.length === 0) {
+                setIncompatibilidadAviso(
+                  `No se encontraron normativas con código ${codigosCompatibles.join(" / ")}. Se muestran todas las opciones.`
+                );
+              }
+            } else {
+              setTiposHorasLaborales(todos);
+            }
           } catch (error) {
             console.error("Error cargando tipos de horas laborales:", error);
             setTiposHorasLaborales([]);
+            setAllTiposHorasLaborales([]);
           }
         } else {
           setTiposHorasLaborales([]);
+          setAllTiposHorasLaborales([]);
           setFormData((prev) => ({ ...prev, hourTypeId: "" }));
         }
       } else {
         setSelectedTypeNews(null);
         setTiposHorasLaborales([]);
+        setAllTiposHorasLaborales([]);
+        setIncompatibilidadAviso("");
       }
     };
 
@@ -735,6 +785,23 @@ const EmployeeNewsForm = ({
       !formData.hourTypeId
     ) {
       newErrors.hourTypeId = "Debe seleccionar un tipo de hora laboral";
+    }
+
+    // Validar compatibilidad: tipo de novedad ↔ tipo de hora laboral
+    if (
+      selectedTypeNews &&
+      selectedTypeNews.calculateperhour &&
+      formData.hourTypeId &&
+      selectedTypeNews.code
+    ) {
+      const hourType = allTiposHorasLaborales.find(
+        (t) => t.id === parseInt(formData.hourTypeId)
+      );
+      if (hourType && hourType.codigo && !esCombinacionCompatible(selectedTypeNews.code, hourType.codigo)) {
+        const codigosEsperados = COMPATIBILIDAD_NOVEDAD_HORA[selectedTypeNews.code];
+        newErrors.hourTypeId = `"${hourType.nombre}" no es compatible con "${selectedTypeNews.name}". Use una normativa con código: ${codigosEsperados?.join(" / ") || "desconocido"}. Esto generaría una liquidación incorrecta.`;
+        setIncompatibilidadAviso(newErrors.hourTypeId);
+      }
     }
 
     // Validar solapamiento de fechas
@@ -1015,53 +1082,123 @@ const EmployeeNewsForm = ({
             <Row>
               <Col md="12">
                 <FormGroup>
-                  <Label for="hourTypeId">Tipo de Hora Laboral *</Label>
+                  <Label for="hourTypeId">
+                    Tipo de Hora Laboral *{" "}
+                    {selectedTypeNews.code && COMPATIBILIDAD_NOVEDAD_HORA[selectedTypeNews.code] && !showAllHourTypes && (
+                      <small className="text-success fw-normal">
+                        <i className="fas fa-filter me-1"></i>
+                        Mostrando solo tipos compatibles con{" "}
+                        <strong>{selectedTypeNews.code}</strong>
+                      </small>
+                    )}
+                  </Label>
+
+                  {/* Aviso de incompatibilidad */}
+                  {incompatibilidadAviso && (
+                    <Alert color="warning" className="py-2 mb-2" style={{ fontSize: "0.85rem" }}>
+                      <i className="fas fa-exclamation-triangle me-1"></i>
+                      {incompatibilidadAviso}
+                    </Alert>
+                  )}
+
                   <Input
                     type="select"
                     name="hourTypeId"
                     id="hourTypeId"
                     value={formData.hourTypeId}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Verificar compatibilidad al cambiar selección
+                      const hourType = allTiposHorasLaborales.find(
+                        (t) => t.id === parseInt(e.target.value)
+                      );
+                      if (
+                        hourType &&
+                        hourType.codigo &&
+                        selectedTypeNews.code &&
+                        !esCombinacionCompatible(selectedTypeNews.code, hourType.codigo)
+                      ) {
+                        const esperados = COMPATIBILIDAD_NOVEDAD_HORA[selectedTypeNews.code];
+                        setIncompatibilidadAviso(
+                          `⚠️ "${hourType.nombre}" (${hourType.codigo}) no es compatible con "${selectedTypeNews.name}". Normativa esperada: ${esperados?.join(" / ")}. La liquidación sería incorrecta.`
+                        );
+                      } else {
+                        setIncompatibilidadAviso("");
+                      }
+                    }}
                     invalid={!!errors.hourTypeId}
                     required
                     disabled={isApproved}
+                    style={
+                      incompatibilidadAviso && formData.hourTypeId
+                        ? { borderColor: "#fd7e14", boxShadow: "0 0 0 0.2rem rgba(253,126,20,.25)" }
+                        : {}
+                    }
                   >
                     <option value="">
                       {tiposHorasLaborales.length === 0
                         ? "Cargando tipos de horas..."
                         : "Seleccione un tipo de hora laboral"}
                     </option>
-                    {tiposHorasLaborales.map((tipoHora) => {
-                      // Formatear multiplicador de forma más legible
-                      let multiplicadorTexto = "";
-                  if (tipoHora.multiplicador) {
-                        const mult = parseFloat(tipoHora.multiplicador);
-                        if (mult === 1.0) {
-                          multiplicadorTexto = " (Sin recargo)";
-                        } else {
-                          const porcentaje = (mult * 100).toFixed(0);
-                          multiplicadorTexto = ` (+${porcentaje}%)`;
-                        }
-                      }
+                    {(showAllHourTypes ? allTiposHorasLaborales : tiposHorasLaborales).map(
+                      (tipoHora) => {
+                        const mult = tipoHora.multiplicador
+                          ? parseFloat(tipoHora.multiplicador)
+                          : null;
+                        const multiplicadorTexto =
+                          mult === null
+                            ? ""
+                            : mult === 1.0
+                            ? " — Sin recargo adicional"
+                            : ` — factor total ${mult}x (${(mult * 100).toFixed(0)}% del valor hora)`;
 
-                      return (
-                        <option key={tipoHora.id} value={tipoHora.id}>
-                          {tipoHora.codigo ? `[${tipoHora.codigo}] ` : ""}
-                          {tipoHora.nombre}
-                          {multiplicadorTexto}
-                        </option>
-                      );
-                    })}
+                        const esIncompatible =
+                          showAllHourTypes &&
+                          selectedTypeNews.code &&
+                          tipoHora.codigo &&
+                          !esCombinacionCompatible(selectedTypeNews.code, tipoHora.codigo);
+
+                        return (
+                          <option
+                            key={tipoHora.id}
+                            value={tipoHora.id}
+                            style={esIncompatible ? { color: "#aaa" } : {}}
+                          >
+                            {tipoHora.codigo ? `[${tipoHora.codigo}] ` : ""}
+                            {tipoHora.nombre}
+                            {multiplicadorTexto}
+                            {esIncompatible ? " ⚠ incompatible" : ""}
+                          </option>
+                        );
+                      }
+                    )}
                   </Input>
+
                   {errors.hourTypeId && (
                     <FormFeedback>{errors.hourTypeId}</FormFeedback>
                   )}
-                  <small className="text-muted">
-                    <i className="fas fa-info-circle me-1"></i>
-                    Seleccione el tipo de hora laboral según la normativa
-                    vigente. El porcentaje indica el recargo aplicado sobre el
-                    salario base.
-                  </small>
+
+                  <div className="d-flex justify-content-between align-items-start mt-1">
+                    <small className="text-muted">
+                      <i className="fas fa-info-circle me-1"></i>
+                      El factor total indica cuánto vale la hora respecto a una hora ordinaria.
+                    </small>
+                    {allTiposHorasLaborales.length > tiposHorasLaborales.length && (
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0 ms-2"
+                        style={{ fontSize: "0.78rem", whiteSpace: "nowrap" }}
+                        onClick={() => {
+                          setShowAllHourTypes((prev) => !prev);
+                          setIncompatibilidadAviso("");
+                        }}
+                      >
+                        {showAllHourTypes
+                          ? "Mostrar solo compatibles"
+                          : `Ver todos (${allTiposHorasLaborales.length})`}
+                      </button>
+                    )}
+                  </div>
                   {tiposHorasLaborales.length === 0 &&
                     selectedTypeNews &&
                     selectedTypeNews.calculateperhour && (
