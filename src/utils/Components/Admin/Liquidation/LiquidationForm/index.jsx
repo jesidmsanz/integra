@@ -1285,8 +1285,8 @@ const LiquidationForm = () => {
       typeNews.forEach((type) => {
         const novedadData = employeeValues.novedades?.[type.id];
         const valorNovedad = novedadData?.valor || 0;
-        baseData[type.code] =
-          valorNovedad > 0 ? formatCurrency(valorNovedad) : "";
+        // Mostrar novedades positivas (devengos) y negativas (descuentos como LNR)
+        baseData[type.code] = valorNovedad !== 0 ? formatCurrency(valorNovedad) : "";
       });
 
       // Usar los valores calculados directamente de calculatedValues
@@ -2065,18 +2065,19 @@ const LiquidationForm = () => {
               const valorPatronalBase = diasPatronal * salarioDiario;
               const valorEPSBase = diasEPS * salarioDiario;
 
-              // Aplicar porcentaje del 66.67% si existe en el tipo de novedad
+              // 66.67% es la tasa legal para incapacidad_general_eps (Art. 227 CST).
+              // Si el tipo de novedad no tiene porcentaje configurado, se usa el legal.
               const percentage = tienePorcentaje
                 ? parseFloat(tipoNovedad.percentage)
-                : 100;
+                : 66.67;
               valorPatronal = valorPatronalBase * (percentage / 100);
               valorEPS = valorEPSBase * (percentage / 100);
               valorNovedad = valorPatronal + valorEPS; // Valor total = patronal + EPS
             } else {
-              // Sin aportes: todo patronal
+              // Sin aportes: todo patronal al 66.67%
               const percentage = tienePorcentaje
                 ? parseFloat(tipoNovedad.percentage)
-                : 100;
+                : 66.67;
               valorPatronal = dias * salarioDiario * (percentage / 100);
               valorNovedad = valorPatronal;
             }
@@ -2276,13 +2277,45 @@ const LiquidationForm = () => {
           const type = typeNews.find((t) => t.id === news.typeNewsId);
           if (!type) return;
 
-          const {
+          let {
             valorNovedad,
             totalHoras,
             valorPatronal,
             valorARL,
             valorEPS,
           } = calculateNovedadValue(news, employee, type);
+
+          // PISO MÍNIMO LEGAL: la incapacidad diaria no puede ser menor a 1 SMLDV
+          // (Salario Mínimo Legal Diario Vigente = salarioMinimo / 30).
+          // Aplica a incapacidad_general_eps, incapacidad_general_arl,
+          // incapacidad_eps y accidente_trabajo.
+          const REGLAS_CON_PISO_MINIMO = [
+            "incapacidad_general_eps",
+            "incapacidad_general_arl",
+            "incapacidad_eps",
+            "accidente_trabajo",
+          ];
+          if (
+            salarioMinimo &&
+            valorNovedad > 0 &&
+            REGLAS_CON_PISO_MINIMO.includes(type.payment_rule)
+          ) {
+            const diasNovedad =
+              moment.utc(news.endDate).diff(moment.utc(news.startDate), "days") + 1;
+            const smldv = salarioMinimo / 30;
+            const pisoMinimo = Math.round(smldv * diasNovedad * 100) / 100;
+            if (valorNovedad < pisoMinimo) {
+              const diferencia = pisoMinimo - valorNovedad;
+              valorNovedad = pisoMinimo;
+              // Asignar la diferencia al tipo de responsable que corresponde
+              if (type.payment_rule === "incapacidad_general_arl" || type.payment_rule === "accidente_trabajo") {
+                valorARL = Math.round((valorARL + diferencia) * 100) / 100;
+              } else {
+                valorEPS = Math.round((valorEPS + diferencia) * 100) / 100;
+              }
+              valorNovedad = Math.round(valorNovedad * 100) / 100;
+            }
+          }
 
           // Debug: mostrar valores calculados
           if (valorARL > 0 || valorEPS > 0) {
@@ -2399,6 +2432,49 @@ const LiquidationForm = () => {
               diasAfectadosSalarioBase += diasNovedad;
               diasAfectadosAuxilioMovilidad += diasNovedad;
               reemplazaSalarioBase = true;
+            }
+
+            // LICENCIA NO REMUNERADA y similares:
+            // Se identifica por affects.basicmonthlysalary = true + isDiscount = true.
+            // El empleado no trabaja esos días y no recibe pago alguno.
+            // La reducción del salario se gestiona vía diasAfectadosSalarioBase;
+            // el valor de la deducción se almacena en novedades (solo para visualización
+            // en Excel/modal) pero NO se suma al total, para evitar doble conteo.
+            const esLicenciaSinPago =
+              (affectsData.basicmonthlysalary === true ||
+                affectsData.basicmonthlysalary === "true") &&
+              esDescuento &&
+              !(affectsData.baseSalary === true || affectsData.baseSalary === "true") &&
+              !esIncapacidadPorReglaPago &&
+              !esIncapacidadPorCategoria;
+
+            if (esLicenciaSinPago) {
+              diasAfectadosSalarioBase += diasNovedad;
+              reemplazaSalarioBase = true;
+
+              // Auxilio de transporte: si affects.transportationassistance es false, se descuenta
+              if (
+                affectsData.transportationassistance === false ||
+                affectsData.transportationassistance === "false"
+              ) {
+                diasAfectadosAuxilioTransporte += diasNovedad;
+              }
+              // Auxilio de movilidad: si affects.mobilityassistance es false, se descuenta
+              if (
+                affectsData.mobilityassistance === false ||
+                affectsData.mobilityassistance === "false"
+              ) {
+                diasAfectadosAuxilioMovilidad += diasNovedad;
+              }
+
+              // Guardar el valor de la deducción para visualización (Excel, modal)
+              const salarioDiarioLNR = salarioBaseCalculado / 30;
+              const valorDeduccionLNR = -Math.round(salarioDiarioLNR * diasNovedad * 100) / 100;
+              newCalculatedValues[employee.id].novedades[type.id].valor = Math.round(
+                (newCalculatedValues[employee.id].novedades[type.id].valor + valorDeduccionLNR) * 100
+              ) / 100;
+              // NOTA: No agregar valorDeduccionLNR al total: la reducción de salario
+              // ya está cubierta por diasAfectadosSalarioBase.
             }
 
             // AUXILIO DE TRANSPORTE
@@ -2656,12 +2732,17 @@ const LiquidationForm = () => {
         newCalculatedValues[employee.id].total += auxilioMovilidad;
       }
 
-      // VALIDACIÓN LEGAL: Si la base de seguridad social es menor al salario base completo,
-      // usar el salario base completo para calcular descuentos de salud y pensión
-      // (El descuento de seguridad social no puede ser inferior al salario del trabajador)
+      // La base de cotización de seguridad social (IBC) no puede ser inferior al salario
+      // contractual completo del período ni al SMMLV vigente.
+      // La afiliación a salud y pensión es mensual: aunque el empleado trabaje 15 días,
+      // la cobertura cubre el mes completo, por lo que los aportes se calculan sobre
+      // la base contractual íntegra (salario completo o SMMLV, el mayor de los dos).
+      const pisoContractual = salarioBaseCalculado || 0;
+      const pisoSMMLV = salarioMinimo || 0;
+      const pisoCotizacion = Math.max(pisoContractual, pisoSMMLV);
       const baseParaDescuentos =
-        baseSeguridadSocial < salarioBaseCalculado
-          ? salarioBaseCalculado
+        baseSeguridadSocial < pisoCotizacion
+          ? pisoCotizacion
           : baseSeguridadSocial;
       // CALCULAR DESCUENTOS DE SALUD Y PENSIÓN (4% cada uno de la base de seguridad social)
       const isSecondCut =

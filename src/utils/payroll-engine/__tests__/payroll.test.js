@@ -9,6 +9,8 @@ const {
   calcularSalarioProporcional,
   calcularAuxilioTransporte,
   calcularBaseSeguridadSocial,
+  calcularBaseParaDescuentos,
+  calcularPisoMinimoIncapacidad,
   calcularNovedadPorHora,
   calcularNovedadPorDias,
   esIncapacidadQueReduceSalario,
@@ -286,6 +288,113 @@ describe("Validación de compatibilidad novedad ↔ tipo de hora laboral", () =>
 
   test("código no mapeado → siempre compatible (no restricción)", () => {
     expect(esCombinacionCompatible("CUSTOM", "CUALQUIERA")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regla de base de cotización (IBC): piso = salario completo o SMMLV
+// ---------------------------------------------------------------------------
+describe("calcularBaseParaDescuentos — IBC mínimo legal", () => {
+  const SMMLV = 1_423_500;
+  const salario = 2_000_000;
+
+  test("retiro día 15: SS se calcula sobre el salario COMPLETO (no proporcional)", () => {
+    // IBC legal: la afiliación es mensual → base = salario contractual completo
+    const proporcional = calcularSalarioProporcional(salario, 30, 15); // 1.000.000
+    const baseSS = calcularBaseSeguridadSocial(proporcional, 0, 0, salario);
+
+    // Piso = salario completo (2.000.000) > SMMLV
+    const baseDescuentos = calcularBaseParaDescuentos(baseSS, salario, SMMLV);
+    expect(baseDescuentos).toBe(salario); // 2.000.000
+
+    const { salud } = calcularDescuentosSegSocial(baseDescuentos);
+    expect(salud).toBe(80_000); // 4% de 2.000.000
+  });
+
+  test("período completo: base = salario completo (sin reducción)", () => {
+    const baseSS = calcularBaseSeguridadSocial(salario, 0, 0, salario);
+    const base = calcularBaseParaDescuentos(baseSS, salario, SMMLV);
+    expect(base).toBe(salario);
+  });
+
+  test("empleado con prestacionales que superan el salario: usa baseSS", () => {
+    const prestacionales = 600_000;
+    const baseSS = calcularBaseSeguridadSocial(salario, prestacionales, 0, salario);
+    const base = calcularBaseParaDescuentos(baseSS, salario, SMMLV);
+    // baseSS incluye prestacionales → mayor que piso
+    expect(base).toBe(baseSS);
+    expect(base).toBeGreaterThan(salario);
+  });
+
+  test("empleado sin SMMLV configurado: usa salario como piso", () => {
+    const baseSS = calcularBaseSeguridadSocial(500_000, 0, 0, salario);
+    const base = calcularBaseParaDescuentos(baseSS, salario, 0);
+    expect(base).toBe(salario);
+  });
+
+  test("salario = SMMLV exacto: piso = SMMLV", () => {
+    const baseSS = calcularBaseSeguridadSocial(SMMLV, 0, 0, SMMLV);
+    const base = calcularBaseParaDescuentos(baseSS, SMMLV, SMMLV);
+    expect(base).toBe(SMMLV);
+
+    const { salud, pension } = calcularDescuentosSegSocial(base);
+    expect(salud).toBe(Math.round(SMMLV * 0.04));
+    expect(pension).toBe(Math.round(SMMLV * 0.04));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pendiente 3 — Piso mínimo legal en incapacidad EPS (SMLDV)
+// ---------------------------------------------------------------------------
+describe("Incapacidad EPS — piso mínimo SMLDV", () => {
+  const SMMLV = 1_423_500;
+  const smldv = SMMLV / 30; // ≈ 47.450
+
+  test("calcularPisoMinimoIncapacidad: retorna 0 si falta salario", () => {
+    expect(calcularPisoMinimoIncapacidad(10, null)).toBe(0);
+    expect(calcularPisoMinimoIncapacidad(null, smldv)).toBe(0);
+  });
+
+  test("piso = SMLDV × días", () => {
+    expect(calcularPisoMinimoIncapacidad(30, smldv)).toBe(SMMLV);
+    expect(calcularPisoMinimoIncapacidad(10, smldv)).toBe(Math.round(smldv * 10 * 100) / 100);
+  });
+
+  test("incapacidad 66.67% por encima del piso: no se ajusta (salario alto)", () => {
+    // Empleado con salario de 3.000.000
+    const salario = 3_000_000;
+    const salarioDiario = salario / 30; // 100.000
+    const diasIncap = 10;
+    const valorCalculado = salarioDiario * diasIncap * 0.6667; // 666.700
+    const piso = calcularPisoMinimoIncapacidad(diasIncap, smldv); // ~474.500
+
+    expect(valorCalculado).toBeGreaterThan(piso);
+  });
+
+  test("incapacidad 66.67% por debajo del piso: debe aplicar piso (caso Paula Franco)", () => {
+    // Empleado ganando exactamente SMMLV
+    const salario = SMMLV;
+    const salarioDiario = salario / 30;
+    const diasIncap = 30;
+    // 66.67% del salario mínimo < SMMLV (piso)
+    const valorSin66 = Math.round(salarioDiario * diasIncap * (66.67 / 100) * 100) / 100;
+    const pisoLegal = calcularPisoMinimoIncapacidad(diasIncap, smldv);
+
+    // 66.67% < SMMLV, entonces debe aplicarse el piso
+    expect(valorSin66).toBeLessThan(pisoLegal);
+    // El piso es el salario completo (1 SMMLV)
+    expect(pisoLegal).toBe(SMMLV);
+  });
+
+  test("piso corrige el valor de la incapacidad si es menor", () => {
+    const salario = SMMLV;
+    const diasIncap = 30;
+    const smldvLocal = SMMLV / 30;
+    const valorCalculado = Math.round((salario / 30) * diasIncap * (66.67 / 100) * 100) / 100;
+    const piso = calcularPisoMinimoIncapacidad(diasIncap, smldvLocal);
+    const valorFinal = valorCalculado < piso ? piso : valorCalculado;
+
+    expect(valorFinal).toBe(SMMLV);
   });
 });
 

@@ -253,7 +253,53 @@ function esCombinacionCompatible(codigoNovedad, codigoHoraTipo) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Descuentos de seguridad social
+// 8. Piso mínimo legal para incapacidades (SMLDV)
+// ---------------------------------------------------------------------------
+
+/**
+ * Calcula el valor mínimo legal que debe pagarse por una incapacidad,
+ * equivalente a 1 SMLDV (Salario Mínimo Legal Diario Vigente) por día.
+ *
+ * @param {number} diasNovedad        - Días de la incapacidad.
+ * @param {number} salarioMinimoDiario - SMMLV / 30.
+ * @returns {number} Piso mínimo redondeado al peso.
+ */
+function calcularPisoMinimoIncapacidad(diasNovedad, salarioMinimoDiario) {
+  if (!diasNovedad || !salarioMinimoDiario) return 0;
+  return Math.round(salarioMinimoDiario * diasNovedad * 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Base efectiva para descuentos de seguridad social
+// ---------------------------------------------------------------------------
+
+/**
+ * Determina la base efectiva (IBC) para calcular las deducciones de salud y pensión.
+ *
+ * Regla legal Colombia: la afiliación a SS es mensual. Aunque el empleado trabaje
+ * solo una parte del mes (retiro, ingreso), la cobertura es del mes completo.
+ * Por eso el IBC mínimo es el mayor entre:
+ *   - `salarioBaseCompleto`: salario contractual del período (sin reducir por días)
+ *   - `salarioMinimoLegal`: SMMLV vigente (piso absoluto de cotización)
+ *
+ * Si ninguno de los pisos aplica (no se pasan), se usa `baseSeguridadSocial` directamente.
+ *
+ * @param {number} baseSeguridadSocial  - Resultado de `calcularBaseSeguridadSocial`.
+ * @param {number} salarioBaseCompleto  - Salario del período SIN reducir por días trabajados.
+ * @param {number} [salarioMinimoLegal] - SMMLV vigente (opcional).
+ * @returns {number}
+ */
+function calcularBaseParaDescuentos(
+  baseSeguridadSocial,
+  salarioBaseCompleto = 0,
+  salarioMinimoLegal = 0
+) {
+  const piso = Math.max(salarioBaseCompleto, salarioMinimoLegal);
+  return baseSeguridadSocial < piso ? piso : baseSeguridadSocial;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Descuentos de seguridad social
 // ---------------------------------------------------------------------------
 
 /**
@@ -288,6 +334,8 @@ module.exports = {
   calcularSalarioProporcional,
   calcularAuxilioTransporte,
   calcularBaseSeguridadSocial,
+  calcularBaseParaDescuentos,
+  calcularPisoMinimoIncapacidad,
   calcularNovedadPorHora,
   calcularNovedadPorDias,
   esIncapacidadQueReduceSalario,
